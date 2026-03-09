@@ -1,0 +1,47 @@
+{
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+    "name": "io.github.WaterTian/wechat-devtools-mcp",
+    "description": "MCP Server for WeChat DevTools CLI - Automate Mini Program development & testing.",
+    "repository": {
+        "url": "https://github.com/WaterTian/wechat-devtools-mcp",
+        "source": "github"
+    },
+    "version": "0.1.1",
+    "packages": [
+        {
+            "registryType": "pypi",
+            "identifier": "wechat-devtools-mcp",
+            "version": "0.1.1",
+            "runtimeHint": "uvx",
+            "transport": {
+                "type": "stdio"
+            },
+            "environmentVariables": [
+                {
+                    "name": "WECHAT_DEVTOOLS_CLI",
+                    "description": "微信开发者工具 CLI 路径",
+                    "isRequired": true,
+                    "isSecret": false
+                },
+                {
+                    "name": "WECHAT_PROJECT_PATH",
+                    "description": "默认小程序项目绝对路径",
+                    "isRequired": true,
+                    "isSecret": false
+                },
+                {
+                    "name": "WECHAT_CLI_TIMEOUT",
+                    "description": "CLI 命令超时时间（秒）",
+                    "isRequired": false,
+                    "default": "60"
+                },
+                {
+                    "name": "NODE_PATH",
+                    "description": "Node.js 可执行文件路径",
+                    "isRequired": false,
+                    "default": "node"
+                }
+            ]
+        }
+    ]
+}
