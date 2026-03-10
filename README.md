@@ -12,134 +12,90 @@
 
 ---
 
-## 安装与快速开始
+## 🛠️ 工具箱详解 (Toolbox Reference)
 
-### 1. 一键运行 (推荐)
+本项目提供超过 30 个 MCP 工具，按开发阶段分为以下六大核心模块：
 
-如果你安装了 [uv](https://github.com/astral-sh/uv)，可以使用以下命令直接在 Claude Desktop 或 Cursor 中调用，无需手动安装：
+### 1. 项目感知与上下文 (Context)
 
-```bash
-uvx wechat-devtools-mcp
-```
+在修改代码前，调用这些工具让 AI 了解你的小程序。
 
-### 2. 通过 pip 安装
+- `wechat_project_info`: 获取 `project.config.json` / `app.json` 配置及目录概览。
+- `wechat_list_pages`: 列出所有注册页面及其 `.wxml/.js/.wxss/.json` 文件状态。
+- `wechat_read_page`: 一键读取指定页面的所有源码（含逻辑、结构与样式）。
+- `wechat_read_file`: 读取项目中任意文件内容。
 
-```bash
-pip install wechat-devtools-mcp
-```
+### 2. 基础操作与生命周期
 
-### 3. 环境准备 (自动化功能必需)
+- `wechat_open`: 打开 IDE 或指定项目。建议开启 `cdp_enabled: true`。
+- `wechat_login`: 生成控制台/文件二维码进行扫码登录。
+- `wechat_is_login`: 快速检查当前登录状态。
+- `wechat_close_project` / `wechat_quit_ide`: 管理窗口状态。
 
-部分高级功能（如 UI 点击、CDP 日志捕获等）依赖 `miniprogram-automator`。安装 Python 包后，需确保您的 Node.js 环境已就绪：
+### 3. 构建、预览与编译 (Build)
 
-```bash
-# 进入包安装目录执行（通常在 site-packages/wechat_devtools_mcp/scripts）
-npm install
-```
+- `wechat_compile_check`: **[最常用]** 触发编译并捕获所有 Error 和 Warning，AI 调试的核心。
+- `wechat_preview_page`: 快捷预览指定页面，支持携带 Query 参数。
+- `wechat_build_npm`: 触发项目 NPM 构建。
+- `wechat_upload`: 一键上传代码至微信后台。
 
----
+### 4. 自动化交互 (Automation v4.0)
 
-## 编辑器配置
+通过代码控制小程序 UI，需先调用 `wechat_auto` 开启 9420 端口。
 
-### Claude Desktop
+- `wechat_tap_element`: 通过 CSS 选择器（如 `.btn`）模拟用户点击。
+- `wechat_input_element`: 模拟输入框/文本域内容输入。
+- `wechat_set_page_data`: **热更新**！直接修改页面 `Data` 状态，免编译查看 UI。
+- `wechat_call_wx_method`: 直接调用原生 `wx.xxx` 接口。
+- `wechat_page_stack`: 获取当前活跃的页面栈。
 
-修改 `claude_desktop_config.json`：
+### 5. 深度垂直调试 (Debug)
 
-```json
-{
-  "mcpServers": {
-    "wechat-devtools": {
-      "command": "uvx",
-      "args": ["wechat-devtools-mcp"],
-      "env": {
-        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
-        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path"
-      }
-    }
-  }
-}
-```
+- `wechat_get_cdp_logs`: **[推荐]** 捕获 WXML 警告、底层网络报错。
+- `wechat_get_console_logs`: 采集指定时间段内的页面 `console` 输出。
+- `wechat_capture_screenshot`: 捕获当前小程序画面的全屏截图（用于 UI 验收）。
 
-### Cursor / VS Code (MCP Plugin)
+### 6. 云开发管理 (Cloud)
 
-在 MCP 控制台中添加新 Server：
-
-- **Name**: `wechat-devtools`
-- **Type**: `command`
-- **Command**: `uvx wechat-devtools-mcp`
-- **Environment Variables**: 同上添加 `WECHAT_DEVTOOLS_CLI` 和 `WECHAT_PROJECT_PATH`。
+- `wechat_cloud_func_list` / `info`: 查阅线上云函数状态。
+- `wechat_cloud_func_deploy`: 部署/更新指定云函数。
+- `wechat_cloud_func_download`: 下载线上云函数源码。
 
 ---
 
-## 能力概览
+## 🤖 AI 协作 SOP (最佳实践)
 
-### v4.0 — 自动化交互
+为了达到最佳协作效果，建议按照以下工作流指挥 AI：
 
-| 能力 | 说明 |
-|------|------|
-| **点击 UI 元素** | 通过 CSS 选择器模拟 `tap` 点击任意元素 |
-| **表单输入** | 向 `input` / `textarea` 输入文本内容 |
-| **修改页面 Data** | 动态 `setData` 热更新 UI，免编译 |
-| **调用页面方法** | 远程触发 `onPullDownRefresh` 等页面方法 |
-| **获取元素详情** | 读取元素 text / wxml / style / size / offset |
-| **Mock wx API** | 覆盖 `showModal`、`chooseLocation` 等系统调用返回值 |
-| **调用 wx API** | 直接执行 `wx.setNavigationBarTitle` 等接口 |
-| **页面导航栈** | 查看完整的页面栈信息 |
-
-### v3.x — 实时调试
->
-> 💡 **核心建议**：在排查问题和采集日志时，**强烈建议直接使用 `wechat_get_cdp_logs`获取 CDP 高清日志**。
-
-| 能力 | 说明 |
-|------|------|
-| **CDP 高清日志** | 🆕 **[推荐]** 捕获底层 WXML 警告、网络报错、系统事件和完整堆栈 |
-| **Console 日志** | 实时捕获页面层级 `console.log/warn/error` 输出 |
-| **异常监控** | 监听 JS 异常（含完整调用栈） |
-| **持久连接** | 自动化端口一次开启常驻，多工具顺序调用无需重连 |
+1. **环境检查**: `wechat_is_login` -> `wechat_open(cdp_enabled=true)`
+2. **上下文理解**: `wechat_project_info` -> `wechat_read_page(page_path='pages/index/index')`
+3. **循环开发迭代**:
+    - (你或 AI 修改代码)
+    - 调用 `wechat_compile_check`。如有报错，将报错贴给 AI 修复。
+    - 调用 `wechat_preview_page` 查看真机/模拟器效果。
+4. **UI/逻辑验收**:
+    - 调用 `wechat_auto` 开启引擎。
+    - 执行 `wechat_tap_element` 触发逻辑，配合 `wechat_capture_screenshot` 截图确认。
 
 ---
 
----
-
-## 参考文档
-
-- [微信开发者工具 CLI](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html)
-- [小程序自动化 SDK](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/quick-start.html)
-
----
-
-## 环境变量说明
+## 💡 环境变量说明
 
 | 变量名 | 说明 | 默认值 | 必填 |
 |--------|------|--------|------|
 | `WECHAT_DEVTOOLS_CLI` | 微信开发者工具 CLI 路径 | 无 | **是** |
 | `WECHAT_PROJECT_PATH` | 默认小程序项目绝对路径 | 无 | **是** |
 | `WECHAT_CLI_TIMEOUT` | CLI 命令超时时间（秒） | `60` | 否 |
-| `NODE_PATH` | Node.js 可执行文件路径 | `node` | 否 |
+| `NODE_PATH` | Node.js 执行文件路径 | `node` | 否 |
 
 ---
 
-## AI 开发工作流指南
+## 参考文档
 
-1. **理解上下文**: `wechat_project_info` + `wechat_read_page`
-2. **执行修改**: (编写代码) -> `wechat_compile_check` (检查编译)
-3. **效果预览**: `wechat_preview_page`
-4. **自动化巡检**: `wechat_auto` -> `wechat_capture_screenshot` -> `wechat_get_cdp_logs`
+- [微信开发者工具 CLI 官方文档](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html)
+- [小程序自动化 SDK](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/quick-start.html)
 
 ---
-
-## 目录结构 (源码)
-
-```
-wechat-devtools-mcp/
-├── pyproject.toml             # Python 项目定义
-├── server.json                # MCP Registry 元数据
-├── LICENSE                    # MIT 许可证
-├── src/
-│   └── wechat_devtools_mcp/
-│       ├── server.py          # MCP Server 主入口
-│       └── scripts/           # Node.js 辅助脚本
-```
 
 ## 许可证
 
