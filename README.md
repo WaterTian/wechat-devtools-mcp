@@ -1,16 +1,73 @@
 # 微信开发者工具 MCP Server
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
+[![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > 将微信开发者工具 CLI 封装为 [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) 服务，使编辑器中的 AI 能够直接调用微信 CLI 命令，实现小程序**开发、测试、调试、自动化**全流程闭环。
 
 <!-- mcp-name: io.github.WaterTian/wechat-devtools-mcp -->
 
-参考文档：
+🚀 **本 MCP Server 已正式提交至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows/macOS）一键安装。
 
-- [微信开发者工具 CLI](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html)
-- [小程序自动化 SDK](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/quick-start.html)
+---
+
+## 安装与快速开始
+
+### 1. 一键运行 (推荐)
+
+如果你安装了 [uv](https://github.com/astral-sh/uv)，可以使用以下命令直接在 Claude Desktop 或 Cursor 中调用，无需手动安装：
+
+```bash
+uvx wechat-devtools-mcp
+```
+
+### 2. 通过 pip 安装
+
+```bash
+pip install wechat-devtools-mcp
+```
+
+### 3. 环境准备 (自动化功能必需)
+
+部分高级功能（如 UI 点击、CDP 日志捕获等）依赖 `miniprogram-automator`。安装 Python 包后，需确保您的 Node.js 环境已就绪：
+
+```bash
+# 进入包安装目录执行（通常在 site-packages/wechat_devtools_mcp/scripts）
+npm install
+```
+
+---
+
+## 编辑器配置
+
+### Claude Desktop
+
+修改 `claude_desktop_config.json`：
+
+```json
+{
+  "mcpServers": {
+    "wechat-devtools": {
+      "command": "uvx",
+      "args": ["wechat-devtools-mcp"],
+      "env": {
+        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
+        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path"
+      }
+    }
+  }
+}
+```
+
+### Cursor / VS Code (MCP Plugin)
+
+在 MCP 控制台中添加新 Server：
+
+- **Name**: `wechat-devtools`
+- **Type**: `command`
+- **Command**: `uvx wechat-devtools-mcp`
+- **Environment Variables**: 同上添加 `WECHAT_DEVTOOLS_CLI` 和 `WECHAT_PROJECT_PATH`。
 
 ---
 
@@ -42,50 +99,12 @@
 
 ---
 
-## 安装与配置
+---
 
-### 1. 全局安装 (推荐)
+## 参考文档
 
-使用 `pip` 即可直接安装：
-
-```bash
-pip install wechat-devtools-mcp
-```
-
-或者使用 `uvx` 直接运行（无需安装）：
-
-```bash
-uvx wechat-devtools-mcp
-```
-
-### 2. Node.js 依赖 (自动化功能必需)
-
-部分高级调试功能涉及 `miniprogram-automator`，安装包后需在对应目录下初始化 Node.js 环境：
-
-```bash
-# 进入包安装目录下的 scripts 文件夹执行
-npm install
-```
-
-### 3. 编辑器配置
-
-#### VS Code / Cursor / Claude Desktop
-
-在 MCP 配置文件中添加：
-
-```json
-{
-  "mcpServers": {
-    "wechat-devtools": {
-      "command": "wechat-devtools-mcp",
-      "env": {
-        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
-        "WECHAT_PROJECT_PATH": "D:\\path\\to\\your\\miniprogram"
-      }
-    }
-  }
-}
-```
+- [微信开发者工具 CLI](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html)
+- [小程序自动化 SDK](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/quick-start.html)
 
 ---
 
