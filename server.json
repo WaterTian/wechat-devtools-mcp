@@ -33,7 +33,7 @@
                     "name": "WECHAT_CLI_TIMEOUT",
                     "description": "CLI 命令超时时间（秒）",
                     "isRequired": false,
-                    "default": "60"
+                    "default": "30"
                 },
                 {
                     "name": "NODE_PATH",
