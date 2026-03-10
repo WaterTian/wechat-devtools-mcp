@@ -14,6 +14,12 @@
 
 ## � 安装与快速开始
 
+> [!IMPORTANT]
+> **在开始之前，请务必提前确认并准备好以下两个路径，您需要在编辑器配置中手动输入它们：**
+>
+> 1. **微信开发者工具 CLI 路径** (例如: `C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat`)
+> 2. **您的小程序项目绝对路径** (例如: `D:\\MyProjects\\mini-app`)
+
 ### 1. 一键运行 (推荐)
 
 如果你安装了 [uv](https://github.com/astral-sh/uv)，可以使用以下命令直接运行，无需手动安装：
@@ -22,22 +28,22 @@
 uvx wechat-devtools-mcp
 ```
 
-### 2. 通过 pip 安装
+> [!TIP]
+> 如果提示 `uvx` 命令找不到，请先执行 `pip install uv`。
 
-```bash
-pip install wechat-devtools-mcp
-```
-
-### 3. 环境准备 (自动化功能必需)
+### 2. 环境准备 (自动化功能必需)
 
 部分高级功能（如 UI 点击、CDP 日志捕获等）依赖 Node.js 环境。安装 Python 包后，需确保您的 Node.js 环境已就绪：
 
 ```bash
-# 进入包安装目录执行（通常在 site-packages/wechat_devtools_mcp/scripts）
+# 1. 安装 pip 包（用于定位脚本目录）
+pip install wechat-devtools-mcp
+
+# 2. 进入包安装目录执行（通常在 site-packages/wechat_devtools_mcp/scripts）
+# 您可以通过 pip show wechat-devtools-mcp 查看安装路径
+cd "C:\Users\YourUser\AppData\Local\Programs\Python\Python313\Lib\site-packages\wechat_devtools_mcp\scripts"
 npm install
 ```
-
----
 
 ## ⚙️ 编辑器配置
 
@@ -142,8 +148,8 @@ npm install
 
 | 变量名 | 说明 | 默认值 | 必填 |
 |--------|------|--------|------|
-| `WECHAT_DEVTOOLS_CLI` | 微信开发者工具 CLI 路径 | 无 | **是** |
-| `WECHAT_PROJECT_PATH` | 默认小程序项目绝对路径 | 无 | **是** |
+| `WECHAT_DEVTOOLS_CLI` | **[必须手动确认]** 微信开发者工具 CLI 路径 | 无 | **是** |
+| `WECHAT_PROJECT_PATH` | **[必须手动确认]** 默认小程序项目绝对路径 | 无 | **是** |
 | `WECHAT_CLI_TIMEOUT` | CLI 命令超时时间（秒） | `60` | 否 |
 | `NODE_PATH` | Node.js 执行文件路径 | `node` | 否 |
 
