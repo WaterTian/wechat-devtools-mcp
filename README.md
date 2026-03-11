@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server
+# 微信开发者工具 MCP Server (v0.1.4)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -9,6 +9,8 @@
 <!-- mcp-name: io.github.WaterTian/wechat-devtools-mcp -->
 
 🚀 **本 MCP Server 已正式提交至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows/macOS）一键安装。
+
+当前版本：**v0.1.4**
 
 ---
 
@@ -30,6 +32,8 @@ uvx wechat-devtools-mcp
 
 > [!TIP]
 > 如果提示 `uvx` 命令找不到，请先执行 `pip install uv`。
+> `uv tool list` 查看mcp版本
+> `uv tool upgrade wechat-devtools-mcp` 升级全局工具wechat-devtools-mcp
 
 ### 2. 环境准备 (高级自动化功能必需)
 
@@ -61,7 +65,7 @@ npm install
   "mcpServers": {
     "wechat-devtools": {
       "command": "uvx",
-      "args": ["wechat-devtools-mcp"],
+      "args": ["wechat-devtools-mcp@latest"],
       "env": {
         "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
         "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path"
@@ -147,6 +151,7 @@ npm install
 为了达到最佳协作效果，建议按照以下工作流指挥 AI：
 
 1. **环境检查与项目启动**:
+    - 需先调用 `wechat_auto` 开启 9420 自动化端口。
     - 调用 `wechat_is_login` 确认登录状态。
     - 运行 `wechat_open(cdp_enabled=true)` 打开或刷新项目。**注意**：务必开启 `cdp_enabled: true` 以便后续能够采集到高清运行日志。
     - 启动后建议**等待 3-5 秒**，确保小程序初始化加载完成。
