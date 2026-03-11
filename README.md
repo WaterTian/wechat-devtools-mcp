@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.1.4)
+# 微信开发者工具 MCP Server (v0.1.5)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -10,7 +10,7 @@
 
 🚀 **本 MCP Server 已正式提交至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows/macOS）一键安装。
 
-当前版本：**v0.1.4**
+当前版本：**v0.1.5**
 
 ---
 
