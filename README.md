@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.1.8)
+# 微信开发者工具 MCP Server (v0.1.9)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -10,7 +10,7 @@
 
 🚀 **本 MCP Server 已正式提交至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows/macOS）一键安装。
 
-当前版本：**v0.1.8**
+当前版本：**v0.1.9**
 
 ---
 
@@ -300,6 +300,7 @@ uv tool list
 
 | 版本 | 说明 |
 |------|------|
+| 0.1.9 | fix: 修复源码文件 UTF-8 编码乱码问题 |
 | 0.1.8 | fix: Windows 下 uvx 启动时中文路径导致 UnicodeDecodeError，强制 stdio UTF-8 编码 |
 | 0.1.7 | 新增 `WECHAT_TOOLS_PRESET` core/full 工具集预设（core 默认开放 18 个核心工具）；新增完整工具参考文档 MCP_DOC.md；重构 SOP 文档，新增全页面巡检 SOP |
 | 0.1.6 | `wechat_open(cdp_enabled=true)` 自动 kill 已有进程，确保 CDP 端口（9222）正确绑定 |
