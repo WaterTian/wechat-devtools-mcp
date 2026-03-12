@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.1.5)
+# 微信开发者工具 MCP Server (v0.1.6)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -10,7 +10,7 @@
 
 🚀 **本 MCP Server 已正式提交至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows/macOS）一键安装。
 
-当前版本：**v0.1.5**
+当前版本：**v0.1.6**
 
 ---
 
@@ -84,6 +84,54 @@ npm install
 - **Command**: `uvx wechat-devtools-mcp`
 - **Environment Variables**: 同上添加 `WECHAT_DEVTOOLS_CLI` 和 `WECHAT_PROJECT_PATH`。
 
+### Kiro
+
+编辑 `~/.kiro/settings/mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "wechat-devtools": {
+      "command": "uvx",
+      "args": ["wechat-devtools-mcp"],
+      "env": {
+        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
+        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path",
+        "PYTHONIOENCODING": "utf-8"
+      },
+      "autoApprove": [
+        "wechat_auto",
+        "wechat_open",
+        "wechat_is_login",
+        "wechat_project_info",
+        "wechat_list_pages",
+        "wechat_read_page",
+        "wechat_read_file",
+        "wechat_compile_check",
+        "wechat_get_cdp_logs",
+        "wechat_get_console_logs",
+        "wechat_get_exceptions",
+        "wechat_capture_screenshot",
+        "wechat_navigate_and_capture",
+        "wechat_get_page_data",
+        "wechat_get_page_stack",
+        "wechat_tap_element",
+        "wechat_input_element",
+        "wechat_call_page_method",
+        "wechat_evaluate_expression",
+        "wechat_get_system_info",
+        "wechat_get_status",
+        "wechat_reset_fileutils",
+        "wechat_cache_clean",
+        "wechat_list_tools"
+      ]
+    }
+  }
+}
+```
+
+> `WECHAT_DEVTOOLS_CLI` 路径根据实际安装位置调整，注意反斜杠需要转义。
+
 ---
 
 ## 🛠️ 工具箱详解 (Toolbox Reference)
@@ -121,10 +169,10 @@ npm install
 
 ### 4. 实时调试与日志 (Debug)
 
-- `wechat_get_cdp_logs`: **[推荐]** 通过 CDP 捕获底层 WXML 警告、底层网络报错。
+- `wechat_get_cdp_logs`: **[推荐]** 通过 CDP 协议（端口 9222）采集高清运行日志。能捕获 `wechat_get_console_logs` 无法获取的底层信息：WXML 语法警告、废弃 API 提示（如 `wx.getSystemInfoSync`、`wx.saveFile`）、渲染层网络报错等。**前提**：必须先以 `wechat_open(cdp_enabled=true)` 启动开发者工具。
 - `wechat_get_console_logs`: 采集指定持续时间内的全量 console 输出。
 - `wechat_get_exceptions`: 专门监听运行时的 JS Runtime 异常。
-- `wechat_capture_screenshot`: 捕获当前小程序画面的全屏截图（支持全屏滚动长图）。
+- `wechat_capture_screenshot`: 捕获当前小程序模拟器的全屏截图，自动滚动拼接长图并保存为 PNG。需指定 `output_path`（绝对路径）。**前提**：需先调用 `wechat_auto` 开启自动化端口。
 - `wechat_navigate_and_capture`: 跳转指定页面并自动采集后续 N 秒的日志。
 - `wechat_run_automation_script`: 执行自定义的 JS 自动化测试脚本。
 - `wechat_get_system_info`: 获取小程序运行时的真实系统参数。
@@ -146,6 +194,88 @@ npm install
 
 ---
 
+## 🎭 Mock 场景示例 (wechat_mock_wx_method)
+
+`wechat_mock_wx_method` 工具可以覆盖 `wx` 对象上指定方法的返回值，让 AI 在无需真实设备权限或支付环境的情况下，模拟各类原生 API 的回调结果，用于自动化测试和功能验证。
+
+> **注意：** Mock 仅在当前自动化会话中有效，重启开发者工具或重新调用 `wechat_auto` 后会自动失效，需重新设置。
+
+### result_json 参数说明
+
+`result_json` 是一个 **JSON 字符串**，其内容对应目标 wx API `success` 回调函数接收到的参数对象。例如 `wx.requestPayment` 成功时 `success` 回调不携带额外字段，因此传入 `{}` 即可；而 `wx.chooseLocation` 成功时会携带位置信息，需要在 `result_json` 中提供对应字段。
+
+常见字段含义：
+
+| 字段 | 所属 API | 说明 |
+|------|----------|------|
+| `errMsg` | 通用 | 错误信息，成功时格式为 `"apiName:ok"`，失败时包含原因 |
+| `name` | `chooseLocation` | 位置名称 |
+| `address` | `chooseLocation` | 详细地址 |
+| `latitude` | `chooseLocation` | 纬度（浮点数） |
+| `longitude` | `chooseLocation` | 经度（浮点数） |
+| `tempFilePaths` | `chooseImage` | 选中图片的临时文件路径数组 |
+| `tempFiles` | `chooseImage` | 选中图片的文件对象数组（含 `path` 和 `size`） |
+
+### 场景一：支付成功
+
+模拟 `wx.requestPayment` 调用成功，触发页面的支付成功逻辑分支：
+
+```json
+{
+  "tool": "wechat_mock_wx_method",
+  "arguments": {
+    "method": "requestPayment",
+    "result_json": "{\"errMsg\": \"requestPayment:ok\"}"
+  }
+}
+```
+
+### 场景二：支付失败（用户取消）
+
+模拟用户主动取消支付，触发页面的取消/失败处理逻辑：
+
+```json
+{
+  "tool": "wechat_mock_wx_method",
+  "arguments": {
+    "method": "requestPayment",
+    "result_json": "{\"errMsg\": \"requestPayment:fail cancel\"}"
+  }
+}
+```
+
+> 提示：`fail cancel` 是微信支付用户取消时的标准 `errMsg` 格式，页面代码通常通过 `fail` 回调或 `errMsg.includes('cancel')` 来判断。
+
+### 场景三：定位授权（chooseLocation）
+
+模拟用户选择了一个位置，返回完整的位置信息：
+
+```json
+{
+  "tool": "wechat_mock_wx_method",
+  "arguments": {
+    "method": "chooseLocation",
+    "result_json": "{\"name\": \"腾讯北京总部\", \"address\": \"北京市海淀区科学院南路2号\", \"latitude\": 39.9842, \"longitude\": 116.3093, \"errMsg\": \"chooseLocation:ok\"}"
+  }
+}
+```
+
+### 场景四：相册选择（chooseImage）
+
+模拟用户从相册选择了两张图片，返回临时文件路径：
+
+```json
+{
+  "tool": "wechat_mock_wx_method",
+  "arguments": {
+    "method": "chooseImage",
+    "result_json": "{\"tempFilePaths\": [\"wxfile://tmp_photo_001.jpg\", \"wxfile://tmp_photo_002.jpg\"], \"tempFiles\": [{\"path\": \"wxfile://tmp_photo_001.jpg\", \"size\": 102400}, {\"path\": \"wxfile://tmp_photo_002.jpg\", \"size\": 204800}], \"errMsg\": \"chooseImage:ok\"}"
+  }
+}
+```
+
+---
+
 ## 🤖 AI 协作 SOP (最佳实践)
 
 为了达到最佳协作效果，建议按照以下工作流指挥 AI：
@@ -153,7 +283,7 @@ npm install
 1. **环境检查与项目启动**:
     - 需先调用 `wechat_auto` 开启 9420 自动化端口。
     - 调用 `wechat_is_login` 确认登录状态。
-    - 运行 `wechat_open(cdp_enabled=true)` 打开或刷新项目。**注意**：务必开启 `cdp_enabled: true` 以便后续能够采集到高清运行日志。
+    - 运行 `wechat_open(cdp_enabled=true)` 打开或刷新项目。**注意**：务必开启 `cdp_enabled: true` 以便后续能够采集到高清运行日志。此模式会自动关闭已有开发者工具实例再重新启动，确保 CDP 端口（9222）正确绑定。
     - 启动后建议**等待 3-5 秒**，确保小程序初始化加载完成。
 2. **上下文理解**:
     - 调用 `wechat_project_info` 获取项目整体配置。
@@ -163,8 +293,8 @@ npm install
     - **编译校验**：执行 `wechat_compile_check` 查看是否有编译错误。如有报错，AI 会根据报错信息自动进行修复。
     - **实时预览**：通过 `wechat_preview_page` 快速跳转到修改后的页面进行预览。
 4. **深度调试与质量验收**:
-    - **高清运行日志 (推荐)**：若逻辑异常或样式警告，调用 `wechat_get_cdp_logs`。它能捕获比 Console 更底层的 WXML 警告、网络请求报错。
-    - **自动回归测试**：调用 `wechat_auto` 开启自动化，利用 `wechat_tap_element` 触发行动，最后使用 `wechat_capture_screenshot` 进行视觉验收。
+    - **高清运行日志 (推荐)**：调用 `wechat_get_cdp_logs(duration=10)` 采集运行日志。它能捕获比 Console 更底层的信息，包括 WXML 警告、废弃 API 提示、渲染层报错等。建议在页面跳转后立即采集，以捕获 `onLoad` / `onShow` 阶段的完整输出。
+    - **视觉截图验收**：调用 `wechat_capture_screenshot(output_path="<绝对路径>/screenshot.png")` 截取当前页面长图。截图会自动滚动拼接，适合全页面 UI 验收。需确保 `wechat_auto` 已开启。
 
 ---
 
@@ -176,6 +306,62 @@ npm install
 | `WECHAT_PROJECT_PATH` | **[必须手动确认]** 默认小程序项目绝对路径 | 无 | **是** |
 | `WECHAT_CLI_TIMEOUT` | CLI 命令超时时间（秒） | `60` | 否 |
 | `NODE_PATH` | Node.js 执行文件路径 | `node` | 否 |
+
+---
+
+## 🔄 升级
+
+```powershell
+# 先终止占用进程
+Get-Process | Where-Object { $_.ProcessName -like "*wechat-devtools*" } | Stop-Process -Force
+# 重新安装最新版
+uv tool install wechat-devtools-mcp --reinstall
+```
+
+---
+
+## ❓ 常见问题
+
+### `uv tool upgrade` 报错"另一个程序正在使用此文件"
+
+MCP 服务进程仍在运行，需先终止：
+
+```powershell
+Get-Process | Where-Object { $_.ProcessName -like "*wechat-devtools*" } | Stop-Process -Force
+Start-Sleep -Seconds 2
+uv tool install wechat-devtools-mcp --reinstall
+```
+
+### `wechat_get_cdp_logs` 返回"未发现新日志"
+
+开发者工具已有实例运行时，`--remote-debugging-port` 参数会被忽略，导致 9222 端口未绑定。解决方法：**不要手动启动开发者工具**，直接调用 `wechat_open(cdp_enabled=true)`，它会自动 kill 已有进程并以 CDP 模式重新启动。
+
+### `wechat_get_cdp_logs` 报错 `Cannot find module './node_modules/ws'`
+
+需要在 scripts 目录安装 Node.js 依赖：
+
+```powershell
+$scriptsDir = "C:\Users\$env:USERNAME\AppData\Roaming\uv\tools\wechat-devtools-mcp\Lib\site-packages\wechat_devtools_mcp\scripts"
+Set-Location $scriptsDir
+npm install
+```
+
+### 查看当前安装版本
+
+```powershell
+uv tool list
+```
+
+---
+
+## 📋 版本历史
+
+| 版本 | 说明 |
+|------|------|
+| 0.1.6 | `wechat_open(cdp_enabled=true)` 自动 kill 已有进程，确保 CDP 端口（9222）正确绑定 |
+| 0.1.5 | 修复 Windows 平台 stdio 阻塞问题（临时文件方案） |
+| 0.1.4 | 添加 CDP 日志、截图、自动化等功能 |
+| 0.1.3 | 初始版本 |
 
 ---
 
