@@ -37,7 +37,7 @@ uvx wechat-devtools-mcp
 
 ### 2. 环境准备 (高级自动化功能必需)
 
-部分高级功能（如 UI 点击、CDP 日志捕获等）依赖 Node.js 环境及自动化 SDK。由于 `uvx` 是在临时环境中运行，如果您需要使用这些自动化功能，必须先显式安装包并手动安装额外的 npm 依赖。
+部分高级功能（如 UI 点击、CDP 日志捕获等）依赖 Node.js 环境及自动化 SDK。由于 `uvx` 是在临时环境中运行，如果您需要使用这些自动化功能，**必须进入scripts 目录并安装 npm 依赖**
 
 ```bash
 # 1. 显式全局安装包 (用于下载并定位脚本目录)
@@ -68,21 +68,14 @@ npm install
       "args": ["wechat-devtools-mcp@latest"],
       "env": {
         "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
-        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path"
+        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path",
+        "WECHAT_TOOLS_PRESET": "core"
       }
     }
   }
 }
 ```
 
-### Cursor / VS Code (MCP Plugin)
-
-在 MCP 控制台中添加新 Server：
-
-- **Name**: `wechat-devtools`
-- **Type**: `command`
-- **Command**: `uvx wechat-devtools-mcp`
-- **Environment Variables**: 同上添加 `WECHAT_DEVTOOLS_CLI` 和 `WECHAT_PROJECT_PATH`。
 
 ### Kiro
 
@@ -97,10 +90,11 @@ npm install
       "env": {
         "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
         "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path",
-        "PYTHONIOENCODING": "utf-8"
+        "PYTHONIOENCODING": "utf-8",
+        "WECHAT_TOOLS_PRESET": "core"
       },
       "autoApprove": [
-        "wechat_auto",
+        "wechat_setup_sop",
         "wechat_open",
         "wechat_is_login",
         "wechat_project_info",
@@ -108,21 +102,14 @@ npm install
         "wechat_read_page",
         "wechat_read_file",
         "wechat_compile_check",
+        "wechat_preview_page",
+        "wechat_auto",
         "wechat_get_cdp_logs",
+        "wechat_navigate_and_capture",
+        "wechat_capture_screenshot",
         "wechat_get_console_logs",
         "wechat_get_exceptions",
-        "wechat_capture_screenshot",
-        "wechat_navigate_and_capture",
-        "wechat_get_page_data",
-        "wechat_get_page_stack",
-        "wechat_tap_element",
-        "wechat_input_element",
-        "wechat_call_page_method",
-        "wechat_evaluate_expression",
-        "wechat_get_system_info",
         "wechat_get_status",
-        "wechat_reset_fileutils",
-        "wechat_cache_clean",
         "wechat_list_tools"
       ]
     }
@@ -130,171 +117,125 @@ npm install
 }
 ```
 
+### Cursor / VS Code (MCP Plugin)
+
+在 MCP 控制台中添加新 Server：
+
+- **Name**: `wechat-devtools`
+- **Type**: `command`
+- **Command**: `uvx wechat-devtools-mcp`
+- **Environment Variables**: 同上添加 `WECHAT_DEVTOOLS_CLI` 和 `WECHAT_PROJECT_PATH`。
+
 > `WECHAT_DEVTOOLS_CLI` 路径根据实际安装位置调整，注意反斜杠需要转义。
 
 ---
 
-## 🛠️ 工具箱详解 (Toolbox Reference)
+## 🛠️ 工具箱概要 (Toolbox Reference)
 
-本项目提供 **44 个** MCP 工具，全方位覆盖小程序全生命周期：
+本项目提供 **44 个** MCP 工具，覆盖小程序全生命周期，分为六大类。
 
-### 1. 项目感知与上下文 (Context)
+默认 `core` 预设开放 **18 个**核心工具（覆盖两个 SOP 流程），设置 `WECHAT_TOOLS_PRESET=full` 可开放全部工具。
 
-- `wechat_project_info`: 获取 `project.config.json` / `app.json` 配置及目录概览。
-- `wechat_list_pages`: 列出所有注册页面及其文件存在状态。
-- `wechat_read_page`: 一键读取指定页面的所有源码（WXML/JS/WXSS/JSON）。
-- `wechat_read_file`: 读取项目中任意文件内容。
+| 分类 | core 预设 | full 预设额外增加 |
+|------|-----------|-----------------|
+| 项目感知与上下文 | `wechat_project_info`, `wechat_list_pages`, `wechat_read_page`, `wechat_read_file` | — |
+| 构建、预览与编译 | `wechat_compile_check`, `wechat_preview_page` | `wechat_preview`, `wechat_build_npm`, `wechat_upload`, `wechat_cache_clean`, `wechat_reset_fileutils` |
+| 自动化交互 | `wechat_auto` | `wechat_tap_element`, `wechat_input_element`, `wechat_set_page_data`, `wechat_get_page_data`, `wechat_call_page_method`, `wechat_get_element_info`, `wechat_mock_wx_method`, `wechat_call_wx_method`, `wechat_get_page_stack`, `wechat_evaluate_expression`, `wechat_run_automation_script`, `wechat_auto_replay` |
+| 实时调试与日志 | `wechat_get_cdp_logs`, `wechat_navigate_and_capture`, `wechat_capture_screenshot`, `wechat_get_console_logs`, `wechat_get_exceptions` | `wechat_get_system_info`, `wechat_get_storage` |
+| 云开发管理 | — | `wechat_cloud_env_list`, `wechat_cloud_func_list`, `wechat_cloud_func_info`, `wechat_cloud_func_deploy`, `wechat_cloud_func_download` |
+| 系统诊断与管理 | `wechat_setup_sop`, `wechat_open`, `wechat_is_login`, `wechat_get_status`, `wechat_list_tools` | `wechat_login`, `wechat_close_project`, `wechat_quit_ide` |
 
-### 2. 构建、预览与编译 (Build)
-
-- `wechat_compile_check`: **[最常用]** 触发编译并捕获所有 Error 和 Warning。
-- `wechat_preview_page`: 快捷预览指定页面，支持携带 Query 参数并生成二维码。
-- `wechat_build_npm`: 构建小程序 NPM 依赖。
-- `wechat_upload`: 上传代码至微信后台，支持指定版本号和描述。
-- `wechat_cache_clean`: 清除工具缓存（storage/compile/all 等）。
-- `wechat_reset_fileutils`: 重建工具内部文件监听。
-
-### 3. 自动化交互 (Automation v4.0)
-
-需先调用 `wechat_auto` 开启 9420 自动化端口。
-
-- `wechat_tap_element`: 通过 CSS 选择器模拟用户点击。
-- `wechat_input_element`: 向 input/textarea 输入文本。
-- `wechat_set_page_data`: **热更新**！直接修改渲染层 Data，免编译刷新预览。
-- `wechat_call_page_method`: 调用页面中定义的各种 Logic 函数。
-- `wechat_get_element_info`: 获取元素的 WXML、样式、坐标尺寸等详情。
-- `wechat_mock_wx_method`: Mock 原生 API 返回值（如支付、位置等）。
-- `wechat_call_wx_method`: 调用原生 `wx.xxx` 接口。
-- `wechat_get_page_stack`: 获取当前活跃的页面导航栈。
-
-### 4. 实时调试与日志 (Debug)
-
-- `wechat_get_cdp_logs`: **[推荐]** 通过 CDP 协议（端口 9222）采集高清运行日志。能捕获 `wechat_get_console_logs` 无法获取的底层信息：WXML 语法警告、废弃 API 提示（如 `wx.getSystemInfoSync`、`wx.saveFile`）、渲染层网络报错等。**前提**：必须先以 `wechat_open(cdp_enabled=true)` 启动开发者工具。
-- `wechat_get_console_logs`: 采集指定持续时间内的全量 console 输出。
-- `wechat_get_exceptions`: 专门监听运行时的 JS Runtime 异常。
-- `wechat_capture_screenshot`: 捕获当前小程序模拟器的全屏截图，自动滚动拼接长图并保存为 PNG。需指定 `output_path`（绝对路径）。**前提**：需先调用 `wechat_auto` 开启自动化端口。
-- `wechat_navigate_and_capture`: 跳转指定页面并自动采集后续 N 秒的日志。
-- `wechat_run_automation_script`: 执行自定义的 JS 自动化测试脚本。
-- `wechat_get_system_info`: 获取小程序运行时的真实系统参数。
-- `wechat_get_storage`: 读取小程序的本地持久化缓存。
-
-### 5. 云开发管理 (Cloud)
-
-- `wechat_cloud_env_list`: 查看当前 AppID 关联的所有云环境。
-- `wechat_cloud_func_list` / `info`: 查阅线上云函数列表与配置。
-- `wechat_cloud_func_deploy`: 部署、上传并自动安装云函数依赖。
-- `wechat_cloud_func_download`: 下载线上云函数源码。
-
-### 6. 系统诊断与管理
-
-- `wechat_list_tools`: **[新]** 发现工具箱，分类展示所有可用能力。
-- `wechat_get_status`: 检查 CLI 路径、项目路径及当前账号状态。
-- `wechat_login` / `wechat_is_login`: 账号登录态管理。
-- `wechat_close_project` / `wechat_quit_ide`: IDE 运行状态控制。
-
----
-
-## 🎭 Mock 场景示例 (wechat_mock_wx_method)
-
-`wechat_mock_wx_method` 工具可以覆盖 `wx` 对象上指定方法的返回值，让 AI 在无需真实设备权限或支付环境的情况下，模拟各类原生 API 的回调结果，用于自动化测试和功能验证。
-
-> **注意：** Mock 仅在当前自动化会话中有效，重启开发者工具或重新调用 `wechat_auto` 后会自动失效，需重新设置。
-
-### result_json 参数说明
-
-`result_json` 是一个 **JSON 字符串**，其内容对应目标 wx API `success` 回调函数接收到的参数对象。例如 `wx.requestPayment` 成功时 `success` 回调不携带额外字段，因此传入 `{}` 即可；而 `wx.chooseLocation` 成功时会携带位置信息，需要在 `result_json` 中提供对应字段。
-
-常见字段含义：
-
-| 字段 | 所属 API | 说明 |
-|------|----------|------|
-| `errMsg` | 通用 | 错误信息，成功时格式为 `"apiName:ok"`，失败时包含原因 |
-| `name` | `chooseLocation` | 位置名称 |
-| `address` | `chooseLocation` | 详细地址 |
-| `latitude` | `chooseLocation` | 纬度（浮点数） |
-| `longitude` | `chooseLocation` | 经度（浮点数） |
-| `tempFilePaths` | `chooseImage` | 选中图片的临时文件路径数组 |
-| `tempFiles` | `chooseImage` | 选中图片的文件对象数组（含 `path` 和 `size`） |
-
-### 场景一：支付成功
-
-模拟 `wx.requestPayment` 调用成功，触发页面的支付成功逻辑分支：
-
-```json
-{
-  "tool": "wechat_mock_wx_method",
-  "arguments": {
-    "method": "requestPayment",
-    "result_json": "{\"errMsg\": \"requestPayment:ok\"}"
-  }
-}
-```
-
-### 场景二：支付失败（用户取消）
-
-模拟用户主动取消支付，触发页面的取消/失败处理逻辑：
-
-```json
-{
-  "tool": "wechat_mock_wx_method",
-  "arguments": {
-    "method": "requestPayment",
-    "result_json": "{\"errMsg\": \"requestPayment:fail cancel\"}"
-  }
-}
-```
-
-> 提示：`fail cancel` 是微信支付用户取消时的标准 `errMsg` 格式，页面代码通常通过 `fail` 回调或 `errMsg.includes('cancel')` 来判断。
-
-### 场景三：定位授权（chooseLocation）
-
-模拟用户选择了一个位置，返回完整的位置信息：
-
-```json
-{
-  "tool": "wechat_mock_wx_method",
-  "arguments": {
-    "method": "chooseLocation",
-    "result_json": "{\"name\": \"腾讯北京总部\", \"address\": \"北京市海淀区科学院南路2号\", \"latitude\": 39.9842, \"longitude\": 116.3093, \"errMsg\": \"chooseLocation:ok\"}"
-  }
-}
-```
-
-### 场景四：相册选择（chooseImage）
-
-模拟用户从相册选择了两张图片，返回临时文件路径：
-
-```json
-{
-  "tool": "wechat_mock_wx_method",
-  "arguments": {
-    "method": "chooseImage",
-    "result_json": "{\"tempFilePaths\": [\"wxfile://tmp_photo_001.jpg\", \"wxfile://tmp_photo_002.jpg\"], \"tempFiles\": [{\"path\": \"wxfile://tmp_photo_001.jpg\", \"size\": 102400}, {\"path\": \"wxfile://tmp_photo_002.jpg\", \"size\": 204800}], \"errMsg\": \"chooseImage:ok\"}"
-  }
-}
-```
+完整工具参数说明请参阅 **[MCP_DOC.md](./MCP_DOC.md)**。
 
 ---
 
 ## 🤖 AI 协作 SOP (最佳实践)
 
-为了达到最佳协作效果，建议按照以下工作流指挥 AI：
+### SOP 一：日常开发迭代
 
-1. **环境检查与项目启动**:
-    - 需先调用 `wechat_auto` 开启 9420 自动化端口。
-    - 调用 `wechat_is_login` 确认登录状态。
-    - 运行 `wechat_open(cdp_enabled=true)` 打开或刷新项目。**注意**：务必开启 `cdp_enabled: true` 以便后续能够采集到高清运行日志。此模式会自动关闭已有开发者工具实例再重新启动，确保 CDP 端口（9222）正确绑定。
-    - 启动后建议**等待 3-5 秒**，确保小程序初始化加载完成。
-2. **上下文理解**:
-    - 调用 `wechat_project_info` 获取项目整体配置。
-    - 调用 `wechat_read_page` 快速读取指定页面的所有相关代码（JS/WXML/WXSS/JSON）。
-3. **循环开发迭代**:
-    - **代码变更**：AI 根据需求修改代码。
-    - **编译校验**：执行 `wechat_compile_check` 查看是否有编译错误。如有报错，AI 会根据报错信息自动进行修复。
-    - **实时预览**：通过 `wechat_preview_page` 快速跳转到修改后的页面进行预览。
-4. **深度调试与质量验收**:
-    - **高清运行日志 (推荐)**：调用 `wechat_get_cdp_logs(duration=10)` 采集运行日志。它能捕获比 Console 更底层的信息，包括 WXML 警告、废弃 API 提示、渲染层报错等。建议在页面跳转后立即采集，以捕获 `onLoad` / `onShow` 阶段的完整输出。
-    - **视觉截图验收**：调用 `wechat_capture_screenshot(output_path="<绝对路径>/screenshot.png")` 截取当前页面长图。截图会自动滚动拼接，适合全页面 UI 验收。需确保 `wechat_auto` 已开启。
+适用于日常功能开发、Bug 修复场景。
+
+**Step 1 — 一键初始化**
+
+```
+调用 wechat_setup_sop(cdp_enabled=true)
+```
+
+一次调用完成：登录检查 → 自动化端口开启 → 项目打开（含 CDP）→ 项目信息获取。
+
+**Step 2 — 读取上下文**
+
+```
+调用 wechat_read_page(page_path="pages/xxx/xxx")
+```
+
+读取目标页面的全部源码（JS/WXML/WXSS/JSON），再按需修改代码。
+
+**Step 3 — 编译验证（循环）**
+
+```
+修改代码 → wechat_compile_check() → 有报错则修复 → 再次 compile_check
+```
+
+**Step 4 — 调试验收**
+
+```
+wechat_navigate_and_capture(page_path="pages/xxx/xxx", wait_ms=3000)
+  ↓ 捕获 onLoad/onShow 阶段日志
+
+wechat_get_cdp_logs(duration=5)
+  ↓ 采集高清日志（WXML 警告、废弃 API、渲染层报错）
+
+wechat_capture_screenshot(output_path="D:/screenshots/xxx.png")
+  ↓ 全页面长图截图验收
+```
+
+---
+
+### SOP 二：全页面巡检（截图 + 高清日志）
+
+适用于回归测试、UI 验收、发布前全量检查。逐一遍历所有页面，截图并采集高清日志。
+
+> **前提**：`wechat_setup_sop` 已完成初始化，且 `cdp_enabled=true`。
+
+**Step 1 — 获取页面列表**
+
+```
+调用 wechat_list_pages()
+```
+
+获取 `app.json` 中所有注册页面的路径列表。
+
+**Step 2 — 对每个页面执行以下操作（循环）**
+
+```
+① wechat_navigate_and_capture(page_path="<页面路径>", wait_ms=3000)
+     ↓ 跳转页面，等待 3 秒，捕获 onLoad/onShow 阶段的 console 日志和异常
+
+② wechat_get_cdp_logs(duration=5)
+     ↓ 采集 CDP 高清日志（WXML 警告、废弃 API、渲染层报错）
+
+③ wechat_capture_screenshot(output_path="<输出目录>/<页面名>.png")
+     ↓ 截取当前页面长图并保存
+```
+
+**Step 3 — 汇总分析**
+
+AI 对所有页面的日志和截图进行汇总，输出：
+- 各页面是否存在 JS 异常 / WXML 警告 / 废弃 API
+- 截图路径列表，供人工 UI 核查
+
+**完整指令示例（直接发给 AI）：**
+
+```
+请对项目所有页面进行全量巡检：
+1. 调用 wechat_list_pages 获取页面列表
+2. 对每个页面依次执行：
+   - wechat_navigate_and_capture 跳转并捕获日志（wait_ms=3000）
+   - wechat_get_cdp_logs 采集高清日志（duration=5）
+   - wechat_capture_screenshot 截图保存到 D:/screenshots/<页面名>.png
+3. 最后汇总所有页面的异常和警告
+```
 
 ---
 
@@ -304,6 +245,7 @@ npm install
 |--------|------|--------|------|
 | `WECHAT_DEVTOOLS_CLI` | **[必须手动确认]** 微信开发者工具 CLI 路径 | 无 | **是** |
 | `WECHAT_PROJECT_PATH` | **[必须手动确认]** 默认小程序项目绝对路径 | 无 | **是** |
+| `WECHAT_TOOLS_PRESET` | 工具集预设：`core`（SOP + 调试核心，约 18 个）或 `full`（全部 44 个） | `core` | 否 |
 | `WECHAT_CLI_TIMEOUT` | CLI 命令超时时间（秒） | `60` | 否 |
 | `NODE_PATH` | Node.js 执行文件路径 | `node` | 否 |
 
