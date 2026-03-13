@@ -192,14 +192,18 @@ wechat_capture_screenshot(output_path="D:/screenshots/xxx.png")
 
 获取 `app.json` 中所有注册页面的路径列表。
 
-**Step 2 — 对每个页面执行以下操作（循环）**
+**Step 2 — 对每个页面依次执行以下操作（循环）**
+
+> ⚠️ **重要**：必须按顺序逐个页面执行，不可并行。每个页面完成截图后再跳转下一个。
 
 ```
 ① wechat_navigate_and_capture(page_path="<页面路径>", wait_ms=3000)
-     ↓ 跳转页面，等待 3 秒，通过 CDP 采集高清日志（WXML 警告、废弃 API、渲染层报错、JS 异常等）
+     ↓ 跳转到目标页面，等待 3 秒加载完成，通过 CDP 采集高清日志（WXML 警告、废弃 API、渲染层报错、JS 异常等）
 
 ② wechat_capture_screenshot(output_path="<输出目录>/<页面名>.png")
      ↓ 截取当前页面长图并保存
+
+③ 重复步骤 ① 和 ②，直到所有页面巡检完成
 ```
 
 **Step 3 — 汇总分析**
@@ -274,6 +278,7 @@ uv tool list
 
 | 版本 | 说明 |
 |------|------|
+| 0.2.4 | 截图滚动拼接修复：将 `sharp`（原生 addon，ncc 无法打包）替换为纯 JS 的 `jimp`，bundle 现可完整包含图片拼接逻辑，无需外部依赖 |
 | 0.2.3 | 发布包优化：排除 `scripts/` 文件（`.js`、`.json`、`.sh`、`.bat`、`node_modules`），仅保留 `scripts/dist/` 构建产物 |
 | 0.2.2 | `wechat_get_cdp_logs` 移入 core 预设（core 工具数升至 14 个）；Node.js 脚本改为 bundle-only 模式，移除 npm install fallback，用户无需手动安装依赖 |
 | 0.2.1 | 版本更新与文档完善 |
