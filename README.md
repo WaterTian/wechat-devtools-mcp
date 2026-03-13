@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.2.1)
+# 微信开发者工具 MCP Server (v0.2.2)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -10,7 +10,7 @@
 
 🚀 **本 MCP Server 已正式提交至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows/macOS）一键安装。
 
-当前版本：**v0.2.1**
+当前版本：**v0.2.2**
 
 ---
 
@@ -22,7 +22,7 @@
 > 1. **微信开发者工具 CLI 路径** (例如: `C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat`)
 > 2. **您的小程序项目绝对路径** (例如: `D:\\MyProjects\\mini-app`)
 
-### 1. 基础运行 (推荐)
+### 1. 基础环境准备
 
 如果你安装了 [uv](https://github.com/astral-sh/uv)，可以使用以下命令直接运行，或直接将其配置在编辑器中，而无需手动管理依赖：
 
@@ -30,28 +30,21 @@
 uvx wechat-devtools-mcp
 ```
 
+
 > [!TIP]
 > 如果提示 `uvx` 命令找不到，请先执行 `pip install uv`。
 > `uv tool list` 查看mcp版本
 > `uv tool upgrade wechat-devtools-mcp` 升级全局工具wechat-devtools-mcp
 
-### 2. 环境准备 (必需)
-
-部分高级功能（如 UI 点击、CDP 日志捕获等）依赖 Node.js 环境及自动化 SDK。由于 `uvx` 是在临时环境中运行，如果您需要使用这些自动化功能，**必须进入scripts 目录并安装 npm 依赖**
 
 ```bash
-# 1. 显式全局安装包 (用于下载并定位脚本目录)
-uv tool install wechat-devtools-mcp
-# 或选用 pip install wechat-devtools-mcp
+# 1. 隔离环境安装包 (独立工具) 
+uv tool install wechat-devtools-mcp --force
 
-# 2. 查看包的实际安装路径
-uv pip show wechat-devtools-mcp
-# 或选用 pip show wechat-devtools-mcp
+# 2. 查看独立工具包的环境安装目录
+uv tool dir
 
-# 3. 在输出的结果中找到 "Location" 字段（例如 C:\Users\xxx\AppData\Local\Programs\Python\Python313\Lib\site-packages）
-# 4. 进入相应的 scripts 目录并安装依赖：
-cd "<Location路径>/wechat_devtools_mcp/scripts"
-npm install
+
 ```
 
 ## ⚙️ 编辑器配置
@@ -104,6 +97,7 @@ npm install
         "wechat_input_element",
         "wechat_navigate_and_capture",
         "wechat_capture_screenshot",
+        "wechat_get_cdp_logs",
         "wechat_list_pages",
         "wechat_get_status",
         "wechat_list_tools"
@@ -130,14 +124,14 @@ npm install
 
 本项目提供 **44 个** MCP 工具，覆盖小程序全生命周期，分为六大类。
 
-默认 `core` 预设开放 **13 个**核心工具（覆盖两个 SOP 流程），设置 `WECHAT_TOOLS_PRESET=full` 可开放全部工具。
+默认 `core` 预设开放 **14 个**核心工具（覆盖两个 SOP 流程），设置 `WECHAT_TOOLS_PRESET=full` 可开放全部工具。
 
 | 分类 | core 预设 | full 预设额外增加 |
 |------|-----------|-----------------|
 | 项目感知与上下文 | `wechat_list_pages` | `wechat_project_info`, `wechat_read_page`, `wechat_read_file` |
 | 构建、预览与编译 | `wechat_compile_check`, `wechat_cache_clean` | `wechat_preview`, `wechat_preview_page`, `wechat_build_npm`, `wechat_upload`, `wechat_reset_fileutils` |
 | 自动化交互 | `wechat_auto`, `wechat_tap_element`, `wechat_input_element` | `wechat_set_page_data`, `wechat_get_page_data`, `wechat_call_page_method`, `wechat_get_element_info`, `wechat_mock_wx_method`, `wechat_call_wx_method`, `wechat_get_page_stack`, `wechat_evaluate_expression`, `wechat_auto_replay` |
-| 实时调试与日志 | `wechat_navigate_and_capture`, `wechat_capture_screenshot` | `wechat_get_cdp_logs`, `wechat_get_console_logs`, `wechat_get_exceptions`, `wechat_get_system_info`, `wechat_get_storage` |
+| 实时调试与日志 | `wechat_navigate_and_capture`, `wechat_capture_screenshot`, `wechat_get_cdp_logs` | `wechat_get_console_logs`, `wechat_get_exceptions`, `wechat_get_system_info`, `wechat_get_storage` |
 | 云开发管理 | — | `wechat_cloud_env_list`, `wechat_cloud_func_list`, `wechat_cloud_func_info`, `wechat_cloud_func_deploy`, `wechat_cloud_func_download` |
 | 系统诊断与管理 | `wechat_setup_sop`, `wechat_open`, `wechat_is_login`, `wechat_get_status`, `wechat_list_tools` | `wechat_login`, `wechat_close_project`, `wechat_quit_ide` |
 
@@ -266,15 +260,7 @@ uv tool install wechat-devtools-mcp --reinstall
 
 开发者工具已有实例运行时，`--remote-debugging-port` 参数会被忽略，导致 9222 端口未绑定。解决方法：**不要手动启动开发者工具**，直接调用 `wechat_open(cdp_enabled=true)`，它会自动 kill 已有进程并以 CDP 模式重新启动。
 
-### `wechat_get_cdp_logs` 报错 `Cannot find module './node_modules/ws'`
 
-需要在 scripts 目录安装 Node.js 依赖：
-
-```powershell
-$scriptsDir = "C:\Users\$env:USERNAME\AppData\Roaming\uv\tools\wechat-devtools-mcp\Lib\site-packages\wechat_devtools_mcp\scripts"
-Set-Location $scriptsDir
-npm install
-```
 
 ### 查看当前安装版本
 
@@ -288,6 +274,7 @@ uv tool list
 
 | 版本 | 说明 |
 |------|------|
+| 0.2.2 | `wechat_get_cdp_logs` 移入 core 预设（core 工具数升至 14 个）；Node.js 脚本改为 bundle-only 模式，移除 npm install fallback，用户无需手动安装依赖 |
 | 0.2.1 | 版本更新与文档完善 |
 | 0.2.0 | `wechat_navigate_and_capture` 改用 CDP 高清日志采集；core 预设精简为 13 个核心工具（新增 `wechat_tap_element`、`wechat_input_element`、`wechat_cache_clean`）；删除 `wechat_run_automation_script`；更新 SOP 文档 |
 | 0.1.9 | fix: 修复源码文件 UTF-8 编码乱码问题 |

@@ -6,12 +6,12 @@
         "url": "https://github.com/WaterTian/wechat-devtools-mcp",
         "source": "github"
     },
-    "version": "0.2.1",
+    "version": "0.2.2",
     "packages": [
         {
             "registryType": "pypi",
             "identifier": "wechat-devtools-mcp",
-            "version": "0.2.1",
+            "version": "0.2.2",
             "runtimeHint": "uvx",
             "transport": {
                 "type": "stdio"
@@ -31,7 +31,7 @@
                 },
                 {
                     "name": "WECHAT_TOOLS_PRESET",
-                    "description": "工具集预设：core（默认，约13个核心工具）或 full（全部44个工具）",
+                    "description": "工具集预设：core（默认，约14个核心工具）或 full（全部44个工具）",
                     "isRequired": false,
                     "default": "core"
                 },
