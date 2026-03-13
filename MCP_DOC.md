@@ -3,7 +3,7 @@
 本项目提供 **44 个** MCP 工具，覆盖小程序全生命周期。
 
 通过环境变量 `WECHAT_TOOLS_PRESET` 控制开放范围：
-- `core`（默认）：18 个核心工具，覆盖 SOP 开发迭代和全页面巡检两个流程
+- `core`（默认）：13 个核心工具，覆盖 SOP 开发迭代和全页面巡检两个流程
 - `full`：开放全部 44 个工具
 
 标注说明：🟢 core + full 均可用 / 🔵 仅 full 可用
@@ -24,7 +24,7 @@
 
 ## 1. 项目感知与上下文 (Context)
 
-### 🟢 `wechat_project_info`
+### 🔵 `wechat_project_info`
 
 获取项目完整信息，包括 `project.config.json`、`app.json`、`app.wxss`、`app.js` 及目录结构概览。AI 开始开发前应优先调用。
 
@@ -44,7 +44,7 @@
 
 ---
 
-### 🟢 `wechat_read_page`
+### 🔵 `wechat_read_page`
 
 一键读取指定页面的全部源码文件（`.wxml`、`.wxss`、`.js`、`.json`），每个文件最多 500 行。
 
@@ -55,7 +55,7 @@
 
 ---
 
-### 🟢 `wechat_read_file`
+### 🔵 `wechat_read_file`
 
 读取项目中任意单个文件，最多 800 行。
 
@@ -80,7 +80,7 @@
 
 ---
 
-### 🟢 `wechat_preview_page`
+### 🔵 `wechat_preview_page`
 
 快捷预览指定页面，自动构建 `compile_condition`，生成预览二维码（默认 base64 格式）。
 
@@ -137,7 +137,7 @@
 
 ---
 
-### 🔵 `wechat_cache_clean`
+### 🟢 `wechat_cache_clean`
 
 清除微信开发者工具的缓存。
 
@@ -175,7 +175,7 @@
 
 ---
 
-### 🔵 `wechat_tap_element`
+### 🟢 `wechat_tap_element`
 
 通过 CSS 选择器定位页面元素并模拟点击（tap）。
 
@@ -186,7 +186,7 @@
 
 ---
 
-### 🔵 `wechat_input_element`
+### 🟢 `wechat_input_element`
 
 向 `input` 或 `textarea` 元素输入文本内容。
 
@@ -288,31 +288,6 @@
 
 ---
 
-### 🔵 `wechat_run_automation_script`
-
-执行自定义 JS 自动化测试脚本（Node.js CommonJS 模块格式），并捕获执行期间的所有日志和异常。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `script_content` | string | **必填** | JS 脚本内容，必须导出接收 `miniProgram` 参数的 async function |
-| `auto_port` | int | `9420` | 自动化端口 |
-| `timeout` | int | `30` | 脚本执行超时时间（秒），范围 5~300 |
-| `project_path` | string | null | 小程序项目路径（仅用于提示） |
-
-脚本格式示例：
-
-```js
-module.exports = async function(miniProgram) {
-  const page = await miniProgram.navigateTo('/pages/index/index');
-  await page.waitFor(1000);
-  const el = await page.$('.my-button');
-  if (el) await el.tap();
-  return { tapped: true };
-};
-```
-
----
-
 ### 🔵 `wechat_auto_replay`
 
 打开自动化测试窗口，可回放之前录制的测试用例。
@@ -326,7 +301,7 @@ module.exports = async function(miniProgram) {
 
 ## 4. 实时调试与日志 (Debug)
 
-### 🟢 `wechat_get_cdp_logs`
+### 🔵 `wechat_get_cdp_logs`
 
 **[推荐]** 通过 Chromium DevTools Protocol (CDP) 采集高清日志。能捕获 `wechat_get_console_logs` 无法获取的底层信息：WXML 语法警告、废弃 API 提示（如 `wx.getSystemInfoSync`、`wx.saveFile`）、渲染层网络报错等。
 
@@ -340,7 +315,7 @@ module.exports = async function(miniProgram) {
 
 ---
 
-### 🟢 `wechat_get_console_logs`
+### 🔵 `wechat_get_console_logs`
 
 实时采集小程序运行时的 console 日志和 JS 异常，支持采集期间自动触发点击操作。
 
@@ -357,7 +332,7 @@ module.exports = async function(miniProgram) {
 
 ---
 
-### 🟢 `wechat_get_exceptions`
+### 🔵 `wechat_get_exceptions`
 
 专门监听小程序运行时 JS 异常（exception 事件），输出比 `wechat_get_console_logs` 更清晰的异常信息，包含完整调用栈。
 
@@ -387,15 +362,17 @@ module.exports = async function(miniProgram) {
 
 ### 🟢 `wechat_navigate_and_capture`
 
-跳转到指定页面，等待指定时间，捕获该时间窗口内的所有 console 日志和 JS 异常。适合检查页面初始化（`onLoad`、`onShow`）阶段的日志。
+跳转到指定页面，等待指定时间，通过 CDP 采集高清日志（含 WXML 警告、废弃 API、渲染层报错、JS 异常等）。适合检查页面初始化（`onLoad`、`onShow`）阶段的日志。
 
-> **前提**：需先调用 `wechat_auto` 开启自动化端口。
+> **前提**：需先调用 `wechat_auto` 开启自动化端口，且以 `cdp_enabled=true` 打开项目。
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `page_path` | string | **必填** | 要跳转的页面路径，例如 `pages/index/index` |
 | `wait_ms` | int | `2000` | 跳转后等待时间（毫秒），范围 100~30000 |
 | `auto_port` | int | `9420` | 自动化监听端口 |
+| `cdp_port` | int | `9222` | CDP 调试端口，需先以 `cdp_enabled=true` 打开项目 |
+| `verbose` | bool | `false` | `true` 时返回全量 CDP 日志，不过滤系统日志 |
 | `project_path` | string | null | 小程序项目路径（仅用于提示） |
 
 ---

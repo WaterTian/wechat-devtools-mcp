@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.1.9)
+# 微信开发者工具 MCP Server (v0.2.0)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -10,7 +10,7 @@
 
 🚀 **本 MCP Server 已正式提交至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows/macOS）一键安装。
 
-当前版本：**v0.1.9**
+当前版本：**v0.2.0**
 
 ---
 
@@ -35,7 +35,7 @@ uvx wechat-devtools-mcp
 > `uv tool list` 查看mcp版本
 > `uv tool upgrade wechat-devtools-mcp` 升级全局工具wechat-devtools-mcp
 
-### 2. 环境准备 (高级自动化功能必需)
+### 2. 环境准备 (必需)
 
 部分高级功能（如 UI 点击、CDP 日志捕获等）依赖 Node.js 环境及自动化 SDK。由于 `uvx` 是在临时环境中运行，如果您需要使用这些自动化功能，**必须进入scripts 目录并安装 npm 依赖**
 
@@ -97,18 +97,14 @@ npm install
         "wechat_setup_sop",
         "wechat_open",
         "wechat_is_login",
-        "wechat_project_info",
-        "wechat_list_pages",
-        "wechat_read_page",
-        "wechat_read_file",
-        "wechat_compile_check",
-        "wechat_preview_page",
         "wechat_auto",
-        "wechat_get_cdp_logs",
+        "wechat_compile_check",
+        "wechat_cache_clean",
+        "wechat_tap_element",
+        "wechat_input_element",
         "wechat_navigate_and_capture",
         "wechat_capture_screenshot",
-        "wechat_get_console_logs",
-        "wechat_get_exceptions",
+        "wechat_list_pages",
         "wechat_get_status",
         "wechat_list_tools"
       ]
@@ -134,14 +130,14 @@ npm install
 
 本项目提供 **44 个** MCP 工具，覆盖小程序全生命周期，分为六大类。
 
-默认 `core` 预设开放 **18 个**核心工具（覆盖两个 SOP 流程），设置 `WECHAT_TOOLS_PRESET=full` 可开放全部工具。
+默认 `core` 预设开放 **13 个**核心工具（覆盖两个 SOP 流程），设置 `WECHAT_TOOLS_PRESET=full` 可开放全部工具。
 
 | 分类 | core 预设 | full 预设额外增加 |
 |------|-----------|-----------------|
-| 项目感知与上下文 | `wechat_project_info`, `wechat_list_pages`, `wechat_read_page`, `wechat_read_file` | — |
-| 构建、预览与编译 | `wechat_compile_check`, `wechat_preview_page` | `wechat_preview`, `wechat_build_npm`, `wechat_upload`, `wechat_cache_clean`, `wechat_reset_fileutils` |
-| 自动化交互 | `wechat_auto` | `wechat_tap_element`, `wechat_input_element`, `wechat_set_page_data`, `wechat_get_page_data`, `wechat_call_page_method`, `wechat_get_element_info`, `wechat_mock_wx_method`, `wechat_call_wx_method`, `wechat_get_page_stack`, `wechat_evaluate_expression`, `wechat_run_automation_script`, `wechat_auto_replay` |
-| 实时调试与日志 | `wechat_get_cdp_logs`, `wechat_navigate_and_capture`, `wechat_capture_screenshot`, `wechat_get_console_logs`, `wechat_get_exceptions` | `wechat_get_system_info`, `wechat_get_storage` |
+| 项目感知与上下文 | `wechat_list_pages` | `wechat_project_info`, `wechat_read_page`, `wechat_read_file` |
+| 构建、预览与编译 | `wechat_compile_check`, `wechat_cache_clean` | `wechat_preview`, `wechat_preview_page`, `wechat_build_npm`, `wechat_upload`, `wechat_reset_fileutils` |
+| 自动化交互 | `wechat_auto`, `wechat_tap_element`, `wechat_input_element` | `wechat_set_page_data`, `wechat_get_page_data`, `wechat_call_page_method`, `wechat_get_element_info`, `wechat_mock_wx_method`, `wechat_call_wx_method`, `wechat_get_page_stack`, `wechat_evaluate_expression`, `wechat_auto_replay` |
+| 实时调试与日志 | `wechat_navigate_and_capture`, `wechat_capture_screenshot` | `wechat_get_cdp_logs`, `wechat_get_console_logs`, `wechat_get_exceptions`, `wechat_get_system_info`, `wechat_get_storage` |
 | 云开发管理 | — | `wechat_cloud_env_list`, `wechat_cloud_func_list`, `wechat_cloud_func_info`, `wechat_cloud_func_deploy`, `wechat_cloud_func_download` |
 | 系统诊断与管理 | `wechat_setup_sop`, `wechat_open`, `wechat_is_login`, `wechat_get_status`, `wechat_list_tools` | `wechat_login`, `wechat_close_project`, `wechat_quit_ide` |
 
@@ -166,10 +162,9 @@ npm install
 **Step 2 — 读取上下文**
 
 ```
-调用 wechat_read_page(page_path="pages/xxx/xxx")
-```
+直接在编辑器中打开目标页面的源码文件（JS/WXML/WXSS/JSON），按需修改代码。
 
-读取目标页面的全部源码（JS/WXML/WXSS/JSON），再按需修改代码。
+```
 
 **Step 3 — 编译验证（循环）**
 
@@ -181,10 +176,7 @@ npm install
 
 ```
 wechat_navigate_and_capture(page_path="pages/xxx/xxx", wait_ms=3000)
-  ↓ 捕获 onLoad/onShow 阶段日志
-
-wechat_get_cdp_logs(duration=5)
-  ↓ 采集高清日志（WXML 警告、废弃 API、渲染层报错）
+  ↓ 跳转页面，通过 CDP 采集高清日志（WXML 警告、废弃 API、渲染层报错、JS 异常等）
 
 wechat_capture_screenshot(output_path="D:/screenshots/xxx.png")
   ↓ 全页面长图截图验收
@@ -210,12 +202,9 @@ wechat_capture_screenshot(output_path="D:/screenshots/xxx.png")
 
 ```
 ① wechat_navigate_and_capture(page_path="<页面路径>", wait_ms=3000)
-     ↓ 跳转页面，等待 3 秒，捕获 onLoad/onShow 阶段的 console 日志和异常
+     ↓ 跳转页面，等待 3 秒，通过 CDP 采集高清日志（WXML 警告、废弃 API、渲染层报错、JS 异常等）
 
-② wechat_get_cdp_logs(duration=5)
-     ↓ 采集 CDP 高清日志（WXML 警告、废弃 API、渲染层报错）
-
-③ wechat_capture_screenshot(output_path="<输出目录>/<页面名>.png")
+② wechat_capture_screenshot(output_path="<输出目录>/<页面名>.png")
      ↓ 截取当前页面长图并保存
 ```
 
@@ -231,8 +220,7 @@ AI 对所有页面的日志和截图进行汇总，输出：
 请对项目所有页面进行全量巡检：
 1. 调用 wechat_list_pages 获取页面列表
 2. 对每个页面依次执行：
-   - wechat_navigate_and_capture 跳转并捕获日志（wait_ms=3000）
-   - wechat_get_cdp_logs 采集高清日志（duration=5）
+   - wechat_navigate_and_capture 跳转并采集 CDP 高清日志（wait_ms=3000）
    - wechat_capture_screenshot 截图保存到 D:/screenshots/<页面名>.png
 3. 最后汇总所有页面的异常和警告
 ```
@@ -300,6 +288,7 @@ uv tool list
 
 | 版本 | 说明 |
 |------|------|
+| 0.2.0 | `wechat_navigate_and_capture` 改用 CDP 高清日志采集；core 预设精简为 13 个核心工具（新增 `wechat_tap_element`、`wechat_input_element`、`wechat_cache_clean`）；删除 `wechat_run_automation_script`；更新 SOP 文档 |
 | 0.1.9 | fix: 修复源码文件 UTF-8 编码乱码问题 |
 | 0.1.8 | fix: Windows 下 uvx 启动时中文路径导致 UnicodeDecodeError，强制 stdio UTF-8 编码 |
 | 0.1.7 | 新增 `WECHAT_TOOLS_PRESET` core/full 工具集预设（core 默认开放 18 个核心工具）；新增完整工具参考文档 MCP_DOC.md；重构 SOP 文档，新增全页面巡检 SOP |
