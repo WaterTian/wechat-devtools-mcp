@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.2.5)
+# 微信开发者工具 MCP Server (v0.2.6)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -105,6 +105,35 @@ uv tool dir
   }
 }
 ```
+
+### OpenAI Codex
+
+编辑 `~/.codex/config.toml`（全局）或项目根目录下的 `.codex/config.toml`（项目级）：
+
+```toml
+[mcp_servers.wechat-devtools]
+command = "uvx"
+args = ["wechat-devtools-mcp"]
+
+[mcp_servers.wechat-devtools.env]
+WECHAT_DEVTOOLS_CLI = "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat"
+WECHAT_PROJECT_PATH = "D:\\Your\\Project\\Path"
+WECHAT_TOOLS_PRESET = "core"
+```
+
+也可以通过 CLI 快速添加：
+
+```bash
+codex mcp add wechat-devtools \
+  --env WECHAT_DEVTOOLS_CLI="C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat" \
+  --env WECHAT_PROJECT_PATH="D:\\Your\\Project\\Path" \
+  --env WECHAT_TOOLS_PRESET="core" \
+  -- uvx wechat-devtools-mcp
+```
+
+> 配置完成后，在 Codex TUI 中输入 `/mcp` 可查看已激活的 MCP 服务。
+
+---
 
 ### Cursor / VS Code (MCP Plugin)
 
@@ -277,6 +306,8 @@ uv tool list
 
 | 版本 | 说明 |
 |------|------|
+| 0.2.6 | 文档更新：README 编辑器配置章节新增 OpenAI Codex 配置说明（`config.toml` 格式及 CLI 快速添加命令） |
+| 0.2.5 | 新增 Kiro 编辑器配置说明 |
 | 0.2.4 | 截图滚动拼接修复：将 `sharp`（原生 addon，ncc 无法打包）替换为纯 JS 的 `jimp`，bundle 现可完整包含图片拼接逻辑，无需外部依赖 |
 | 0.2.3 | 发布包优化：排除 `scripts/` 文件（`.js`、`.json`、`.sh`、`.bat`、`node_modules`），仅保留 `scripts/dist/` 构建产物 |
 | 0.2.2 | `wechat_get_cdp_logs` 移入 core 预设（core 工具数升至 14 个）；Node.js 脚本改为 bundle-only 模式，移除 npm install fallback，用户无需手动安装依赖 |
