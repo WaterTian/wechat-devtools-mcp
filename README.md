@@ -10,7 +10,6 @@
 
 🚀 **本 MCP Server 已正式提交至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows/macOS）一键安装。
 
-当前版本：**v0.2.3**
 
 ---
 
