@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.2.2)
+# 微信开发者工具 MCP Server (v0.2.3)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -10,7 +10,7 @@
 
 🚀 **本 MCP Server 已正式提交至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows/macOS）一键安装。
 
-当前版本：**v0.2.2**
+当前版本：**v0.2.3**
 
 ---
 
@@ -274,6 +274,7 @@ uv tool list
 
 | 版本 | 说明 |
 |------|------|
+| 0.2.3 | 发布包优化：排除 `scripts/` 文件（`.js`、`.json`、`.sh`、`.bat`、`node_modules`），仅保留 `scripts/dist/` 构建产物 |
 | 0.2.2 | `wechat_get_cdp_logs` 移入 core 预设（core 工具数升至 14 个）；Node.js 脚本改为 bundle-only 模式，移除 npm install fallback，用户无需手动安装依赖 |
 | 0.2.1 | 版本更新与文档完善 |
 | 0.2.0 | `wechat_navigate_and_capture` 改用 CDP 高清日志采集；core 预设精简为 13 个核心工具（新增 `wechat_tap_element`、`wechat_input_element`、`wechat_cache_clean`）；删除 `wechat_run_automation_script`；更新 SOP 文档 |
