@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.2.0)
+# 微信开发者工具 MCP Server (v0.2.1)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -10,7 +10,7 @@
 
 🚀 **本 MCP Server 已正式提交至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows/macOS）一键安装。
 
-当前版本：**v0.2.0**
+当前版本：**v0.2.1**
 
 ---
 
@@ -233,7 +233,7 @@ AI 对所有页面的日志和截图进行汇总，输出：
 |--------|------|--------|------|
 | `WECHAT_DEVTOOLS_CLI` | **[必须手动确认]** 微信开发者工具 CLI 路径 | 无 | **是** |
 | `WECHAT_PROJECT_PATH` | **[必须手动确认]** 默认小程序项目绝对路径 | 无 | **是** |
-| `WECHAT_TOOLS_PRESET` | 工具集预设：`core`（SOP + 调试核心，约 18 个）或 `full`（全部 44 个） | `core` | 否 |
+| `WECHAT_TOOLS_PRESET` | 工具集预设：`core`（SOP + 调试核心，约 13 个）或 `full`（全部 44 个） | `core` | 否 |
 | `WECHAT_CLI_TIMEOUT` | CLI 命令超时时间（秒） | `60` | 否 |
 | `NODE_PATH` | Node.js 执行文件路径 | `node` | 否 |
 
@@ -288,6 +288,7 @@ uv tool list
 
 | 版本 | 说明 |
 |------|------|
+| 0.2.1 | 版本更新与文档完善 |
 | 0.2.0 | `wechat_navigate_and_capture` 改用 CDP 高清日志采集；core 预设精简为 13 个核心工具（新增 `wechat_tap_element`、`wechat_input_element`、`wechat_cache_clean`）；删除 `wechat_run_automation_script`；更新 SOP 文档 |
 | 0.1.9 | fix: 修复源码文件 UTF-8 编码乱码问题 |
 | 0.1.8 | fix: Windows 下 uvx 启动时中文路径导致 UnicodeDecodeError，强制 stdio UTF-8 编码 |
