@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.2.3)
+# 微信开发者工具 MCP Server (v0.2.4)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
