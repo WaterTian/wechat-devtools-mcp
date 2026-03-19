@@ -312,6 +312,51 @@ uv tool list
 
 ---
 
+## 🧠 AI Skill（智能协作知识库）
+
+本项目提供配套的 **wechat-devtools Skill**，可让支持 [Agent Skills](https://skills.sh/) 协议的 AI 编辑器（如 Kiro、Antigravity 等）自动加载 SOP 流程、参数速查和最佳实践，无需每次手动提示。
+
+### 安装 Skill
+
+**方式一：通过 GitHub 仓库引用（推荐）**
+
+```bash
+npx skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
+```
+
+**方式二：手动复制**
+
+将 `.agents/skills/wechat-devtools/` 目录复制到你的项目或全局 skills 目录：
+
+```
+.agents/skills/
+└── wechat-devtools/
+    ├── SKILL.md                    # 主指令文件（SOP + 能力映射 + 红线规则）
+    └── references/
+        └── tool_reference.md       # 8 个聚合 API 完整参数参考
+```
+
+### Skill 包含内容
+
+- **5 个 SOP 流程**：初始化、UI 调试、异常排查、全页面巡检、Mock 集成测试
+- **能力映射字典**：8 个聚合工具 × 全部 action 的快速索引
+- **CDP 渐进排查策略**：concise → full 两阶段，控制 Token 消耗
+- **完整参数参考**：每个 action 的必填/可选参数、返回示例、常用模板
+- **故障排查手册**：常见错误码与修复方式
+
+### 使用方式
+
+安装 Skill 后，在 AI 编辑器中直接描述意图即可，AI 会自动匹配对应 SOP：
+
+```
+"帮我检查所有页面有没有报错"     → 自动执行 SOP D（全页面巡检）
+"点击登录按钮，截图看看效果"     → 自动执行 SOP B（UI 调试流）
+"页面白屏了，帮我排查"           → 自动执行 SOP C（异常排查流）
+"Mock 支付接口，测试支付流程"    → 自动执行 SOP E（Mock 集成测试）
+```
+
+---
+
 ## 参考文档
 
 - [微信开发者工具 CLI 官方文档](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html)
