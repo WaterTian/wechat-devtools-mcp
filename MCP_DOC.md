@@ -1,14 +1,18 @@
-# MCP 工具箱完整文档 (v0.3.0)
+# MCP 工具箱完整文档 (v0.3.1)
 
 v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **8 个聚合工具**。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
 所有工具返回统一 JSON 信封：
+
 ```json
 // 成功
 {"success": true, "data": {...}, "message": "操作描述"}
 // 失败
 {"success": false, "error_code": "PARAM_MISSING", "message": "...", "hint": "修复建议"}
 ```
+
+> [!IMPORTANT]
+> **必须手动开启开发者工具的服务端口**：`设置` → `安全设置` → `服务端口` → `开启`。未开启将导致所有 CLI 操作报 `CLI_TIMEOUT`。
 
 ---
 
@@ -165,8 +169,9 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
   "data": {
     "summary": {"total": 5, "errors": 2, "warnings": 1, "info": 2, "truncated": false},
     "logs": [
-      {"level": "error", "message": "Cannot read property ...", "source": "index.js", "timestamp": "..."}
+      {"level": "error", "message": "Cannot read property ...", "source": "index.js", "timestamp": "...", "line": 45, "column": 12}
     ]
+
   },
   "message": "采集 10 秒，发现 2 个错误、1 个警告。"
 }

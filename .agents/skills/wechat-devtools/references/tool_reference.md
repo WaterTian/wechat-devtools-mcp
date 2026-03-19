@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.3.0)
+# wechat-devtools-mcp 工具参数完整参考 (v0.3.1)
 
 > 本文档是 `SKILL.md` 的扩展参考，提供 8 个聚合 API 的所有参数完整说明。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
@@ -11,6 +11,10 @@
 // 失败
 {"success": false, "error_code": "PARAM_MISSING", "message": "...", "hint": "修复建议"}
 ```
+
+> [!IMPORTANT]
+> **必须手动开启开发者工具的服务端口**：`设置` → `安全` → `服务端口` → `开启`。未开启将导致所有 CLI 操作报 `CLI_TIMEOUT`。
+
 
 ---
 
@@ -327,13 +331,16 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
         "level": "warning",
         "message": "wx.getSystemInfoSync 已弃用，请使用 wx.getSystemInfo",
         "source": "app.js",
-        "timestamp": "2026-03-19T10:00:01.567Z"
+        "timestamp": "2026-03-19T10:00:01.567Z",
+        "column": 12,
+        "line": 45
       }
     ]
   },
   "message": "采集 10 秒，发现 2 个错误、5 个警告"
 }
 ```
+
 
 **detail_level 对比：**
 
