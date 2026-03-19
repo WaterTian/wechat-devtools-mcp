@@ -1,364 +1,184 @@
-# 🛠️ MCP 工具箱完整文档
+# MCP 工具箱完整文档 (v0.3.0)
 
-本项目提供 **44 个** MCP 工具，覆盖小程序全生命周期。
+v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **8 个聚合工具**。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
-通过环境变量 `WECHAT_TOOLS_PRESET` 控制开放范围：
-- `core`（默认）：13 个核心工具，覆盖 SOP 开发迭代和全页面巡检两个流程
-- `full`：开放全部 44 个工具
-
-标注说明：🟢 core + full 均可用 / 🔵 仅 full 可用
+所有工具返回统一 JSON 信封：
+```json
+// 成功
+{"success": true, "data": {...}, "message": "操作描述"}
+// 失败
+{"success": false, "error_code": "PARAM_MISSING", "message": "...", "hint": "修复建议"}
+```
 
 ---
 
 ## 目录
 
-1. [项目感知与上下文 (Context)](#1-项目感知与上下文-context)
-2. [构建、预览与编译 (Build)](#2-构建预览与编译-build)
-3. [自动化交互 (Automation)](#3-自动化交互-automation)
-4. [实时调试与日志 (Debug)](#4-实时调试与日志-debug)
-5. [云开发管理 (Cloud)](#5-云开发管理-cloud)
-6. [系统诊断与管理 (System)](#6-系统诊断与管理-system)
-7. [Mock 场景示例](#7-mock-场景示例)
+1. [wechat_ide — IDE 生命周期管理](#wechat_ide)
+2. [wechat_build — 构建与发布](#wechat_build)
+3. [wechat_automator — 自动化交互](#wechat_automator)
+4. [wechat_inspector — 运行时日志采集](#wechat_inspector)
+5. [wechat_screenshot — 界面截图](#wechat_screenshot)
+6. [wechat_navigate — 跳转并采集日志](#wechat_navigate)
+7. [wechat_file — 项目文件读取](#wechat_file)
+8. [wechat_cloud — 云函数管理](#wechat_cloud)
+9. [Mock 场景示例](#mock-场景示例)
 
 ---
 
-## 1. 项目感知与上下文 (Context)
+## wechat_ide
 
-### 🔵 `wechat_project_info`
+IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_login`、`wechat_close_project`、`wechat_quit_ide`、`wechat_get_status`。
 
-获取项目完整信息，包括 `project.config.json`、`app.json`、`app.wxss`、`app.js` 及目录结构概览。AI 开始开发前应优先调用。
+**必填参数**：`action`
+
+| action | 功能 | 条件必填参数 |
+|--------|------|------------|
+| `open` | 打开 IDE 或指定项目（每次自动编译刷新） | — |
+| `login` | 登录，生成二维码供扫码 | — |
+| `is_login` | 检查是否已登录 | — |
+| `close` | 关闭指定项目窗口 | — |
+| `quit` | 退出整个 IDE | — |
+| `status` | 环境诊断（CLI/项目路径/Node.js/项目信息） | — |
+
+**可选参数**
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `project_path` | string | 环境变量 | 小程序项目路径 |
-
----
-
-### 🟢 `wechat_list_pages`
-
-列出 `app.json` 中所有注册页面，并检查每个页面的 `.wxml/.wxss/.js/.json/.ts` 文件是否存在。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-
----
-
-### 🔵 `wechat_read_page`
-
-一键读取指定页面的全部源码文件（`.wxml`、`.wxss`、`.js`、`.json`），每个文件最多 500 行。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `page_path` | string | **必填** | 页面路径，例如 `pages/index/index` |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-
----
-
-### 🔵 `wechat_read_file`
-
-读取项目中任意单个文件，最多 800 行。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `file_path` | string | **必填** | 相对项目根目录的路径，例如 `app.json` |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-
----
-
-## 2. 构建、预览与编译 (Build)
-
-### 🟢 `wechat_compile_check`
-
-**[最常用]** 触发编译并捕获所有 Error 和 Warning。AI 修改代码后应立即调用此工具验证。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `info_output` | string | null | 编译信息输出 JSON 文件路径 |
+| `appid` | string | null | 小程序 AppID |
 | `port` | int | null | IDE HTTP 服务端口号 |
+| `lang` | string | null | 界面语言：`en` 或 `zh` |
+| `cdp_enabled` | bool | `true` | 是否开启 CDP 调试端口（9222），`open` 时使用 |
+| `qr_format` | string | `terminal` | 二维码格式，`login` 时使用 |
+| `qr_output` | string | null | 二维码输出路径，`login` 时使用 |
 
 ---
 
-### 🔵 `wechat_preview_page`
+## wechat_build
 
-快捷预览指定页面，自动构建 `compile_condition`，生成预览二维码（默认 base64 格式）。
+构建与发布。合并原 `wechat_compile_check`、`wechat_preview`、`wechat_upload`、`wechat_build_npm`、`wechat_cache_clean`。
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `page_path` | string | **必填** | 要预览的页面路径，例如 `pages/index/index` |
-| `query` | string | null | 页面参数，例如 `id=123&type=detail` |
-| `qr_format` | string | `base64` | 二维码格式：`terminal`、`image`、`base64` |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `port` | int | null | IDE HTTP 服务端口号 |
+**必填参数**：`action`
 
----
+| action | 功能 | 条件必填参数 |
+|--------|------|------------|
+| `compile` | **[最常用]** 触发编译，捕获所有 Error 和 Warning | — |
+| `preview` | 生成预览二维码 | — |
+| `upload` | 上传代码到微信后台 ⚠️ | **`version`** |
+| `build_npm` | 构建 NPM 依赖 | — |
+| `cache_clean` | 清除指定类型缓存 | — |
 
-### 🔵 `wechat_preview`
-
-预览小程序，支持自定义编译条件和二维码输出路径。
+**可选参数**
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `project_path` | string | 环境变量 | 小程序项目路径 |
-| `qr_format` | string | `base64` | 二维码格式：`terminal`、`image`、`base64` |
+| `version` | string | null | 版本号，`upload` 时**必填**，例如 `1.0.0` |
+| `desc` | string | null | 版本描述，`upload` 时使用 |
+| `qr_format` | string | `base64` | 二维码格式 |
 | `qr_output` | string | null | 二维码输出文件路径 |
-| `info_output` | string | null | 编译信息输出 JSON 文件路径 |
-| `compile_condition` | string | null | 自定义编译条件（JSON 字符串），例如 `{"pathName":"pages/index/index","query":"x=1"}` |
-| `port` | int | null | IDE HTTP 服务端口号 |
-| `lang` | string | null | 界面语言 |
-
----
-
-### 🔵 `wechat_build_npm`
-
-构建小程序 NPM 依赖。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `project_path` | string | 环境变量 | 小程序项目路径 |
+| `info_output` | string | null | 编译/上传信息输出 JSON 路径 |
+| `compile_condition` | string | null | 自定义编译条件（JSON 字符串） |
 | `compile_type` | string | null | 编译类型：`miniprogram` 或 `plugin` |
-| `port` | int | null | IDE HTTP 服务端口号 |
-
----
-
-### 🔵 `wechat_upload`
-
-上传代码至微信后台。⚠️ 会覆盖相同版本号的已有代码，请谨慎使用。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `version` | string | **必填** | 版本号，例如 `1.0.0` |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `desc` | string | null | 版本描述信息 |
-| `info_output` | string | null | 上传信息输出 JSON 文件路径 |
+| `clean_type` | string | `compile` | 缓存类型：`storage`、`file`、`compile`、`auth`、`network`、`session`、`all` |
 | `port` | int | null | IDE HTTP 服务端口号 |
 | `lang` | string | null | 界面语言 |
 
 ---
 
-### 🟢 `wechat_cache_clean`
+## wechat_automator
 
-清除微信开发者工具的缓存。
-类型: storage(数据), file(文件), compile(编译), auth(授权),
-network(网络), session(登录), all(所有)
+自动化交互与运行时查询。合并所有原自动化工具（13 个 action）。
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `clean_type` | string | `compile` | 缓存类型：`storage`、`file`、`compile`、`auth`、`network`、`session`、`all` |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `port` | int | null | IDE HTTP 服务端口号 |
+> **前提**：需先调用 `wechat_automator(action='start')` 开启 9420 自动化端口，**只需一次**。
 
----
+**必填参数**：`action`
 
-### 🔵 `wechat_reset_fileutils`
+| action | 功能 | 条件必填参数 |
+|--------|------|------------|
+| `start` | 开启自动化端口，监听连接 | — |
+| `tap` | 模拟点击指定元素 | **`selector`** |
+| `input` | 向 input/textarea 输入文本 | **`selector`**, **`value`** |
+| `element_info` | 获取元素详情（文本/尺寸/位置/WXML） | **`selector`** |
+| `set_data` | 热更新页面 data，无需重新编译 | **`data_json`** |
+| `call_method` | 调用当前页面的指定方法 | **`method`** |
+| `call_wx` | 直接调用 wx 对象上的方法 | **`method`** |
+| `mock_wx` | Mock wx API 的返回值 | **`method`**, **`result_json`** |
+| `evaluate` | 在逻辑层执行 JS 表达式 | **`expression`** |
+| `page_stack` | 获取当前页面栈信息 | — |
+| `page_data` | 读取当前活跃页面的 data 状态 | — |
+| `system_info` | 获取运行时系统信息 | — |
+| `storage` | 获取本地缓存数据（key 为空则列出所有） | — |
 
-重建工具内部文件缓存，重新监听项目文件。AI 修改大量文件后调用，确保开发者工具检测到所有变更。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-
----
-
-## 3. 自动化交互 (Automation)
-
-> **前提**：需先调用 `wechat_auto` 开启 9420 自动化端口，**只需运行一次**。
-
-### 🟢 `wechat_auto`
-
-开启小程序自动化功能，监听指定端口，供后续自动化工具连接。
-开启后，可通过 miniprogram-automator SDK 连接到指定端口，
-实现自动化测试：控制页面跳转、获取元素、触发事件、注入代码等。
-
-典型用法：
-1. 调用此工具开启自动化（默认端口 9420）
-2. 通过 automator SDK 连接并执行测试脚本
+**可选参数**
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `auto_port` | int | `9420` | 自动化监听端口 |
-| `auto_account` | string | null | 指定使用的 openid |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-
----
-
-### 🟢 `wechat_tap_element`
-
-通过 CSS 选择器定位页面元素并模拟点击（tap）。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `selector` | string | **必填** | CSS 选择器，例如 `.submit-btn`、`#login` |
-| `auto_port` | int | `9420` | 自动化端口 |
-
----
-
-### 🟢 `wechat_input_element`
-
-向 `input` 或 `textarea` 元素输入文本内容。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `selector` | string | **必填** | input/textarea 的 CSS 选择器 |
-| `value` | string | **必填** | 要输入的文本内容 |
-| `auto_port` | int | `9420` | 自动化端口 |
-
----
-
-### 🔵 `wechat_set_page_data`
-
-**热更新**：直接修改当前页面的响应式 data，无需重新编译即可刷新 UI。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `data_json` | string | **必填** | 要设置的数据（JSON 字符串），例如 `{"message": "hello", "count": 42}` |
-| `auto_port` | int | `9420` | 自动化端口 |
-
----
-
-### 🔵 `wechat_get_page_data`
-
-读取当前活跃页面的 data 模型状态，用于诊断数据绑定不生效等问题。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `auto_port` | int | `9420` | 自动化端口 |
-
----
-
-### 🔵 `wechat_call_page_method`
-
-调用当前页面中的指定方法（如 `onPullDownRefresh`、自定义业务方法等）。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `method` | string | **必填** | 要调用的页面方法名，例如 `onPullDownRefresh` |
+| `project_path` | string | 环境变量 | 小程序项目路径，`start` 时使用 |
+| `selector` | string | null | CSS 选择器，例如 `.submit-btn`、`#login` |
+| `value` | string | null | 输入值 |
+| `style_prop` | string | null | 要查询的 CSS 属性名，`element_info` 时可选 |
+| `data_json` | string | null | JSON 数据字符串，例如 `{"key": "val"}` |
+| `method` | string | null | 方法名 |
 | `args_json` | string | null | 方法参数（JSON 数组字符串） |
-| `auto_port` | int | `9420` | 自动化端口 |
+| `expression` | string | null | JS 表达式，例如 `getApp().globalData` |
+| `result_json` | string | null | Mock 返回值（JSON 字符串） |
+| `key` | string | null | Storage key，为空则列出所有 key |
+| `auto_account` | string | null | 指定 openid，`start` 时可选 |
 
 ---
 
-### 🔵 `wechat_get_element_info`
+## wechat_inspector
 
-获取页面元素的详细信息（文本、WXML 结构、尺寸、位置、样式）。
+运行时日志采集。合并原 `wechat_get_console_logs`、`wechat_get_cdp_logs`。
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `selector` | string | **必填** | CSS 选择器 |
-| `style_prop` | string | null | 要查询的具体 CSS 属性名，例如 `color` |
-| `auto_port` | int | `9420` | 自动化端口 |
+**必填参数**：`action`
 
----
+| action | 功能 | 采集来源 |
+|--------|------|---------|
+| `console` | 采集 console 日志和 JS 运行时异常 | automator 端口 |
+| `cdp` | 采集底层高清日志（WXML 警告/废弃 API/渲染层报错） | CDP 9222 端口 |
 
-### 🔵 `wechat_mock_wx_method`
+> **cdp 前提**：调用 `wechat_ide(action='open', cdp_enabled=True)` 确保端口 9222 可用。
 
-覆盖 `wx` 对象上指定方法的调用结果（Mock）。详见 [Mock 场景示例](#7-mock-场景示例)。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `method` | string | **必填** | 要 mock 的 wx 方法，例如 `showModal`、`chooseLocation` |
-| `result_json` | string | **必填** | Mock 返回值（JSON 字符串），例如 `{"confirm": true}` |
-| `auto_port` | int | `9420` | 自动化端口 |
-
----
-
-### 🔵 `wechat_call_wx_method`
-
-直接调用 `wx` 对象上的指定方法。
+**参数**
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `method` | string | **必填** | wx 方法名，例如 `getStorageSync`、`setNavigationBarTitle` |
-| `args_json` | string | null | 参数（JSON 数组字符串） |
-| `auto_port` | int | `9420` | 自动化端口 |
-
----
-
-### 🔵 `wechat_get_page_stack`
-
-获取当前小程序的页面栈信息，包括每个页面的路径和查询参数。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `auto_port` | int | `9420` | 自动化端口 |
-
----
-
-### 🔵 `wechat_evaluate_expression`
-
-在小程序逻辑层运行环境中直接执行一段 JS 表达式并返回结果。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `expression` | string | **必填** | 要执行的 JS 表达式，例如 `getApp().globalData` |
-| `auto_port` | int | `9420` | 自动化端口 |
-
----
-
-### 🔵 `wechat_auto_replay`
-
-打开自动化测试窗口，可回放之前录制的测试用例。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `replay_all` | bool | `false` | 是否回放全部测试用例 |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-
----
-
-## 4. 实时调试与日志 (Debug)
-
-### 🔵 `wechat_get_cdp_logs`
-
-**[推荐]** 通过 Chromium DevTools Protocol (CDP) 采集高清日志。能捕获 `wechat_get_console_logs` 无法获取的底层信息：WXML 语法警告、废弃 API 提示（如 `wx.getSystemInfoSync`、`wx.saveFile`）、渲染层网络报错等。
-
-> **前提**：调用 `wechat_open` 时必须设置 `cdp_enabled=true`，确保端口 9222 未被占用。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
+| `action` | string | **必填** | `console` 或 `cdp` |
 | `duration` | int | `10` | 采集持续时间（秒），范围 1~120 |
-| `port` | int | `9222` | CDP 端口 |
-| `verbose` | bool | `false` | `true` 时返回全量日志，不过滤系统日志 |
+| `detail_level` | string | `concise` | `cdp` 时使用：`concise`（仅 errors+warnings）或 `full`（全量） |
+| `max_logs` | int | `50` | `cdp` 时使用：最大返回条数，超出时 `truncated=true` |
+| `cdp_port` | int | `9222` | CDP 调试端口 |
+| `auto_port` | int | `9420` | 自动化端口，`console` 时使用 |
+| `log_type` | string | `all` | `console` 时使用：`all`、`console`、`exception` |
+| `tap_selector` | string | null | 采集期间自动点击的 CSS 选择器 |
+| `tap_delay` | int | `500` | 点击延迟（毫秒） |
+
+**返回值格式（cdp action）**
+
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {"total": 5, "errors": 2, "warnings": 1, "info": 2, "truncated": false},
+    "logs": [
+      {"level": "error", "message": "Cannot read property ...", "source": "index.js", "timestamp": "..."}
+    ]
+  },
+  "message": "采集 10 秒，发现 2 个错误、1 个警告。"
+}
+```
 
 ---
 
-### 🔵 `wechat_get_console_logs`
+## wechat_screenshot
 
-实时采集小程序运行时的 console 日志和 JS 异常，支持采集期间自动触发点击操作。
+捕获当前小程序模拟器的界面截图，默认支持滚动拼接长图，保存为 PNG 文件。
 
-> **前提**：需先调用 `wechat_auto` 开启自动化端口。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `auto_port` | int | `9420` | 自动化监听端口 |
-| `duration` | int | `10` | 采集持续时间（秒），范围 1~120 |
-| `log_type` | string | `all` | 监听类型：`all`（日志+异常）、`console`（仅日志）、`exception`（仅异常） |
-| `tap_selector` | string | null | 采集期间自动点击的 CSS 选择器，例如 `.btn` |
-| `tap_delay` | int | `500` | 点击延迟（毫秒），开始采集后等待多久再触发点击 |
-| `project_path` | string | null | 小程序项目路径（仅用于提示） |
-
----
-
-### 🔵 `wechat_get_exceptions`
-
-专门监听小程序运行时 JS 异常（exception 事件），输出比 `wechat_get_console_logs` 更清晰的异常信息，包含完整调用栈。
-
-> **前提**：需先调用 `wechat_auto` 开启自动化端口。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `auto_port` | int | `9420` | 自动化监听端口 |
-| `duration` | int | `10` | 采集持续时间（秒），范围 1~120 |
-| `project_path` | string | null | 小程序项目路径（仅用于提示） |
-
----
-
-### 🟢 `wechat_capture_screenshot`
-
-捕获当前小程序模拟器的界面截图，默认支持截取长图（自动滚动并拼接），保存为 PNG 文件。
-
-> **前提**：需先调用 `wechat_auto` 开启自动化端口。
+> **前提**：需先调用 `wechat_automator(action='start')` 开启自动化端口。
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -368,316 +188,145 @@ network(网络), session(登录), all(所有)
 
 ---
 
-### 🟢 `wechat_navigate_and_capture`
+## wechat_navigate
 
-跳转到指定页面，等待指定时间，通过 CDP 采集高清日志（含 WXML 警告、废弃 API、渲染层报错、JS 异常等）。适合检查页面初始化（`onLoad`、`onShow`）阶段的日志。
+跳转到指定页面，等待指定时间，同步采集 CDP 高清日志。适合检查页面初始化（`onLoad`、`onShow`）阶段的错误。
 
-> **前提**：需先调用 `wechat_auto` 开启自动化端口，且以 `cdp_enabled=true` 打开项目。
+> **前提**：需先调用 `wechat_automator(action='start')` 并以 `cdp_enabled=True` 打开项目。
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `page_path` | string | **必填** | 要跳转的页面路径，例如 `pages/index/index` |
 | `wait_ms` | int | `2000` | 跳转后等待时间（毫秒），范围 100~30000 |
 | `auto_port` | int | `9420` | 自动化监听端口 |
-| `cdp_port` | int | `9222` | CDP 调试端口，需先以 `cdp_enabled=true` 打开项目 |
-| `verbose` | bool | `false` | `true` 时返回全量 CDP 日志，不过滤系统日志 |
+| `cdp_port` | int | `9222` | CDP 调试端口 |
+| `detail_level` | string | `concise` | `concise`（仅 errors+warnings）或 `full` |
+| `max_logs` | int | `50` | 最大返回 CDP 日志条数 |
 | `project_path` | string | null | 小程序项目路径（仅用于提示） |
 
 ---
 
-### 🔵 `wechat_get_system_info`
+## wechat_file
 
-通过自动化接口获取小程序运行时的系统信息（基础库版本、平台、屏幕尺寸等）。
+项目文件读取。合并原 `wechat_project_info`、`wechat_list_pages`、`wechat_read_page`、`wechat_read_file`。
 
-> **前提**：需先调用 `wechat_auto` 开启自动化端口。
+**必填参数**：`action`
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `auto_port` | int | `9420` | 自动化监听端口 |
-| `project_path` | string | null | 小程序项目路径（仅用于提示） |
+| action | 功能 | 条件必填参数 |
+|--------|------|------------|
+| `project_info` | 获取项目完整信息（config/app.json/目录结构） | — |
+| `list_pages` | 列出 app.json 中所有注册页面，检查文件完整性 | — |
+| `read_page` | 读取指定页面全部源码（.wxml/.wxss/.js/.json） | **`page_path`** |
+| `read_file` | 读取项目中任意单个文件，最多 800 行 | **`file_path`** |
 
----
-
-### 🔵 `wechat_get_storage`
-
-获取小程序的本地缓存数据。不提供 `key` 时返回所有已占用的 key 列表及空间统计。
-
-> **前提**：需先调用 `wechat_auto` 开启自动化端口。
+**可选参数**
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `key` | string | null | 要读取的 Storage key；为空则列出所有 key |
-| `auto_port` | int | `9420` | 自动化端口 |
+| `project_path` | string | 环境变量 | 小程序项目路径 |
+| `page_path` | string | null | 页面路径，`read_page` 时必填，例如 `pages/index/index` |
+| `file_path` | string | null | 相对文件路径，`read_file` 时必填，例如 `app.json` |
 
 ---
 
-## 5. 云开发管理 (Cloud)
+## wechat_cloud
 
-### 🔵 `wechat_cloud_env_list`
+云函数管理。合并原 5 个云函数工具。
 
-列出小程序关联的所有云开发环境。
+**必填参数**：`action`
+
+| action | 功能 | 条件必填参数 |
+|--------|------|------------|
+| `env_list` | 列出所有关联的云开发环境 | — |
+| `func_list` | 列出指定环境的线上云函数 | **`env`** |
+| `func_info` | 查看指定云函数的详细信息 | **`env`**, **`names`** |
+| `func_deploy` | 上传云函数到云环境 | **`env`** |
+| `func_download` | 从云环境下载云函数到本地 | **`env`**, **`name`**, **`download_path`** |
+
+**可选参数**
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `project_path` | string | 环境变量 | 小程序项目路径 |
 | `appid` | string | null | 小程序 AppID |
+| `env` | string | null | 云环境 ID，多数 action 必填 |
+| `names` | list[string] | null | 云函数名称列表，`func_info`/`func_deploy` 使用 |
+| `paths` | list[string] | null | 云函数目录绝对路径，`func_deploy` 使用 |
+| `name` | string | null | 云函数名称，`func_download` 必填 |
+| `download_path` | string | null | 下载存放路径，`func_download` 必填 |
+| `remote_npm_install` | bool | `false` | 是否云端安装依赖 |
 | `port` | int | null | IDE HTTP 服务端口号 |
 | `lang` | string | null | 界面语言 |
 
 ---
 
-### 🔵 `wechat_cloud_func_list`
+## Mock 场景示例
 
-查看指定云环境下的线上云函数列表。
+通过 `wechat_automator(action='mock_wx', method='...', result_json='...')` 覆盖 `wx` API 返回值，无需真实设备权限或支付环境。
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `env` | string | **必填** | 云环境 ID |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `appid` | string | null | 小程序 AppID |
-| `port` | int | null | IDE HTTP 服务端口号 |
-
----
-
-### 🔵 `wechat_cloud_func_info`
-
-查看指定云函数的详细信息。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `env` | string | **必填** | 云环境 ID |
-| `names` | list[string] | **必填** | 云函数名称列表 |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `appid` | string | null | 小程序 AppID |
-| `port` | int | null | IDE HTTP 服务端口号 |
-
----
-
-### 🔵 `wechat_cloud_func_deploy`
-
-上传云函数到指定云环境。可通过 `names`（函数名）或 `paths`（绝对路径）指定目标函数。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `env` | string | **必填** | 云环境 ID |
-| `names` | list[string] | null | 云函数名称列表（配合 `project_path` 使用） |
-| `paths` | list[string] | null | 云函数目录绝对路径列表 |
-| `remote_npm_install` | bool | `false` | `true` 时云端安装依赖，不上传 `node_modules` |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `appid` | string | null | 小程序 AppID |
-| `port` | int | null | IDE HTTP 服务端口号 |
-
----
-
-### 🔵 `wechat_cloud_func_download`
-
-从云环境下载指定云函数到本地目录。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `env` | string | **必填** | 云环境 ID |
-| `name` | string | **必填** | 云函数名称 |
-| `download_path` | string | **必填** | 下载后的存放位置路径 |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `appid` | string | null | 小程序 AppID |
-| `port` | int | null | IDE HTTP 服务端口号 |
-
----
-
-## 6. 系统诊断与管理 (System)
-
-### 🟢 `wechat_setup_sop`
-
-**[推荐]** 一键完成初始化 SOP，自动依次执行：`wechat_is_login` → `wechat_auto` → `wechat_open` → `wechat_project_info`。任一步骤失败后仍继续执行后续步骤，减少工具调用轮次和 token 消耗。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `auto_port` | int | `9420` | 自动化端口 |
-| `appid` | string | null | 小程序 AppID |
-| `port` | int | null | IDE HTTP 服务端口号 |
-| `lang` | string | null | 界面语言 |
-| `cdp_enabled` | bool | `false` | 是否开启 CDP 调试端口（9222） |
-
----
-
-### 🟢 `wechat_open`
-
-打开微信开发者工具 IDE，或打开指定的小程序项目（每次执行都会自动编译刷新）。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `project_path` | string | 环境变量 | 小程序项目路径；不提供则仅启动 IDE |
-| `cdp_enabled` | bool | `false` | 是否开启 Chromium 调试端口（9222），开启后可捕获完整 WXML 警告 |
-| `appid` | string | null | 小程序 AppID |
-| `port` | int | null | IDE HTTP 服务端口号 |
-| `lang` | string | null | 界面语言：`en` 或 `zh` |
-
----
-
-### 🔵 `wechat_login`
-
-登录微信开发者工具，生成二维码供扫码登录。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `qr_format` | string | `terminal` | 二维码格式：`terminal`、`image`、`base64` |
-| `qr_output` | string | null | 二维码输出文件路径 |
-| `result_output` | string | null | 登录结果输出文件路径（JSON 格式） |
-| `port` | int | null | IDE HTTP 服务端口号 |
-| `lang` | string | null | 界面语言 |
-
----
-
-### 🟢 `wechat_is_login`
-
-检查微信开发者工具当前是否已登录。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `appid` | string | null | 小程序 AppID |
-| `port` | int | null | IDE HTTP 服务端口号 |
-
----
-
-### 🟢 `wechat_get_status`
-
-返回 MCP 服务的运行状态和当前项目配置信息，包括 CLI 路径、项目路径及当前账号状态。无需参数。
-
----
-
-### 🟢 `wechat_list_tools`
-
-列出所有已注册的 MCP 工具及其分类。无需参数。
-
----
-
-### 🔵 `wechat_close_project`
-
-关闭微信开发者工具中指定的项目窗口。注意：关闭时 IDE 会弹窗确认，3 秒后自动关闭。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `project_path` | string | 环境变量 | 要关闭的小程序项目路径 |
-| `port` | int | null | IDE HTTP 服务端口号 |
-
----
-
-### 🔵 `wechat_quit_ide`
-
-关闭整个微信开发者工具。⚠️ 这将关闭 IDE 及所有打开的项目。
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `port` | int | null | IDE HTTP 服务端口号 |
-
----
-
-## 7. Mock 场景示例
-
-`wechat_mock_wx_method` 可覆盖 `wx` 对象上指定方法的返回值，让 AI 在无需真实设备权限或支付环境的情况下，模拟各类原生 API 的回调结果，用于自动化测试和功能验证。
-
-> **注意**：Mock 仅在当前自动化会话中有效，重启开发者工具或重新调用 `wechat_auto` 后会自动失效，需重新设置。
-
-### result_json 参数说明
-
-`result_json` 是一个 JSON 字符串，其内容对应目标 wx API `success` 回调函数接收到的参数对象。
-
-| 字段 | 所属 API | 说明 |
-|------|----------|------|
-| `errMsg` | 通用 | 成功时格式为 `"apiName:ok"`，失败时包含原因，例如 `"apiName:fail cancel"` |
-| `confirm` | `showModal` | 用户是否点击了确认按钮 |
-| `cancel` | `showModal` | 用户是否点击了取消按钮 |
-| `name` | `chooseLocation` | 位置名称 |
-| `address` | `chooseLocation` | 详细地址 |
-| `latitude` | `chooseLocation` | 纬度（浮点数） |
-| `longitude` | `chooseLocation` | 经度（浮点数） |
-| `tempFilePaths` | `chooseImage` | 选中图片的临时文件路径数组 |
-| `tempFiles` | `chooseImage` | 选中图片的文件对象数组（含 `path` 和 `size`） |
-
----
+> **注意**：Mock 仅在当前自动化会话中有效，重启开发者工具后需重新设置。
 
 ### 场景一：支付成功
 
-模拟 `wx.requestPayment` 调用成功，触发页面的支付成功逻辑分支：
-
 ```json
 {
-  "tool": "wechat_mock_wx_method",
+  "tool": "wechat_automator",
   "arguments": {
+    "action": "mock_wx",
     "method": "requestPayment",
     "result_json": "{\"errMsg\": \"requestPayment:ok\"}"
   }
 }
 ```
 
-### 场景二：支付失败（用户取消）
-
-> `fail cancel` 是微信支付用户取消时的标准 `errMsg` 格式，页面代码通常通过 `fail` 回调或 `errMsg.includes('cancel')` 来判断。
+### 场景二：弹窗确认（showModal）
 
 ```json
 {
-  "tool": "wechat_mock_wx_method",
+  "tool": "wechat_automator",
   "arguments": {
-    "method": "requestPayment",
-    "result_json": "{\"errMsg\": \"requestPayment:fail cancel\"}"
-  }
-}
-```
-
-### 场景三：弹窗确认（showModal）
-
-模拟用户点击了确认按钮：
-
-```json
-{
-  "tool": "wechat_mock_wx_method",
-  "arguments": {
+    "action": "mock_wx",
     "method": "showModal",
     "result_json": "{\"confirm\": true, \"cancel\": false, \"errMsg\": \"showModal:ok\"}"
   }
 }
 ```
 
-### 场景四：定位授权（chooseLocation）
-
-模拟用户选择了一个位置，返回完整的位置信息：
+### 场景三：定位授权（chooseLocation）
 
 ```json
 {
-  "tool": "wechat_mock_wx_method",
+  "tool": "wechat_automator",
   "arguments": {
+    "action": "mock_wx",
     "method": "chooseLocation",
     "result_json": "{\"name\": \"腾讯北京总部\", \"address\": \"北京市海淀区科学院南路2号\", \"latitude\": 39.9842, \"longitude\": 116.3093, \"errMsg\": \"chooseLocation:ok\"}"
   }
 }
 ```
 
-### 场景五：相册选择（chooseImage）
-
-模拟用户从相册选择了两张图片，返回临时文件路径：
+### 场景四：相册选择（chooseImage）
 
 ```json
 {
-  "tool": "wechat_mock_wx_method",
+  "tool": "wechat_automator",
   "arguments": {
+    "action": "mock_wx",
     "method": "chooseImage",
-    "result_json": "{\"tempFilePaths\": [\"wxfile://tmp_photo_001.jpg\", \"wxfile://tmp_photo_002.jpg\"], \"tempFiles\": [{\"path\": \"wxfile://tmp_photo_001.jpg\", \"size\": 102400}, {\"path\": \"wxfile://tmp_photo_002.jpg\", \"size\": 204800}], \"errMsg\": \"chooseImage:ok\"}"
+    "result_json": "{\"tempFilePaths\": [\"wxfile://tmp_photo_001.jpg\"], \"tempFiles\": [{\"path\": \"wxfile://tmp_photo_001.jpg\", \"size\": 102400}], \"errMsg\": \"chooseImage:ok\"}"
   }
 }
 ```
 
-### 场景六：获取用户信息（getUserProfile）
-
-模拟用户授权并返回基本信息：
+### 场景五：获取用户信息（getUserProfile）
 
 ```json
 {
-  "tool": "wechat_mock_wx_method",
+  "tool": "wechat_automator",
   "arguments": {
+    "action": "mock_wx",
     "method": "getUserProfile",
-    "result_json": "{\"userInfo\": {\"nickName\": \"测试用户\", \"avatarUrl\": \"https://example.com/avatar.png\", \"gender\": 1, \"country\": \"China\", \"province\": \"Guangdong\", \"city\": \"Shenzhen\"}, \"errMsg\": \"getUserProfile:ok\"}"
+    "result_json": "{\"userInfo\": {\"nickName\": \"测试用户\", \"avatarUrl\": \"https://example.com/avatar.png\", \"gender\": 1}, \"errMsg\": \"getUserProfile:ok\"}"
   }
 }
 ```
