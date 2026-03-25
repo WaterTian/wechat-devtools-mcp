@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.3.1)
+# wechat-devtools-mcp 工具参数完整参考 (v0.4.0)
 
 > 本文档是 `SKILL.md` 的扩展参考，提供 8 个聚合 API 的所有参数完整说明。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
@@ -401,6 +401,8 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `cdp_port` | int | `9222` | CDP 调试端口 |
 | `detail_level` | string | `concise` | `concise` 或 `full` |
 | `max_logs` | int | `50` | 最大返回 CDP 日志条数 |
+| `clear_logs` | `bool` | `true` | 否 | 是否过滤跳转前的 CDP 历史日志（基于时间戳）。设为 `false` 可获取完整累积日志。 |
+| `check_data` | `bool` | `true` | 否 | 跳转后检查 page_data，如超过 70% 字段为空且 URL 含 query 参数，追加参数名错误警告。 |
 | `project_path` | string | null | 项目路径（仅用于日志提示） |
 
 ### 等待时间建议
@@ -418,6 +420,9 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
   "success": true,
   "data": {
     "current_page": "pages/index/index",
+    "logs_since": "2026-03-25T10:30:00.000Z",
+    "filtered_before_navigation": 5,
+    "warning": "页面数据大部分为空，可能是 query 参数名错误。",
     "cdp_logs": {
       "summary": {"total": 3, "errors": 0, "warnings": 2, "info": 1, "truncated": false},
       "logs": [...]
@@ -485,7 +490,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `action` | string | **必填** | `env_list` / `func_list` / `func_info` / `func_deploy` / `func_download` |
+| `action` | string | **必填** | `env_list` / `func_list` / `func_info` / `func_deploy` / `func_download` / `db_collection_add` / `db_collection_count` |
 | `project_path` | string | 环境变量 | 小程序项目路径 |
 | `appid` | string | null | 小程序 AppID |
 | `env` | string | null | 云环境 ID，多数 action 必填 |
@@ -493,6 +498,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `paths` | list[string] | null | 云函数目录绝对路径，`func_deploy` 使用（与 `names` 二选一） |
 | `name` | string | null | 单个云函数名称，`func_download` 必填 |
 | `download_path` | string | null | 下载存放路径，`func_download` 必填 |
+| `collection_name` | string | null | 数据库集合名称，`db_collection_add`/`db_collection_count` 时**必填** |
 | `remote_npm_install` | bool | `false` | 是否云端安装 npm 依赖 |
 | `port` | int | null | IDE HTTP 服务端口号 |
 | `lang` | string | null | 界面语言 |
@@ -506,6 +512,37 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `func_info` | **`env`**, **`names`** | 查看指定云函数的详细配置和代码信息 |
 | `func_deploy` | **`env`** | 上传本地云函数到云环境（`names` 或 `paths` 二选一） |
 | `func_download` | **`env`**, **`name`**, **`download_path`** | 从云端下载云函数代码到本地 |
+| `db_collection_add` | **`collection_name`** | 创建数据库集合（通过 automator evaluate 执行，需先 start） |
+| `db_collection_count` | **`collection_name`** | 查询集合文档数量（通过 automator evaluate 执行，需先 start） |
+
+> **注意**：`db_collection_add` 和 `db_collection_count` 通过 automator evaluate 执行，不需要 `env` 参数，但需先调用 `wechat_automator(action='start')`。
+
+### db action 返回示例
+
+#### `db_collection_add`
+
+```json
+{
+  "success": true,
+  "data": {
+    "collection_name": "orders"
+  },
+  "message": "集合 orders 创建成功"
+}
+```
+
+#### `db_collection_count`
+
+```json
+{
+  "success": true,
+  "data": {
+    "collection_name": "orders",
+    "count": 42
+  },
+  "message": "集合 orders 共有 42 条文档"
+}
+```
 
 ---
 

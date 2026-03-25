@@ -1,4 +1,4 @@
-# MCP 工具箱完整文档 (v0.3.1)
+# MCP 工具箱完整文档 (v0.4.0)
 
 v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **8 个聚合工具**。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
@@ -206,6 +206,8 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `auto_port` | int | `9420` | 自动化监听端口 |
 | `cdp_port` | int | `9222` | CDP 调试端口 |
 | `detail_level` | string | `concise` | `concise`（仅 errors+warnings）或 `full` |
+| `clear_logs` | bool | `true` | 是否过滤跳转前的 CDP 历史日志（基于时间戳）。设为 `false` 可获取完整累积日志。 |
+| `check_data` | bool | `true` | 跳转后检查 page_data，如超过 70% 字段为空且 URL 含 query 参数，追加参数名错误警告。 |
 | `max_logs` | int | `50` | 最大返回 CDP 日志条数 |
 | `project_path` | string | null | 小程序项目路径（仅用于提示） |
 
@@ -247,6 +249,10 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `func_info` | 查看指定云函数的详细信息 | **`env`**, **`names`** |
 | `func_deploy` | 上传云函数到云环境 | **`env`** |
 | `func_download` | 从云环境下载云函数到本地 | **`env`**, **`name`**, **`download_path`** |
+| `db_collection_add` | 创建数据库集合 | **`collection_name`** |
+| `db_collection_count` | 查询集合文档数量 | **`collection_name`** |
+
+> **注意**：`db_collection_add` 和 `db_collection_count` 通过 automator evaluate 执行，不需要 `env` 参数，但需先调用 `wechat_automator(action='start')`。
 
 **可选参数**
 
@@ -259,6 +265,8 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `paths` | list[string] | null | 云函数目录绝对路径，`func_deploy` 使用 |
 | `name` | string | null | 云函数名称，`func_download` 必填 |
 | `download_path` | string | null | 下载存放路径，`func_download` 必填 |
+| `collection_name` | string | null | 数据库集合名称，`db_collection_add`/`db_collection_count` 时**必填** |
+| `auto_port` | int | `9420` | 自动化端口，db 系列 action 使用 |
 | `remote_npm_install` | bool | `false` | 是否云端安装依赖 |
 | `port` | int | null | IDE HTTP 服务端口号 |
 | `lang` | string | null | 界面语言 |

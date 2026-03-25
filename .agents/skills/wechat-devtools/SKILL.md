@@ -111,6 +111,8 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 
 - `page_path`（**必填**）：如 `pages/index/index`
 - `wait_ms`：等待毫秒，建议 3000
+- `clear_logs`：是否过滤历史 CDP 日志，默认 `true`
+- `check_data`：跳转后是否检查 page_data 空值，默认 `true`
 - `detail_level`：`concise`（仅 errors+warnings）或 `full`
 - **前提**：需 `automator start` + `cdp_enabled=true`
 
@@ -132,6 +134,10 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 | `func_info` | 获取云函数详情 | `env`, `names` |
 | `func_deploy` | 上传云函数 | `env` |
 | `func_download` | 下载云函数 | `env`, `name`, `download_path` |
+| `db_collection_add` | 创建数据库集合 | `collection_name` |
+| `db_collection_count` | 集合文档计数 | `collection_name` |
+
+> db 系列 action 通过 automator evaluate 执行，需先调用 `wechat_automator(action='start')`。不需要 `env` 参数。
 
 ---
 
@@ -146,6 +152,8 @@ wechat_ide(action='is_login')                       # 检查登录
 wechat_ide(action='open', cdp_enabled=True)         # 开启 IDE + CDP 9222
 wechat_automator(action='start')                    # 开启自动化 9420，等待 3s
 wechat_file(action='project_info')                  # [可选] 确认项目结构
+wechat_build(action='cache_clean', clean_type='all')     # 清除全部缓存
+wechat_build(action='compile')                            # 编译建立干净 CDP 基线
 ```
 
 ### SOP B：UI 调试（数据/布局问题）
@@ -161,21 +169,31 @@ wechat_automator(action='page_data')                       # 查看 data 状态
 ### SOP C：异常排查（报错/白屏/JS 异常）
 
 ```
+wechat_automator(action='page_data')                       # ① 首选：直接检查页面数据
+  ↳ 关键字段为 null/空 → 数据未加载或参数错误
+  ↳ 数据正常 → 跳到步骤 ④ 确认非数据问题
+wechat_automator(action='evaluate', expression='wx.cloud.callFunction({name:"xxx",data:{...}})')
+                                                            # ② 直接调 API 获取完整返回值
+  ↳ 遇到 [object Object] 时必用此步骤，可拿到完整 JSON
 wechat_inspector(action='cdp', duration=5, detail_level='concise')
-  ↳ summary.errors > 0 → 改用 detail_level='full' 查完整上下文
-wechat_inspector(action='console', duration=5, log_type='exception')   # JS 异常堆栈
-wechat_file(action='read_page', page_path='pages/xxx/xxx')             # 读源码定位
-wechat_build(action='compile')                                          # 捕获静态错误
+                                                            # ③ CDP 辅助参考
+  ⚠ CDP 错误计数可能包含历史缓存，以 page_data 为准
+wechat_build(action='compile')                              # ④ 捕获静态编译错误
 ```
 
 ### SOP D：全页面巡检（回归/发布前验收）
 
 ```
-wechat_file(action='list_pages')                    # 获取页面列表
+wechat_build(action='cache_clean', clean_type='all')    # 建立干净 CDP 基线
+wechat_build(action='compile')
+wechat_file(action='list_pages')                        # 获取页面列表
 # 对每个 page 顺序执行（禁止并行）：
-wechat_navigate(page_path=page, wait_ms=3000)       # 跳转 + 采集 CDP summary
-wechat_screenshot(output_path=f'C:\tmp\{page}.png') # 截图保存
-# 汇总 summary.errors / warnings，按严重程度排序输出报告
+wechat_navigate(page_path=page, wait_ms=3000)           # 跳转 + CDP 日志
+wechat_automator(action='page_data')                    # 核心验证：关键字段非 null/空
+  ↳ 字段正常 → ✅ 页面通过
+  ↳ 字段为空 → ⚠ 标记异常，用 evaluate 进一步诊断
+  ↳ 仅在 page_data 异常时补充截图
+# 汇总：按 page_data 结果排序输出报告
 ```
 
 ### SOP E：Mock 集成测试（支付/权限/设备）
@@ -209,6 +227,28 @@ mock_wx(method='getSystemInfo', result_json='{"platform":"mac","windowWidth":102
 system_info()                                              # 记录 windowWidth/Height
 ```
 
+### SOP G：子页面测试（需 query 参数的页面）
+
+```
+wechat_file(action='read_page', page_path='pages/xxx/xxx')  # ① 查看 onLoad 方法
+  ↳ 从 options 参数中确认 query 参数名（如 id / matchId）
+wechat_navigate(page_path='pages/xxx/xxx?正确参数名=值', wait_ms=3000)  # ② 跳转
+wechat_automator(action='page_data')                          # ③ 验证数据
+  ↳ 关键字段非空 → ✅
+  ↳ 大部分为 null → 参数名可能有误，回到 ①
+```
+
+### SOP H：云函数部署验证
+
+```
+wechat_cloud(action='func_deploy', env='xxx', names=['func_name'])  # ① 部署
+# 等待 3 秒（部署自动包含延迟验证）
+wechat_automator(action='evaluate',                                  # ② 真实调用验证
+  expression='wx.cloud.callFunction({name:"func_name",data:{}})')
+  ↳ 返回 code:0 → ✅ 部署生效
+  ↳ FUNCTION_NOT_FOUND → 等待更久或检查函数名
+```
+
 ---
 
 ## CDP 日志策略
@@ -224,6 +264,8 @@ full    → 完整日志 + source 定位 → wechat_file(action='read_file', fil
 | 快速诊断 | `duration=5, detail_level='concise', max_logs=20` |
 | 深度排查 | `duration=10, detail_level='full', max_logs=100` |
 | 页面巡检 | `duration=3, detail_level='concise', max_logs=30` |
+
+> **重要**：CDP 错误计数可能包含跨页面累积的历史日志。v0.4.0 的 `clear_logs=true`（默认）会基于时间戳过滤历史日志，但仍建议以 `page_data` 作为最终验证标准。
 
 ---
 
