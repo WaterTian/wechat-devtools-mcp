@@ -5,7 +5,7 @@ description: |
   当需要使用微信开发者工具 MCP（wechat_ide / wechat_build / wechat_automator 等）时使用本 Skill。
 ---
 
-# Wechat DevTools MCP Skill
+# Wechat DevTools MCP Skill (v0.4.0)
 
 ## 前置条件
 
