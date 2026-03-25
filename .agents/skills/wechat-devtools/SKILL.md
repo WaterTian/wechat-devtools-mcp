@@ -1,8 +1,6 @@
 ---
 name: wechat-devtools
-description: |
-  微信小程序开发调试知识库。提供 8 个聚合 API 的 SOP 流程、参数速查和最佳实践。
-  当需要使用微信开发者工具 MCP（wechat_ide / wechat_build / wechat_automator 等）时使用本 Skill。
+description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
 # Wechat DevTools MCP Skill (v0.4.0)
