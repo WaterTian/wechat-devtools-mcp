@@ -186,7 +186,7 @@ npx skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 
 ### Skill 包含内容
 
-- **5 个 SOP 流程**：初始化、UI 调试、异常排查、全页面巡检、Mock 集成测试
+- **8 个 SOP 流程**：初始化、UI 调试、异常排查、全页面巡检、Mock 集成测试、网络调试与 UI 适配、子页面测试、云函数部署验证
 - **能力映射字典**：8 个聚合工具 × 全部 action 的快速索引
 - **CDP 渐进排查策略**：concise → full 两阶段，控制 Token 消耗
 - **完整参数参考**：每个 action 的必填/可选参数、返回示例、常用模板
@@ -201,6 +201,8 @@ npx skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 "点击登录按钮，截图看看效果"     → 自动执行 SOP B（UI 调试流）
 "页面白屏了，帮我排查"           → 自动执行 SOP C（异常排查流）
 "Mock 支付接口，测试支付流程"    → 自动执行 SOP E（Mock 集成测试）
+"测试详情页，参数名是什么"       → 自动执行 SOP G（子页面测试）
+"部署云函数并验证是否生效"       → 自动执行 SOP H（云函数部署验证）
 ```
 
 ## 💡 环境变量说明
