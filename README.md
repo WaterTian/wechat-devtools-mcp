@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.4.0)
+# 微信开发者工具 MCP Server (v0.4.1)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -259,6 +259,7 @@ uv tool list
 
 | 版本 | 说明 |
 |------|------|
+| 0.4.1 | 截图长页面拼接重写：自动检测固定导航栏/tab 栏并去重；DPR 自适应与动态重叠计算；滚动位置验证；`output_path` 改为可选（默认保存到项目 `screenshots/`）；Skill SOP 截图改为被动调用 |
 | 0.4.0 | CDP 日志清除（时间戳过滤）与对象序列化增强（preview 展开）；云函数 project_path 统一解析与部署自动验证；新增数据库集合管理（db_collection_add/count）；navigate 智能提示（page_data 空值诊断）；Skill SOP 全面更新（新增 SOP G/H，C/D 重构） |
 | 0.3.0 | **重大重构**：44 个工具聚合为 8 个 API（`wechat_ide/build/automator/inspector/screenshot/navigate/file/cloud`）；server.py 从 3175 行压缩为 60 行；CDP 日志 v2（结构化 JSON + detail_level + max_logs）；新增 `cdp_core.js` 共享模块；新增 SKILL.md 知识库 |
 | 0.2.6 | 文档更新：README 编辑器配置章节新增 OpenAI Codex 配置说明 |

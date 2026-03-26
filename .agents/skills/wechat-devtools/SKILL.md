@@ -3,7 +3,7 @@ name: wechat-devtools
 description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
-# Wechat DevTools MCP Skill (v0.4.0)
+# Wechat DevTools MCP Skill (v0.4.1)
 
 ## 前置条件
 
@@ -102,8 +102,9 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 
 ### `wechat_screenshot` — 截图
 
-- `output_path`（**必填**）：绝对路径，例如 `C:\tmp\shot.png`
+- `output_path`（可选）：截图保存路径。留空则自动保存到项目目录下 `screenshots/` 文件夹
 - **前提**：先调用 `wechat_automator(action='start')`
+- **注意**：不要主动截图，仅在用户明确要求或排查异常需要视觉确认时才调用
 
 ### `wechat_navigate` — 跳转并采集日志
 
@@ -158,10 +159,10 @@ wechat_build(action='compile')                            # 编译建立干净 C
 
 ```
 wechat_navigate(page_path='pages/xxx/xxx', wait_ms=3000)   # 跳转 + CDP 日志
-wechat_screenshot(output_path='C:\tmp\debug.png')          # 截图查看布局
 wechat_automator(action='page_data')                       # 查看 data 状态
   ↳ 数据异常: set_data(data_json='{"key":"val"}')  热更新验证
   ↳ 确认元素: element_info(selector='.target')
+  ↳ 仅在用户要求或需要视觉确认时: wechat_screenshot()  # 默认保存到项目 screenshots/
 ```
 
 ### SOP C：异常排查（报错/白屏/JS 异常）
@@ -306,7 +307,8 @@ full    → 完整日志 + source 定位 → wechat_file(action='read_file', fil
 - ❌ 脑补运行状态——必须以 MCP 接口返回的实际数据为准
 - ❌ 同一失败操作重试超过 3 次（应转为诊断根因）
 - ❌ 自动化测试中使用 `sleep` 硬等待（用 `wait_ms` 或轮询 `page_data`）
-- ✅ `wechat_screenshot` 必须提供完整绝对路径 `output_path`
+- ❌ 在 SOP 流程中主动调用截图——仅在用户明确要求或异常排查需要视觉确认时才截图
+- ✅ `wechat_screenshot` 的 `output_path` 可选，留空自动保存到项目 `screenshots/` 目录
 - ✅ 使用任何自动化/截图功能前必须先调用 `automator(action='start')`
 - ✅ 执行 `tap`/`input` 前先用 `element_info` 确认元素存在
 - ✅ `upload` 前确认版本号已递增，`build_npm` 已执行

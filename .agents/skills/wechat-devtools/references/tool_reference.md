@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.4.0)
+# wechat-devtools-mcp 工具参数完整参考 (v0.4.1)
 
 > 本文档是 `SKILL.md` 的扩展参考，提供 8 个聚合 API 的所有参数完整说明。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
@@ -359,15 +359,16 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `output_path` | string | **必填** | 截图保存绝对路径，例如 `D:/screenshots/page.png` |
+| `output_path` | string | `null`（自动生成） | 截图保存路径。留空则自动保存到项目目录下 `screenshots/` 文件夹 |
 | `auto_port` | int | `9420` | 自动化监听端口 |
 | `overlap` | int | `50` | 分段重叠像素数，防止滚动拼接时内容截断 |
 
 ### 注意事项
 
-- **必须**提供完整绝对路径，相对路径会报错
-- 父目录会自动创建，无需预先 mkdir
+- `output_path` 可选：留空则自动保存到 `{WECHAT_PROJECT_PATH}/screenshots/screenshot_{timestamp}.png`
+- 如手动指定路径，父目录会自动创建，无需预先 mkdir
 - **前提**：已调用 `wechat_automator(action='start')`
+- **不要主动截图**：仅在用户明确要求或排查异常需要视觉确认时才调用
 - Windows 路径使用正斜杠 `/` 或双反斜杠 `\\` 均可
 
 ### 返回示例
@@ -376,7 +377,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 {
   "success": true,
   "data": {
-    "path": "D:/screenshots/index.png",
+    "path": "D:/YourProject/screenshots/screenshot_20260326_143000.png",
     "width": 375,
     "height": 1200,
     "segments": 3
