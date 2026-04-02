@@ -3,6 +3,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![中文文档](https://img.shields.io/badge/lang-中文文档-red.svg)](./README.md)
 
 > Wraps the WeChat DevTools CLI as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server, enabling AI editors to directly invoke WeChat CLI commands for a complete Mini Program **development, testing, debugging, and automation** workflow.
 
@@ -13,7 +14,9 @@
 
 **Published to the official [MCP Registry](https://modelcontextprotocol.io/)** with cross-platform (Windows / macOS) one-click installation.
 
-**[中文文档](./README.md)**
+---
+
+> **🌐 [中文文档 →](./README.md)**
 
 ---
 

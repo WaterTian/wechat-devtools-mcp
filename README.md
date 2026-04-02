@@ -3,6 +3,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![English](https://img.shields.io/badge/lang-English-blue.svg)](./README_EN.md)
 
 > 将微信开发者工具 CLI 封装为 [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) 服务，使编辑器中的 AI 能够直接调用微信 CLI 命令，实现小程序**开发、测试、调试、自动化**全流程闭环。
 
@@ -13,7 +14,9 @@
 
 **已发布至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows / macOS）一键安装。
 
-**[English](./README_EN.md)**
+---
+
+> **🌐 [English Documentation →](./README_EN.md)**
 
 ---
 
