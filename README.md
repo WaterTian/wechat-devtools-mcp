@@ -13,6 +13,8 @@
 
 **已发布至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows / macOS）一键安装。
 
+**[English](./README_EN.md)**
+
 ---
 
 ## 🚀 安装与快速开始
