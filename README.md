@@ -259,6 +259,7 @@ uv tool list
 
 | 版本 | 说明 |
 |------|------|
+| 0.5.1 | `wechat_ide(action='open')` 新增 CDP 启动健康检查：打开小程序时自动采集 5 秒 CDP 日志，检测启动阶段致命错误（如页面无法显示的红色报错），有错误直接返回失败阻止后续操作；`_fail` 响应支持 `extra` 附加数据（`startup_errors`、`cdp_summary`） |
 | 0.5.0 | Skill SOP 全面优化：新增 SOP I/J（跨页面数据校验、并行测试）；SOP A/B/D 增加 AppID 检查与 navigate 后 path 校验；新增 CDP 噪音过滤指南、page_data 注意事项、连接恢复流程；故障速查表新增 8 项；红线补充 8 条；截图拼接 `detectFixedRegions` 改为模糊匹配（颜色容差 + 行级阈值 + 安全区跳过 + 间隙容忍），修复底部导航栏重复问题 |
 | 0.4.1 | 截图长页面拼接重写：自动检测固定导航栏/tab 栏并去重；DPR 自适应与动态重叠计算；滚动位置验证；`output_path` 改为可选（默认保存到项目 `screenshots/`）；Skill SOP 截图改为被动调用 |
 | 0.4.0 | CDP 日志清除（时间戳过滤）与对象序列化增强（preview 展开）；云函数 project_path 统一解析与部署自动验证；新增数据库集合管理（db_collection_add/count）；navigate 智能提示（page_data 空值诊断）；Skill SOP 全面更新（新增 SOP G/H，C/D 重构） |
