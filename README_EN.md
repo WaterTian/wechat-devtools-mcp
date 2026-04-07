@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.5.1)
+# WeChat DevTools MCP Server (v0.7.0)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -257,6 +257,8 @@ Make sure `WECHAT_DEVTOOLS_CLI` in your editor config contains an absolute path.
 
 | Version | Description |
 |---------|-------------|
+| **0.7.0** | Fix navigate scoping bug (currentPageTimeout); evaluate supports declaration statements (const/let/var fallback); call_method returns current page path; automator start uses port polling instead of blind sleep; SKILL.md adds efficiency principles, recovery tiers, page navigation methods, 6 new fault entries |
+| **0.6.0** | Navigate supports query params (reLaunch timeout fallback); CDP startup noise filtering (console.assert/\_\_route\_\_/ide:// noise reduction + WXML error protection); compile returns tri-state + automator invalidation hint; navigate currentPage polling retry; configurable timeout |
 | **0.5.1** | `wechat_ide(action='open')` adds CDP startup health check: auto-captures 5s of CDP logs to detect fatal startup errors, returns failure to stop subsequent operations |
 | **0.5.0** | Skill SOP overhaul: added SOP I/J; AppID check & path validation; CDP noise filtering; screenshot stitching fuzzy matching fix |
 | **0.4.1** | Long-page screenshot rewrite: fixed region detection, DPR adaptation, dynamic overlap calculation |

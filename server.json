@@ -6,12 +6,12 @@
         "url": "https://github.com/WaterTian/wechat-devtools-mcp",
         "source": "github"
     },
-    "version": "0.6.0",
+    "version": "0.7.0",
     "packages": [
         {
             "registryType": "pypi",
             "identifier": "wechat-devtools-mcp",
-            "version": "0.6.0",
+            "version": "0.7.0",
             "runtimeHint": "uvx",
             "transport": {
                 "type": "stdio"

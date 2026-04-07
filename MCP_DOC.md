@@ -1,4 +1,4 @@
-# MCP 工具箱完整文档 (v0.6.0)
+# MCP 工具箱完整文档 (v0.7.0)
 
 v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **8 个聚合工具**。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
@@ -67,7 +67,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | action | 功能 | 条件必填参数 |
 |--------|------|------------|
-| `compile` | **[最常用]** 触发编译，捕获所有 Error 和 Warning | — |
+| `compile` | **[最常用]** 触发编译，捕获所有 Error 和 Warning。编译后需重新 `start` automator | — |
 | `preview` | 生成预览二维码 | — |
 | `upload` | 上传代码到微信后台 ⚠️ | **`version`** |
 | `build_npm` | 构建 NPM 依赖 | — |
@@ -83,7 +83,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `qr_format` | string | `base64` | 二维码格式 |
 | `qr_output` | string | null | 二维码输出文件路径 |
 | `info_output` | string | null | 编译/上传信息输出 JSON 路径 |
-| `compile_condition` | string | null | 自定义编译条件（JSON 字符串） |
+| `compile_condition` | string | null | 自定义编译条件（JSON 字符串）。注意：对 tabBar 页面可能无效（app 路由守卫覆盖），用 `evaluate` + `wx.reLaunch` 跳转更可靠 |
 | `compile_type` | string | null | 编译类型：`miniprogram` 或 `plugin` |
 | `clean_type` | string | `compile` | 缓存类型：`storage`、`file`、`compile`、`auth`、`network`、`session`、`all` |
 | `port` | int | null | IDE HTTP 服务端口号 |
@@ -101,15 +101,15 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | action | 功能 | 条件必填参数 |
 |--------|------|------------|
-| `start` | 开启自动化端口，监听连接 | — |
+| `start` | 开启自动化端口，轮询验证连接就绪 | — |
 | `tap` | 模拟点击指定元素 | **`selector`** |
 | `input` | 向 input/textarea 输入文本 | **`selector`**, **`value`** |
 | `element_info` | 获取元素详情（文本/尺寸/位置/WXML） | **`selector`** |
 | `set_data` | 热更新页面 data，无需重新编译 | **`data_json`** |
-| `call_method` | 调用当前页面的指定方法 | **`method`** |
+| `call_method` | 调用当前页面的指定方法，返回当前页面路径 | **`method`** |
 | `call_wx` | 直接调用 wx 对象上的方法 | **`method`** |
 | `mock_wx` | Mock wx API 的返回值 | **`method`**, **`result_json`** |
-| `evaluate` | 在逻辑层执行 JS 表达式 | **`expression`** |
+| `evaluate` | 在逻辑层执行 JS 代码（支持表达式和声明语句） | **`expression`** |
 | `page_stack` | 获取当前页面栈信息 | — |
 | `page_data` | 读取当前活跃页面的 data 状态 | — |
 | `system_info` | 获取运行时系统信息 | — |
@@ -127,7 +127,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `data_json` | string | null | JSON 数据字符串，例如 `{"key": "val"}` |
 | `method` | string | null | 方法名 |
 | `args_json` | string | null | 方法参数（JSON 数组字符串） |
-| `expression` | string | null | JS 表达式，例如 `getApp().globalData` |
+| `expression` | string | null | JS 代码，支持表达式（如 `getApp().globalData`）和声明语句（如 `const pages = getCurrentPages(); pages.length`） |
 | `result_json` | string | null | Mock 返回值（JSON 字符串） |
 | `key` | string | null | Storage key，为空则列出所有 key |
 | `auto_account` | string | null | 指定 openid，`start` 时可选 |
@@ -184,6 +184,8 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 捕获当前小程序模拟器的界面截图，默认支持滚动拼接长图，保存为 PNG 文件。
 
 > **前提**：需先调用 `wechat_automator(action='start')` 开启自动化端口。
+>
+> **限制**：截图可能无法捕获 fixed/absolute 定位的 overlay（弹窗、蒙层），以 `page_data` 为准。
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|

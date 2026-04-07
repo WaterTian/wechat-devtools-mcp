@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.6.0)
+# wechat-devtools-mcp 工具参数完整参考 (v0.7.0)
 
 > 本文档是 `SKILL.md` 的扩展参考，提供 8 个聚合 API 的所有参数完整说明。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
@@ -94,7 +94,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `qr_format` | string | `base64` | 二维码格式：`terminal` 或 `base64` |
 | `qr_output` | string | null | 二维码保存路径 |
 | `info_output` | string | null | 编译/上传信息写入的 JSON 文件路径 |
-| `compile_condition` | string | null | 自定义编译条件（JSON 字符串） |
+| `compile_condition` | string | null | 自定义编译条件（JSON 字符串）。注意：对 tabBar 页面可能无效（app 路由守卫覆盖），用 `evaluate` + `wx.reLaunch` 更可靠 |
 | `compile_type` | string | null | 编译类型：`miniprogram` 或 `plugin` |
 | `clean_type` | string | `compile` | `cache_clean` 时的缓存类型：`storage` / `file` / `compile` / `auth` / `network` / `session` / `all` |
 | `port` | int | null | IDE HTTP 服务端口号 |
@@ -104,7 +104,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | action | 功能描述 | 条件必填 | 注意事项 |
 |--------|----------|----------|----------|
-| `compile` | 触发编译并捕获所有 Error/Warning | 无 | **最常用**；返回错误列表用于修复迭代 |
+| `compile` | 触发编译并捕获所有 Error/Warning | 无 | **最常用**；编译后需重新 `start` automator |
 | `preview` | 生成预览二维码 | 无 | 需已登录；手机扫码可预览 |
 | `upload` | 上传代码到微信后台 | **`version`** | ⚠️ 生产操作，执行前确认代码无误 |
 | `build_npm` | 构建 NPM 依赖 | 无 | 新增/更新 npm 包后必须执行 |
@@ -145,14 +145,14 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `data_json` | string | null | JSON 数据字符串，`set_data` 时**必填**，例如 `{"key": "val"}` |
 | `method` | string | null | 方法名，`call_method`/`call_wx`/`mock_wx` 时**必填** |
 | `args_json` | string | null | 方法参数（JSON 数组字符串），例如 `[1, "hello"]` |
-| `expression` | string | null | JS 表达式，`evaluate` 时**必填** |
+| `expression` | string | null | JS 代码（支持表达式和声明语句），`evaluate` 时**必填** |
 | `result_json` | string | null | Mock 返回值（JSON 字符串），`mock_wx` 时**必填** |
 | `key` | string | null | Storage key，`storage` 时可选（空=列出全部） |
 | `auto_account` | string | null | 指定 openid（测试账号），`start` 时可选 |
 
 ### action 详细说明
 
-#### `start` — 开启自动化端口
+#### `start` — 开启自动化端口（含连接验证）
 
 ```json
 {
@@ -161,7 +161,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 }
 ```
 
-整个会话只需调用一次。返回 `data.port: 9420` 表示成功。
+启动后自动轮询验证端口连接（最多 10 秒）。返回 `data.verified: true` 表示连接就绪；`verified: false` 表示已启动但未确认连接。compile 后需再次调用。
 
 #### `tap` — 点击元素
 
@@ -197,6 +197,8 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 {"action": "call_method", "method": "onRefresh", "args_json": "[]"}
 ```
 
+返回 `data.path` 标识当前页面路径；失败时错误消息中包含页面路径，便于定位问题。
+
 #### `call_wx` — 调用 wx API
 
 ```json
@@ -223,11 +225,13 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | 获取用户信息 | `getUserProfile` | `{"userInfo": {"nickName": "测试用户", "avatarUrl": "..."}, "errMsg": "getUserProfile:ok"}` |
 | 选择图片 | `chooseImage` | `{"tempFilePaths": ["wxfile://tmp.jpg"], "errMsg": "chooseImage:ok"}` |
 
-#### `evaluate` — 执行 JS 表达式
+#### `evaluate` — 执行 JS 代码
 
 ```json
 {"action": "evaluate", "expression": "getApp().globalData.userInfo"}
 ```
+
+支持表达式和声明语句（`const`/`let`/`var`）。表达式模式优先，失败后自动 fallback 到语句模式。
 
 #### `page_stack` — 获取页面栈
 
@@ -369,6 +373,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 - 如手动指定路径，父目录会自动创建，无需预先 mkdir
 - **前提**：已调用 `wechat_automator(action='start')`
 - **不要主动截图**：仅在用户明确要求或排查异常需要视觉确认时才调用
+- **限制**：截图可能无法捕获 fixed/absolute 定位的 overlay（弹窗、蒙层），以 `page_data` 为准
 - Windows 路径使用正斜杠 `/` 或双反斜杠 `\\` 均可
 
 ### 返回示例
