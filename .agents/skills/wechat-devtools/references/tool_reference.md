@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.7.0)
+# wechat-devtools-mcp 工具参数完整参考 (v0.8.0)
 
 > 本文档是 `SKILL.md` 的扩展参考，提供 8 个聚合 API 的所有参数完整说明。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
@@ -118,7 +118,12 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
   "data": {
     "errors": [],
     "warnings": ["pages/index/index.wxml: 属性 wx:key 应使用唯一标识符"],
-    "compile_time_ms": 1234
+    "compile_time_ms": 1234,
+    "automator_reconnected": true,
+    "automator_verified": true,
+    "port_changed": false,
+    "old_port": 9420,
+    "new_port": 9420
   },
   "message": "编译完成，0 个错误，1 个警告"
 }
@@ -161,7 +166,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 }
 ```
 
-启动后自动轮询验证端口连接（最多 10 秒）。返回 `data.verified: true` 表示连接就绪；`verified: false` 表示已启动但未确认连接。compile 后需再次调用。
+启动后自动轮询验证端口连接（最多 10 秒）。返回 `data.verified: true` 表示连接就绪；`verified: false` 表示已启动但未确认连接，此时额外返回 `hint`（操作建议）、`attempts_made`（已尝试次数）、`max_wait_seconds`（最大等待时间）。compile 后需再次调用。
 
 #### `tap` — 点击元素
 
@@ -245,9 +250,14 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 ```json
 {"action": "page_data"}
+{"action": "page_data", "expected_path": "pages/index/index"}
 ```
 
-返回当前页面实例的完整 `data` 对象。
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `expected_path` | string | null | 期望的页面路径，传入后轮询验证当前页面是否匹配 |
+
+返回当前页面实例的完整 `data` 对象。当传入 `expected_path` 且当前页面不匹配时，返回 `data.path_mismatch: true` 和 `data.warning` 提示信息。
 
 #### `system_info` — 获取系统信息
 
@@ -366,6 +376,9 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `output_path` | string | `null`（自动生成） | 截图保存路径。留空则自动保存到项目目录下 `screenshots/` 文件夹 |
 | `auto_port` | int | `9420` | 自动化监听端口 |
 | `overlap` | int | `50` | 分段重叠像素数，防止滚动拼接时内容截断 |
+| `full_page` | bool | `true` | 是否截取长图，设为 `false` 只截当前视口 |
+| `scroll_top` | int | null | 截图前滚动到的位置（逻辑像素） |
+| `page_path` | string | null | 确保截图前在指定页面上 |
 
 ### 注意事项
 
@@ -385,7 +398,8 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
     "path": "D:/YourProject/screenshots/screenshot_20260326_143000.png",
     "width": 375,
     "height": 1200,
-    "segments": 3
+    "segments": 3,
+    "isScrollViewPage": false
   },
   "message": "截图已保存，共拼接 3 段"
 }
@@ -426,6 +440,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
   "success": true,
   "data": {
     "current_page": "pages/index/index",
+    "navigation_method": "reLaunch",
     "logs_since": "2026-03-25T10:30:00.000Z",
     "filtered_before_navigation": 5,
     "warning": "页面数据大部分为空，可能是 query 参数名错误。",
