@@ -1,4 +1,4 @@
-# MCP 工具箱完整文档 (v0.8.0)
+# MCP 工具箱完整文档 (v0.9.0)
 
 v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **8 个聚合工具**。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
@@ -67,7 +67,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | action | 功能 | 条件必填参数 |
 |--------|------|------------|
-| `compile` | **[最常用]** 触发编译，捕获所有 Error 和 Warning。编译后需重新 `start` automator | — |
+| `compile` | **[最常用]** 触发编译，捕获所有 Error 和 Warning。v0.9.0 daemon 自动重连 automator，无需重新 `start` | — |
 | `preview` | 生成预览二维码 | — |
 | `upload` | 上传代码到微信后台 ⚠️ | **`version`** |
 | `build_npm` | 构建 NPM 依赖 | — |

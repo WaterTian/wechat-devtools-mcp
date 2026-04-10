@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.8.0)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.0)
 
 > 本文档是 `SKILL.md` 的扩展参考，提供 8 个聚合 API 的所有参数完整说明。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
@@ -104,7 +104,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | action | 功能描述 | 条件必填 | 注意事项 |
 |--------|----------|----------|----------|
-| `compile` | 触发编译并捕获所有 Error/Warning | 无 | **最常用**；编译后需重新 `start` automator |
+| `compile` | 触发编译并捕获所有 Error/Warning | 无 | **最常用**；v0.9.0 daemon 自动重连 automator，无需重新 `start` |
 | `preview` | 生成预览二维码 | 无 | 需已登录；手机扫码可预览 |
 | `upload` | 上传代码到微信后台 | **`version`** | ⚠️ 生产操作，执行前确认代码无误 |
 | `build_npm` | 构建 NPM 依赖 | 无 | 新增/更新 npm 包后必须执行 |
@@ -166,7 +166,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 }
 ```
 
-启动后自动轮询验证端口连接（最多 10 秒）。返回 `data.verified: true` 表示连接就绪；`verified: false` 表示已启动但未确认连接，此时额外返回 `hint`（操作建议）、`attempts_made`（已尝试次数）、`max_wait_seconds`（最大等待时间）。compile 后需再次调用。
+启动持久化 Node daemon 并开启自动化端口，自动轮询验证连接（最多 10 秒）。返回 `data.verified: true` 表示连接就绪；`verified: false` 表示已启动但未确认连接，此时额外返回 `hint`（操作建议）、`attempts_made`（已尝试次数）、`max_wait_seconds`（最大等待时间）。v0.9.0 起 compile 后 daemon 自动重连，无需再次调用 start。
 
 #### `tap` — 点击元素
 
