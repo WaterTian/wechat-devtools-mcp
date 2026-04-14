@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.2)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.3)
 
 > 本文档是 `SKILL.md` 的扩展参考，提供 8 个聚合 API 的所有参数完整说明。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
@@ -58,7 +58,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `is_login` | 检查当前登录状态 | 无 | 返回 `data.logged_in: bool` |
 | `close` | 关闭指定项目窗口 | `project_path` | 不退出 IDE 进程 |
 | `quit` | 完全退出 IDE 进程 | 无 | ⚠️ 会终止所有项目 |
-| `status` | 环境全面诊断 | 无 | 返回 CLI 路径、Node.js、项目路径等状态 |
+| `status` | 环境全面诊断 | 无 | 返回 `mcp_version`、CLI 路径、Node.js、项目路径等状态 |
 
 ### 返回示例（status action）
 
@@ -66,14 +66,15 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 {
   "success": true,
   "data": {
+    "mcp_version": "0.9.3",
     "cli_exists": true,
     "cli_path": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
     "project_exists": true,
     "project_path": "D:\\MyProject",
     "node_available": true,
-    "node_version": "v18.17.0"
+    "node_path": "node (v22.19.0)"
   },
-  "message": "环境诊断完成"
+  "message": "状态正常"
 }
 ```
 

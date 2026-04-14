@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.2)
+# WeChat DevTools MCP Server (v0.9.3)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -30,6 +30,13 @@ We recommend [uv](https://github.com/astral-sh/uv), which automatically handles 
 pip install uv                                  # Install uv (skip if already installed)
 uv tool install wechat-devtools-mcp --force     # One-click install to global isolated env
 ```
+
+> [!WARNING]
+> If you previously installed an older version via `pip install`, uninstall it first to avoid version conflicts:
+> ```bash
+> pip uninstall wechat-devtools-mcp
+> ```
+> The `pip install` path (e.g., `Python313/Scripts/`) may take precedence over `uv tool install` path (`~/.local/bin/`), causing the old version to run instead. Use `wechat_ide(action='status')` to check the `mcp_version` field.
 
 > [!TIP]
 > - Check installed version: `uv tool list`
@@ -246,6 +253,12 @@ The MCP service is still running in your editor. See the upgrade tip under [Step
 </details>
 
 <details>
+<summary><b>Still running old version after <code>uv tool install</code>?</b></summary>
+
+An older version installed via `pip install` may take PATH precedence. Run `pip uninstall wechat-devtools-mcp` to remove it, then check `mcp_version` in `wechat_ide(action='status')` to confirm the current version.
+</details>
+
+<details>
 <summary><b>AI can't find the WeChat CLI path?</b></summary>
 
 Make sure `WECHAT_DEVTOOLS_CLI` in your editor config contains an absolute path. On Windows, use double backslashes (e.g., `C:\\...\\cli.bat`).
@@ -257,6 +270,7 @@ Make sure `WECHAT_DEVTOOLS_CLI` in your editor config contains an absolute path.
 
 | Version | Description |
 |---------|-------------|
+| **0.9.3** | Add `mcp_version` field to status response for version verification; print version to stderr on startup; add pip/uv version conflict troubleshooting to README |
 | **0.9.2** | **Fix navigate timeout after compile**: daemon health check with 3s timeout protection; auto-invalidate stale cached connections after compile before reconnect; navigate currentPage polling with 2s per-call timeout; distinguish HEALTH\_CHECK\_TIMEOUT from CONNECTION\_ERROR error codes |
 | **0.9.1** | Fix cdp\_enabled=true AttributeError crash; add WXML runtime error capture (CDP auto-captures template-not-found warnings after compile) |
 | **0.9.0** | **Persistent Node daemon architecture**: single long-running daemon process with NDJSON protocol, WS connections cached by port; single daemon.bundle.js replaces 8 individual bundles; tool call latency reduced from 500ms+ to ~3ms; zero disconnections after compile with automatic reconnection |

@@ -1,4 +1,4 @@
-# MCP 工具箱完整文档 (v0.9.2)
+# MCP 工具箱完整文档 (v0.9.3)
 
 v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **8 个聚合工具**。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
@@ -43,7 +43,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `is_login` | 检查是否已登录 | — |
 | `close` | 关闭指定项目窗口 | — |
 | `quit` | 退出整个 IDE | — |
-| `status` | 环境诊断（CLI/项目路径/Node.js/项目信息） | — |
+| `status` | 环境诊断（mcp_version/CLI/项目路径/Node.js/项目信息） | — |
 
 **可选参数**
 
