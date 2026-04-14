@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.1)
+# WeChat DevTools MCP Server (v0.9.2)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -257,6 +257,8 @@ Make sure `WECHAT_DEVTOOLS_CLI` in your editor config contains an absolute path.
 
 | Version | Description |
 |---------|-------------|
+| **0.9.2** | **Fix navigate timeout after compile**: daemon health check with 3s timeout protection; auto-invalidate stale cached connections after compile before reconnect; navigate currentPage polling with 2s per-call timeout; distinguish HEALTH\_CHECK\_TIMEOUT from CONNECTION\_ERROR error codes |
+| **0.9.1** | Fix cdp\_enabled=true AttributeError crash; add WXML runtime error capture (CDP auto-captures template-not-found warnings after compile) |
 | **0.9.0** | **Persistent Node daemon architecture**: single long-running daemon process with NDJSON protocol, WS connections cached by port; single daemon.bundle.js replaces 8 individual bundles; tool call latency reduced from 500ms+ to ~3ms; zero disconnections after compile with automatic reconnection |
 | **0.8.0** | Auto-reconnect automator after compile; navigate auto-detects TabBar pages using switchTab; screenshot adds full\_page/scroll\_top/page\_path params for viewport mode; page\_data adds expected\_path polling to prevent stale data; long screenshot dynamic step adjustment fixes content gaps; node\_bridge unified connection retry + 500ms call interval; start port verification increased to 20 attempts |
 | **0.7.0** | Fix navigate scoping bug (currentPageTimeout); evaluate supports declaration statements (const/let/var fallback); call_method returns current page path; automator start uses port polling instead of blind sleep; SKILL.md adds efficiency principles, recovery tiers, page navigation methods, 6 new fault entries |

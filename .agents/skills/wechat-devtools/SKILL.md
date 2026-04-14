@@ -3,7 +3,7 @@ name: wechat-devtools
 description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
-# Wechat DevTools MCP Skill (v0.9.1)
+# Wechat DevTools MCP Skill (v0.9.2)
 
 ## 前置条件
 
@@ -101,6 +101,7 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 | `evaluate` | 执行 JS 表达式（逻辑层万能钥匙） | `expression` |
 
 - **注意**：v0.7.0 起支持声明语句（const/let/var）
+- **v0.9.2**：compile 后自动 invalidate 旧缓存连接再重连，daemon 健康检查 3s 超时保护，navigate currentPage 轮询 2s 独立超时
 - **v0.9.0**：底层改为持久化 Node daemon（NDJSON 协议），WS 连接按端口缓存复用，工具调用延迟 ~3ms
 
 | `page_stack` | 获取页面栈 | — |
