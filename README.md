@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.9.3)
+# 微信开发者工具 MCP Server (v0.9.4)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -39,12 +39,23 @@ uv tool install wechat-devtools-mcp --force     # 一键安装到全局隔离环
 > `pip install` 的路径（如 `Python313/Scripts/`）可能优先于 `uv tool install` 的路径（`~/.local/bin/`），导致实际运行旧版本。可通过 `wechat_ide(action='status')` 返回的 `mcp_version` 字段确认当前版本。
 
 > [!TIP]
-> - 查看已安装版本：`uv tool list`
+> - 查看已安装版本：
+>   ```bash
+>   uv tool list | grep wechat    # 离线确认已安装版本
+>   ```
 > - 升级工具：如果编辑器正在运行 MCP 服务，需先终止进程再升级：
+>   ```bash
+>   # Bash / CMD
+>   taskkill /F /IM "wechat-devtools-mcp*" 2>/dev/null; uv tool upgrade wechat-devtools-mcp
+>   ```
 >   ```powershell
 >   # Windows PowerShell
 >   Get-Process | Where-Object { $_.ProcessName -like "*wechat-devtools*" } | Stop-Process -Force
 >   uv tool upgrade wechat-devtools-mcp
+>   ```
+> - Agent 一键升级：
+>   ```bash
+>   taskkill /F /IM "wechat-devtools-mcp*" 2>/dev/null; uv tool upgrade wechat-devtools-mcp && npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 >   ```
 
 ### Step 2 — 开启开发者工具服务端口
@@ -53,6 +64,8 @@ uv tool install wechat-devtools-mcp --force     # 一键安装到全局隔离环
 > 必须手动开启，否则 AI 将无法下发任何指令。
 
 **操作路径**：`开发者工具` → `设置` → `安全设置` → `服务端口` → `开启`
+
+> 💡 可通过 `wechat_ide(action='status')` 验证端口是否已开启——如果返回连接失败，说明服务端口尚未启用。
 
 ### Step 3 — 确认必要路径
 
@@ -158,7 +171,7 @@ codex mcp add wechat-devtools \
 **方式一：通过 GitHub 仓库引用（推荐）**
 
 ```bash
-npx skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
+npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 ```
 
 **方式二：手动复制**

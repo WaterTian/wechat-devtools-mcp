@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.3)
+# WeChat DevTools MCP Server (v0.9.4)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -39,12 +39,23 @@ uv tool install wechat-devtools-mcp --force     # One-click install to global is
 > The `pip install` path (e.g., `Python313/Scripts/`) may take precedence over `uv tool install` path (`~/.local/bin/`), causing the old version to run instead. Use `wechat_ide(action='status')` to check the `mcp_version` field.
 
 > [!TIP]
-> - Check installed version: `uv tool list`
+> - Check installed version:
+>   ```bash
+>   uv tool list | grep wechat    # Check installed version offline
+>   ```
 > - Upgrade: if your editor is running the MCP service, stop the process first:
+>   ```bash
+>   # Bash / CMD
+>   taskkill /F /IM "wechat-devtools-mcp*" 2>/dev/null; uv tool upgrade wechat-devtools-mcp
+>   ```
 >   ```powershell
 >   # Windows PowerShell
 >   Get-Process | Where-Object { $_.ProcessName -like "*wechat-devtools*" } | Stop-Process -Force
 >   uv tool upgrade wechat-devtools-mcp
+>   ```
+> - Agent one-line upgrade:
+>   ```bash
+>   taskkill /F /IM "wechat-devtools-mcp*" 2>/dev/null; uv tool upgrade wechat-devtools-mcp && npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 >   ```
 
 ### Step 2 — Enable DevTools Service Port
@@ -53,6 +64,8 @@ uv tool install wechat-devtools-mcp --force     # One-click install to global is
 > This must be enabled manually, otherwise the AI cannot send any commands.
 
 **Path**: `DevTools` → `Settings` → `Security` → `Service Port` → `Enable`
+
+> 💡 Verify programmatically: call `wechat_ide(action='status')` — a connection failure indicates the service port is not enabled.
 
 ### Step 3 — Confirm Required Paths
 
@@ -158,7 +171,7 @@ Add a new Server in the MCP console:
 **Option 1: Via GitHub repository reference (recommended)**
 
 ```bash
-npx skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
+npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 ```
 
 **Option 2: Manual copy**
