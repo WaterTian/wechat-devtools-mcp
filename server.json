@@ -1,17 +1,17 @@
 {
     "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
     "name": "io.github.WaterTian/wechat-devtools-mcp",
-    "description": "MCP Server for WeChat DevTools CLI - Automate development & testing with 8 aggregated APIs.",
+    "description": "MCP Server for WeChat DevTools CLI - Automate development & testing with 7 aggregated APIs.",
     "repository": {
         "url": "https://github.com/WaterTian/wechat-devtools-mcp",
         "source": "github"
     },
-    "version": "0.9.4",
+    "version": "0.9.5",
     "packages": [
         {
             "registryType": "pypi",
             "identifier": "wechat-devtools-mcp",
-            "version": "0.9.4",
+            "version": "0.9.5",
             "runtimeHint": "uvx",
             "transport": {
                 "type": "stdio"

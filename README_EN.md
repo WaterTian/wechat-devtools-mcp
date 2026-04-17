@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.4)
+# WeChat DevTools MCP Server (v0.9.5)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -117,7 +117,7 @@ Edit `~/.kiro/settings/mcp.json`:
       },
       "autoApprove": [
         "wechat_ide", "wechat_build", "wechat_automator", "wechat_inspector",
-        "wechat_screenshot", "wechat_navigate", "wechat_file", "wechat_cloud"
+        "wechat_screenshot", "wechat_navigate", "wechat_file"
       ]
     }
   }
@@ -183,14 +183,14 @@ Copy the `.agents/skills/wechat-devtools/` directory to your project or global s
 └── wechat-devtools/
     ├── SKILL.md                    # Main instruction file (SOPs + capability mapping + red lines)
     └── references/
-        └── tool_reference.md       # Complete parameter reference for all 8 aggregated APIs
+        └── tool_reference.md       # Complete parameter reference for all 7 aggregated APIs
 ```
 
 ---
 
 ## 🛠️ Toolbox Overview
 
-The MCP Server provides **8 aggregated tools** covering the full Mini Program lifecycle:
+The MCP Server provides **7 aggregated tools** covering the full Mini Program lifecycle:
 
 | Tool | Function | Supported Actions |
 |------|----------|-------------------|
@@ -201,8 +201,9 @@ The MCP Server provides **8 aggregated tools** covering the full Mini Program li
 | `wechat_screenshot` | Screenshot (long-page stitching) | — |
 | `wechat_navigate` | Navigate & capture CDP logs | — |
 | `wechat_file` | Project file reading | `project_info` `list_pages` `read_page` `read_file` |
-| `wechat_cloud` | Cloud functions & database | `env_list` `func_list` `func_info` `func_deploy` `func_download` `db_collection_add` `db_collection_count` |
 
+> For cloud function & database management, use [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit) (`manageFunctions` / `readNoSqlDatabaseContent` etc.) — fuller feature set without IDE dependency. `wechat_cloud` has been disabled since v0.9.5.
+>
 > For complete parameter documentation, see **[MCP_DOC.md](./MCP_DOC.md)**
 
 ---
@@ -218,13 +219,12 @@ The Skill enables AI to automatically match and execute standardized workflows f
 | "Page is blank, help me troubleshoot" | SOP C — Error investigation |
 | "Mock the payment API, test the payment flow" | SOP E — Mock integration testing |
 | "Test the detail page, what are the params?" | SOP G — Sub-page testing |
-| "Deploy cloud function and verify it works" | SOP H — Cloud function deployment |
 | "Compare points across all pages" | SOP I — Cross-page data validation |
 
 ### What's Included
 
-- **10 SOP workflows** — Initialization, UI debugging, error investigation, full page inspection, mock integration testing, network debugging & UI adaptation, sub-page testing, cloud function deployment, cross-page data validation, parallel data comparison
-- **Capability mapping** — 8 aggregated tools × all actions quick reference
+- **9 SOP workflows** — Initialization, UI debugging, error investigation, full page inspection, mock integration testing, network debugging & UI adaptation, sub-page testing, cross-page data validation, parallel data comparison
+- **Capability mapping** — 7 aggregated tools × all actions quick reference
 - **CDP progressive debugging** — concise → full two-stage strategy to control token usage
 - **Complete parameter reference** — Required/optional params, return examples, common templates
 - **Troubleshooting guide** — Common error codes and fixes
@@ -283,6 +283,8 @@ Make sure `WECHAT_DEVTOOLS_CLI` in your editor config contains an absolute path.
 
 | Version | Description |
 |---------|-------------|
+| **0.9.5** | **Fix dormant compile health-check bug** (ui_debug.js has no `page_stack` action, `automator_verified` wrongly reported false since v0.9.0); compile now downgrades to fail when stderr contains fatal patterns (`EACCES`/`EADDRINUSE`/`#initialize-error`), preventing "fake-success publishing old bundle"; preview auto-resolves relative paths + mtime freshness check; `wechat_automator(action='start')` upgraded to dual TCP+WS verification + `retry_after_ms` hint; compile warns when `miniprogram_npm` is stale; inspector warns on short duration for exception capture; `wechat_cloud` tool disabled (use CloudBase MCP instead) |
+| **0.9.4** | Fix switchTab navigation (use `miniProgram.switchTab()` instead of `callWxMethod`); compile reconnect stability (remove redundant process + 3s delay + WS health check); README 5 agent-friendliness improvements |
 | **0.9.3** | Add `mcp_version` field to status response for version verification; print version to stderr on startup; add pip/uv version conflict troubleshooting to README |
 | **0.9.2** | **Fix navigate timeout after compile**: daemon health check with 3s timeout protection; auto-invalidate stale cached connections after compile before reconnect; navigate currentPage polling with 2s per-call timeout; distinguish HEALTH\_CHECK\_TIMEOUT from CONNECTION\_ERROR error codes |
 | **0.9.1** | Fix cdp\_enabled=true AttributeError crash; add WXML runtime error capture (CDP auto-captures template-not-found warnings after compile) |

@@ -1,6 +1,8 @@
-# MCP 工具箱完整文档 (v0.9.4)
+# MCP 工具箱完整文档 (v0.9.5)
 
-v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **8 个聚合工具**。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
+v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **7 个聚合工具**（v0.9.5 起 `wechat_cloud` 已禁用）。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
+
+> 云函数与云数据库管理请使用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)（`manageFunctions` / `readNoSqlDatabaseContent` 等），无 IDE 依赖且功能更完整。
 
 所有工具返回统一 JSON 信封：
 
@@ -25,8 +27,7 @@ v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **8
 5. [wechat_screenshot — 界面截图](#wechat_screenshot)
 6. [wechat_navigate — 跳转并采集日志](#wechat_navigate)
 7. [wechat_file — 项目文件读取](#wechat_file)
-8. [wechat_cloud — 云函数管理](#wechat_cloud)
-9. [Mock 场景示例](#mock-场景示例)
+8. [Mock 场景示例](#mock-场景示例)
 
 ---
 
@@ -235,43 +236,6 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `project_path` | string | 环境变量 | 小程序项目路径 |
 | `page_path` | string | null | 页面路径，`read_page` 时必填，例如 `pages/index/index` |
 | `file_path` | string | null | 相对文件路径，`read_file` 时必填，例如 `app.json` |
-
----
-
-## wechat_cloud
-
-云函数管理。合并原 5 个云函数工具。
-
-**必填参数**：`action`
-
-| action | 功能 | 条件必填参数 |
-|--------|------|------------|
-| `env_list` | 列出所有关联的云开发环境 | — |
-| `func_list` | 列出指定环境的线上云函数 | **`env`** |
-| `func_info` | 查看指定云函数的详细信息 | **`env`**, **`names`** |
-| `func_deploy` | 上传云函数到云环境 | **`env`** |
-| `func_download` | 从云环境下载云函数到本地 | **`env`**, **`name`**, **`download_path`** |
-| `db_collection_add` | 创建数据库集合 | **`collection_name`** |
-| `db_collection_count` | 查询集合文档数量 | **`collection_name`** |
-
-> **注意**：`db_collection_add` 和 `db_collection_count` 通过 automator evaluate 执行，不需要 `env` 参数，但需先调用 `wechat_automator(action='start')`。
-
-**可选参数**
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `appid` | string | null | 小程序 AppID |
-| `env` | string | null | 云环境 ID，多数 action 必填 |
-| `names` | list[string] | null | 云函数名称列表，`func_info`/`func_deploy` 使用 |
-| `paths` | list[string] | null | 云函数目录绝对路径，`func_deploy` 使用 |
-| `name` | string | null | 云函数名称，`func_download` 必填 |
-| `download_path` | string | null | 下载存放路径，`func_download` 必填 |
-| `collection_name` | string | null | 数据库集合名称，`db_collection_add`/`db_collection_count` 时**必填** |
-| `auto_port` | int | `9420` | 自动化端口，db 系列 action 使用 |
-| `remote_npm_install` | bool | `false` | 是否云端安装依赖 |
-| `port` | int | null | IDE HTTP 服务端口号 |
-| `lang` | string | null | 界面语言 |
 
 ---
 

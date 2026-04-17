@@ -1,6 +1,6 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.4)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.5)
 
-> 本文档是 `SKILL.md` 的扩展参考，提供 8 个聚合 API 的所有参数完整说明。  
+> 本文档是 `SKILL.md` 的扩展参考，提供 7 个聚合 API 的所有参数完整说明（v0.9.5 起 `wechat_cloud` 已禁用）。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
 
 所有工具返回统一 JSON 信封：
@@ -27,8 +27,9 @@
 5. [wechat_screenshot — 界面截图](#5-wechat_screenshot)
 6. [wechat_navigate — 跳转并采集日志](#6-wechat_navigate)
 7. [wechat_file — 项目文件读取](#7-wechat_file)
-8. [wechat_cloud — 云函数管理](#8-wechat_cloud)
-9. [错误码速查表](#9-错误码速查表)
+8. [错误码速查表](#8-错误码速查表)
+
+> 云函数/云数据库管理请改用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)，无 IDE 依赖且能力更完整。
 
 ---
 
@@ -504,71 +505,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 ---
 
-## 8. wechat_cloud
-
-云函数管理。覆盖原 5 个云函数工具。
-
-### 参数
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `action` | string | **必填** | `env_list` / `func_list` / `func_info` / `func_deploy` / `func_download` / `db_collection_add` / `db_collection_count` |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `appid` | string | null | 小程序 AppID |
-| `env` | string | null | 云环境 ID，多数 action 必填 |
-| `names` | list[string] | null | 云函数名称列表，`func_info`/`func_deploy` 使用 |
-| `paths` | list[string] | null | 云函数目录绝对路径，`func_deploy` 使用（与 `names` 二选一） |
-| `name` | string | null | 单个云函数名称，`func_download` 必填 |
-| `download_path` | string | null | 下载存放路径，`func_download` 必填 |
-| `collection_name` | string | null | 数据库集合名称，`db_collection_add`/`db_collection_count` 时**必填** |
-| `remote_npm_install` | bool | `false` | 是否云端安装 npm 依赖 |
-| `port` | int | null | IDE HTTP 服务端口号 |
-| `lang` | string | null | 界面语言 |
-
-### action 说明
-
-| action | 条件必填 | 功能描述 |
-|--------|----------|----------|
-| `env_list` | 无 | 列出所有关联的云开发环境（获取 env ID） |
-| `func_list` | **`env`** | 列出指定环境的线上云函数及版本 |
-| `func_info` | **`env`**, **`names`** | 查看指定云函数的详细配置和代码信息 |
-| `func_deploy` | **`env`** | 上传本地云函数到云环境（`names` 或 `paths` 二选一） |
-| `func_download` | **`env`**, **`name`**, **`download_path`** | 从云端下载云函数代码到本地 |
-| `db_collection_add` | **`collection_name`** | 创建数据库集合（通过 automator evaluate 执行，需先 start） |
-| `db_collection_count` | **`collection_name`** | 查询集合文档数量（通过 automator evaluate 执行，需先 start） |
-
-> **注意**：`db_collection_add` 和 `db_collection_count` 通过 automator evaluate 执行，不需要 `env` 参数，但需先调用 `wechat_automator(action='start')`。
-
-### db action 返回示例
-
-#### `db_collection_add`
-
-```json
-{
-  "success": true,
-  "data": {
-    "collection_name": "orders"
-  },
-  "message": "集合 orders 创建成功"
-}
-```
-
-#### `db_collection_count`
-
-```json
-{
-  "success": true,
-  "data": {
-    "collection_name": "orders",
-    "count": 42
-  },
-  "message": "集合 orders 共有 42 条文档"
-}
-```
-
----
-
-## 9. 错误码速查表
+## 8. 错误码速查表
 
 | error_code | 含义 | 常见原因 | 处理方式 |
 |------------|------|----------|----------|

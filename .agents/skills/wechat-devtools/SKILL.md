@@ -3,7 +3,7 @@ name: wechat-devtools
 description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
-# Wechat DevTools MCP Skill (v0.9.4)
+# Wechat DevTools MCP Skill (v0.9.5)
 
 ## 前置条件
 
@@ -128,6 +128,7 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 - **注意**：不要主动截图，仅在用户明确要求或排查异常需要视觉确认时才调用
 - **限制**：使用 `scroll-view` 组件滚动的页面无法长图拼接（automator SDK 限制），仅截取当前视口
 - **限制**：截图可能无法捕获 fixed/absolute overlay（弹窗、蒙层），以 page_data 为准
+- **路径规约**：推荐 `<project>/screenshots/` 或显式绝对路径。**避免写入 `.claude/image-cache/`** — 这是 Claude Code 的用户发图缓存目录，MCP 截图混入会互相污染
 
 ### `wechat_navigate` — 跳转并采集日志
 
@@ -148,19 +149,7 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 | `read_page` | 读取页面源码（wxml/wxss/js/json） | `page_path` |
 | `read_file` | 读取任意单文件（最多 800 行） | `file_path` |
 
-### `wechat_cloud` — 云函数管理
-
-| action | 功能 | 必填参数 |
-|--------|------|---------|
-| `env_list` | 列出云环境 | — |
-| `func_list` | 列出云函数 | `env` |
-| `func_info` | 获取云函数详情 | `env`, `names` |
-| `func_deploy` | 上传云函数 | `env` |
-| `func_download` | 下载云函数 | `env`, `name`, `download_path` |
-| `db_collection_add` | 创建数据库集合 | `collection_name` |
-| `db_collection_count` | 集合文档计数 | `collection_name` |
-
-> db 系列 action 通过 automator evaluate 执行，需先调用 `wechat_automator(action='start')`。不需要 `env` 参数。
+> **云函数与云数据库管理**：本 MCP 自 v0.9.5 起不再提供 `wechat_cloud` 工具。请改用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)（`manageFunctions` / `readNoSqlDatabaseContent` / `writeNoSqlDatabaseContent` 等），无 IDE 依赖且覆盖更完整。
 
 ---
 
@@ -295,17 +284,6 @@ wechat_navigate(page_path='pages/xxx/xxx?正确参数名=值', wait_ms=3000)  # 
 wechat_automator(action='page_data')                          # ③ 验证数据
   ↳ 关键字段非空 → ✅
   ↳ 大部分为 null → 参数名可能有误，回到 ①
-```
-
-### SOP H：云函数部署验证
-
-```
-wechat_cloud(action='func_deploy', env='xxx', names=['func_name'])  # ① 部署
-# 等待 3 秒（部署自动包含延迟验证）
-wechat_automator(action='evaluate',                                  # ② 真实调用验证
-  expression='wx.cloud.callFunction({name:"func_name",data:{}})')
-  ↳ 返回 code:0 → ✅ 部署生效
-  ↳ FUNCTION_NOT_FOUND → 等待更久或检查函数名
 ```
 
 ### SOP I：跨页面数据一致性校验
