@@ -165,6 +165,55 @@ codex mcp add wechat-devtools \
 > Windows 下路径中的反斜杠需要转义（`\\`）。
 </details>
 
+<details>
+<summary><b>Claude Code 项目级 <code>.mcp.json</code>（仓库内开发推荐）</b></summary>
+
+如果你用 Claude Code 在小程序仓库里开发，可以建项目级 `.mcp.json`（自动跟随仓库、对协作者生效）。
+
+**Windows** — 仓库根目录 `.mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "wechat-devtools": {
+      "command": "uvx",
+      "args": ["wechat-devtools-mcp"],
+      "env": {
+        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
+        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path"
+      }
+    }
+  }
+}
+```
+
+**macOS** — 仓库根目录 `.mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "wechat-devtools": {
+      "command": "/opt/homebrew/bin/uvx",
+      "args": ["wechat-devtools-mcp"],
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "WECHAT_DEVTOOLS_CLI": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
+        "WECHAT_PROJECT_PATH": "/Users/<you>/WeChatProjects/<project>",
+        "NODE_PATH": "/opt/homebrew/bin/node"
+      }
+    }
+  }
+}
+```
+
+> macOS 三个关键差异：
+> - `command` 必须用绝对路径 `/opt/homebrew/bin/uvx`（Claude Code spawn 子进程时 `PATH` 不含 Homebrew）
+> - `env.PATH` 必须显式注入（同时配 `npx`-based MCP 如 cloudbase / chrome-devtools 时尤其需要，否则 `npx` 的 `#!/usr/bin/env node` 找不到 Node）
+> - `NODE_PATH` 推荐显式指定，作为 daemon 启动时的双保险
+
+> 同时配置多个 MCP（cloudbase / chrome-devtools 等）时，每个 server 都按相同模式处理 `command` 绝对路径与 `env.PATH`。
+</details>
+
 ### Step 5 — 安装 Skill（必须）
 
 > [!IMPORTANT]

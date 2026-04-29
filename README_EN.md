@@ -165,6 +165,55 @@ Add a new Server in the MCP console:
 > On Windows, backslashes in paths must be escaped (`\\`).
 </details>
 
+<details>
+<summary><b>Claude Code project-level <code>.mcp.json</code> (recommended for in-repo development)</b></summary>
+
+If you use Claude Code inside a Mini Program repo, drop a project-level `.mcp.json` at the repo root — it follows the repo and works for collaborators.
+
+**Windows** — `.mcp.json` at repo root:
+
+```json
+{
+  "mcpServers": {
+    "wechat-devtools": {
+      "command": "uvx",
+      "args": ["wechat-devtools-mcp"],
+      "env": {
+        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
+        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path"
+      }
+    }
+  }
+}
+```
+
+**macOS** — `.mcp.json` at repo root:
+
+```json
+{
+  "mcpServers": {
+    "wechat-devtools": {
+      "command": "/opt/homebrew/bin/uvx",
+      "args": ["wechat-devtools-mcp"],
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "WECHAT_DEVTOOLS_CLI": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
+        "WECHAT_PROJECT_PATH": "/Users/<you>/WeChatProjects/<project>",
+        "NODE_PATH": "/opt/homebrew/bin/node"
+      }
+    }
+  }
+}
+```
+
+> Three macOS specifics:
+> - `command` must be an absolute path (`/opt/homebrew/bin/uvx`) — Claude Code's spawn does not inherit Homebrew's `PATH`
+> - `env.PATH` must be set explicitly — especially when combining with `npx`-based MCPs (cloudbase / chrome-devtools), since `npx`'s shebang `#!/usr/bin/env node` needs `PATH` to resolve Node
+> - `NODE_PATH` is recommended as a double-safety hint for the daemon launcher
+
+> When you configure multiple MCPs (cloudbase / chrome-devtools, etc.), apply the same `command` absolute path and `env.PATH` pattern to each server entry.
+</details>
+
 ### Step 5 — Install Skill (Required)
 
 > [!IMPORTANT]
