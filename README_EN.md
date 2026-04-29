@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.5)
+# WeChat DevTools MCP Server (v0.9.6)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -71,10 +71,12 @@ uv tool install wechat-devtools-mcp --force     # One-click install to global is
 
 Prepare the following two absolute paths for the editor configuration:
 
-| Path | Example |
-|------|---------|
-| WeChat DevTools CLI | `C:\Program Files (x86)\Tencent\微信web开发者工具\cli.bat` |
-| Mini Program project root | `D:\MyProjects\mini-app` |
+| Path | Windows Example | macOS Example |
+|------|----------------|---------------|
+| WeChat DevTools CLI | `C:\Program Files (x86)\Tencent\微信web开发者工具\cli.bat` | `/Applications/wechatwebdevtools.app/Contents/MacOS/cli` |
+| Mini Program project root | `D:\MyProjects\mini-app` | `/Users/<you>/Projects/mini-app` |
+
+> macOS: forward slashes need no escaping in JSON config; Windows: write `\` as `\\`.
 
 ### Step 4 — Editor Configuration
 
@@ -274,7 +276,18 @@ An older version installed via `pip install` may take PATH precedence. Run `pip 
 <details>
 <summary><b>AI can't find the WeChat CLI path?</b></summary>
 
-Make sure `WECHAT_DEVTOOLS_CLI` in your editor config contains an absolute path. On Windows, use double backslashes (e.g., `C:\\...\\cli.bat`).
+Make sure `WECHAT_DEVTOOLS_CLI` in your editor config contains an absolute path:
+- **Windows**: use double backslashes (e.g., `C:\\...\\cli.bat`)
+- **macOS**: standard path is `/Applications/wechatwebdevtools.app/Contents/MacOS/cli`, no escaping needed
+</details>
+
+<details>
+<summary><b>Node.js detection fails on macOS?</b></summary>
+
+GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in `PATH`. MCP v0.9.6+ auto-probes Homebrew standard paths; if it still fails, set explicitly in `env`:
+```json
+"NODE_PATH": "/opt/homebrew/bin/node"
+```
 </details>
 
 ---
@@ -283,6 +296,7 @@ Make sure `WECHAT_DEVTOOLS_CLI` in your editor config contains an absolute path.
 
 | Version | Description |
 |---------|-------------|
+| **0.9.6** | **macOS support**: cross-platform `cdp_enabled=true` launch (NW.js main binary `wechatdevtools` + `package.nw` entry + `pkill` cleanup); platform-aware default CLI path; Node.js probing extended with Homebrew/nvm candidates; README updated with macOS path examples |
 | **0.9.5** | **Fix dormant compile health-check bug** (ui_debug.js has no `page_stack` action, `automator_verified` wrongly reported false since v0.9.0); compile now downgrades to fail when stderr contains fatal patterns (`EACCES`/`EADDRINUSE`/`#initialize-error`), preventing "fake-success publishing old bundle"; preview auto-resolves relative paths + mtime freshness check; `wechat_automator(action='start')` upgraded to dual TCP+WS verification + `retry_after_ms` hint; compile warns when `miniprogram_npm` is stale; inspector warns on short duration for exception capture; `wechat_cloud` tool disabled (use CloudBase MCP instead) |
 | **0.9.4** | Fix switchTab navigation (use `miniProgram.switchTab()` instead of `callWxMethod`); compile reconnect stability (remove redundant process + 3s delay + WS health check); README 5 agent-friendliness improvements |
 | **0.9.3** | Add `mcp_version` field to status response for version verification; print version to stderr on startup; add pip/uv version conflict troubleshooting to README |

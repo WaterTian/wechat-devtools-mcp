@@ -6,12 +6,12 @@
         "url": "https://github.com/WaterTian/wechat-devtools-mcp",
         "source": "github"
     },
-    "version": "0.9.5",
+    "version": "0.9.6",
     "packages": [
         {
             "registryType": "pypi",
             "identifier": "wechat-devtools-mcp",
-            "version": "0.9.5",
+            "version": "0.9.6",
             "runtimeHint": "uvx",
             "transport": {
                 "type": "stdio"
@@ -19,7 +19,7 @@
             "environmentVariables": [
                 {
                     "name": "WECHAT_DEVTOOLS_CLI",
-                    "description": "微信开发者工具 CLI 路径，例如 C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
+                    "description": "微信开发者工具 CLI 路径。Windows: C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat；macOS: /Applications/wechatwebdevtools.app/Contents/MacOS/cli",
                     "isRequired": true,
                     "isSecret": false
                 },
