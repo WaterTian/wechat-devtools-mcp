@@ -268,23 +268,38 @@ You may also edit the config file directly:
 > [!IMPORTANT]
 > **This MCP must be used with the wechat-devtools Skill.** The Skill contains all SOP workflows, parameter references, and troubleshooting guides the AI needs to operate Mini Programs. Without it, the AI can only call raw APIs and cannot execute standardized workflows.
 
-**Option 1: Via GitHub repository reference (recommended)**
+**Option 1: `npx skills add` (Claude Code users)**
 
 ```bash
 npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 ```
 
-**Option 2: Manual copy**
+Pulls into `~/.claude/skills/`, auto-loaded by Claude Code.
 
-Copy the `.agents/skills/wechat-devtools/` directory to your project or global skills directory:
+**Option 2: Manually drop into `.agents/skills/` (Trae and similar clients that load from `.agents/skills/`)**
+
+Run at your Mini Program project root:
+
+```bash
+git clone --depth 1 https://github.com/WaterTian/wechat-devtools-mcp.git .wdm-tmp
+mkdir -p .agents/skills
+cp -r .wdm-tmp/.agents/skills/wechat-devtools .agents/skills/
+rm -rf .wdm-tmp
+```
+
+Resulting structure:
 
 ```
-.agents/skills/
-└── wechat-devtools/
-    ├── SKILL.md                    # Main instruction file (SOPs + capability mapping + red lines)
-    └── references/
-        └── tool_reference.md       # Complete parameter reference for all 7 aggregated APIs
+your-project/
+└── .agents/skills/
+    └── wechat-devtools/
+        ├── SKILL.md                # Main instruction file (SOPs + capability mapping + red lines)
+        └── references/
+            └── tool_reference.md   # Complete parameter reference for all 7 aggregated APIs
 ```
+
+> [!TIP]
+> **Trae users**: ensure **Settings → Skills & Commands → Enable .agents Skill Directory** is on (default). After refreshing, `wechat-devtools` appears under Skills → Project.
 
 ---
 

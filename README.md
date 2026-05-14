@@ -268,23 +268,38 @@ Trae v1.3.0+ 支持 MCP。**AI 面板 → 右上角设置 → MCP → 添加 →
 > [!IMPORTANT]
 > **本 MCP 必须配合 wechat-devtools Skill 使用。** Skill 包含 AI 操作小程序所需的全部 SOP 流程、参数速查和故障排查指南。未安装 Skill 时，AI 只能调用裸 API，无法自动执行标准化测试和调试流程。
 
-**方式一：通过 GitHub 仓库引用（推荐）**
+**方式一：`npx skills add`（Claude Code 用户）**
 
 ```bash
 npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 ```
 
-**方式二：手动复制**
+会拉到 `~/.claude/skills/`，Claude Code 自动加载。
 
-将 `.agents/skills/wechat-devtools/` 目录复制到你的项目或全局 skills 目录：
+**方式二：手动放到 `.agents/skills/`（Trae 等基于 `.agents/skills/` 加载的客户端）**
+
+在小程序项目根目录执行：
+
+```bash
+git clone --depth 1 https://github.com/WaterTian/wechat-devtools-mcp.git .wdm-tmp
+mkdir -p .agents/skills
+cp -r .wdm-tmp/.agents/skills/wechat-devtools .agents/skills/
+rm -rf .wdm-tmp
+```
+
+完成后的目录结构：
 
 ```
-.agents/skills/
-└── wechat-devtools/
-    ├── SKILL.md                    # 主指令文件（SOP + 能力映射 + 红线规则）
-    └── references/
-        └── tool_reference.md       # 7 个聚合 API 完整参数参考
+your-project/
+└── .agents/skills/
+    └── wechat-devtools/
+        ├── SKILL.md                # 主指令文件（SOP + 能力映射 + 红线规则）
+        └── references/
+            └── tool_reference.md   # 7 个聚合 API 完整参数参考
 ```
+
+> [!TIP]
+> **Trae 用户**：确认 **设置 → 技能与命令 → 启用 .agents 技能目录** 开关已开启（默认开），保存后刷新即可在「技能 → 项目」tab 看到 `wechat-devtools`。
 
 ---
 
