@@ -214,6 +214,19 @@ codex mcp add wechat-devtools \
 > 同时配置多个 MCP（cloudbase / chrome-devtools 等）时，每个 server 都按相同模式处理 `command` 绝对路径与 `env.PATH`。
 </details>
 
+<details>
+<summary><b>Trae IDE（项目级 <code>.mcp.json</code>）</b></summary>
+
+Trae IDE v1.3.0+ 支持 MCP（基于 stdio），配置格式与 Claude Code 项目级 `.mcp.json` **完全一致**——直接复用上一节的模板即可。
+
+- **配置位置**：仓库根目录 `.mcp.json`，或 Trae 设置面板的 MCP 配置入口
+- **Windows / macOS 模板**：见上一节 [Claude Code 项目级 `.mcp.json`](#claude-code-项目级-mcpjsonwechat-devtools)
+- **UI 入口**：Trae 顶部菜单或侧边栏的 MCP / 工具面板（具体名称依 Trae 版本而定）
+
+> [!TIP]
+> Trae 内置 AI 调用 wechat-devtools 时，强烈建议同时安装 **wechat-devtools Skill**（见 Step 5），否则 AI 可能不会按 `open → start → compile → preview → navigate` 的正确顺序调用工具，体验会明显劣化。
+</details>
+
 ### Step 5 — 安装 Skill（必须）
 
 > [!IMPORTANT]

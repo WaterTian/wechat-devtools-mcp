@@ -214,6 +214,19 @@ If you use Claude Code inside a Mini Program repo, drop a project-level `.mcp.js
 > When you configure multiple MCPs (cloudbase / chrome-devtools, etc.), apply the same `command` absolute path and `env.PATH` pattern to each server entry.
 </details>
 
+<details>
+<summary><b>Trae IDE (project-level <code>.mcp.json</code>)</b></summary>
+
+Trae IDE v1.3.0+ supports MCP (stdio-based) with a configuration format **identical to Claude Code project-level `.mcp.json`** — reuse the templates from the previous section directly.
+
+- **Configuration location**: `.mcp.json` at the repo root, or via Trae's settings MCP panel
+- **Windows / macOS templates**: see the previous section [Claude Code project-level `.mcp.json`](#claude-code-project-level-mcpjson-recommended-for-in-repo-development)
+- **UI entry**: Trae's top menu or sidebar MCP / tools panel (exact label varies by Trae version)
+
+> [!TIP]
+> When Trae's built-in AI invokes wechat-devtools, **strongly recommend installing the wechat-devtools Skill** (see Step 5). Without it, the AI may not follow the correct `open → start → compile → preview → navigate` sequence, significantly degrading the experience.
+</details>
+
 ### Step 5 — Install Skill (Required)
 
 > [!IMPORTANT]
