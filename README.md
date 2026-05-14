@@ -217,7 +217,43 @@ codex mcp add wechat-devtools \
 <details>
 <summary><b>Trae IDE（全局 <code>mcp.json</code>）</b></summary>
 
-Trae v1.3.0+ 支持 MCP。**AI 面板 → 右上角设置 → MCP → 添加 → 手动添加**，粘贴 JSON 后保存。JSON 内容与上一节 Claude Code 模板一致（Windows / macOS 两版按平台选用）。
+Trae v1.3.0+ 支持 MCP。**AI 面板 → 右上角设置 → MCP → 添加 → 手动添加**，粘贴下方 JSON 后保存。
+
+**Windows**：
+
+```json
+{
+  "mcpServers": {
+    "wechat-devtools": {
+      "command": "uvx",
+      "args": ["wechat-devtools-mcp"],
+      "env": {
+        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
+        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path"
+      }
+    }
+  }
+}
+```
+
+**macOS**：
+
+```json
+{
+  "mcpServers": {
+    "wechat-devtools": {
+      "command": "/opt/homebrew/bin/uvx",
+      "args": ["wechat-devtools-mcp"],
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "WECHAT_DEVTOOLS_CLI": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
+        "WECHAT_PROJECT_PATH": "/Users/<you>/WeChatProjects/<project>",
+        "NODE_PATH": "/opt/homebrew/bin/node"
+      }
+    }
+  }
+}
+```
 
 直接编辑配置文件也可：
 - Windows: `%APPDATA%\Trae\User\globalStorage\mcp.json`

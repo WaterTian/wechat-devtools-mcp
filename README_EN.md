@@ -217,7 +217,43 @@ If you use Claude Code inside a Mini Program repo, drop a project-level `.mcp.js
 <details>
 <summary><b>Trae IDE (global <code>mcp.json</code>)</b></summary>
 
-Trae v1.3.0+ supports MCP. **AI panel → top-right settings → MCP → Add → Manual**, paste JSON and save. JSON content is identical to the Claude Code templates above (pick Windows or macOS).
+Trae v1.3.0+ supports MCP. **AI panel → top-right settings → MCP → Add → Manual**, paste the JSON below and save.
+
+**Windows**:
+
+```json
+{
+  "mcpServers": {
+    "wechat-devtools": {
+      "command": "uvx",
+      "args": ["wechat-devtools-mcp"],
+      "env": {
+        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
+        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path"
+      }
+    }
+  }
+}
+```
+
+**macOS**:
+
+```json
+{
+  "mcpServers": {
+    "wechat-devtools": {
+      "command": "/opt/homebrew/bin/uvx",
+      "args": ["wechat-devtools-mcp"],
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "WECHAT_DEVTOOLS_CLI": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
+        "WECHAT_PROJECT_PATH": "/Users/<you>/WeChatProjects/<project>",
+        "NODE_PATH": "/opt/homebrew/bin/node"
+      }
+    }
+  }
+}
+```
 
 You may also edit the config file directly:
 - Windows: `%APPDATA%\Trae\User\globalStorage\mcp.json`
