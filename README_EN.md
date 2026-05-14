@@ -215,16 +215,16 @@ If you use Claude Code inside a Mini Program repo, drop a project-level `.mcp.js
 </details>
 
 <details>
-<summary><b>Trae IDE (project-level <code>.mcp.json</code>)</b></summary>
+<summary><b>Trae IDE (global <code>mcp.json</code>)</b></summary>
 
-Trae IDE v1.3.0+ supports MCP (stdio-based) with a configuration format **identical to Claude Code project-level `.mcp.json`** — reuse the templates from the previous section directly.
+Trae v1.3.0+ supports MCP. **AI panel → top-right settings → MCP → Add → Manual**, paste JSON and save. JSON content is identical to the Claude Code templates above (pick Windows or macOS).
 
-- **Configuration location**: `.mcp.json` at the repo root, or via Trae's settings MCP panel
-- **Windows / macOS templates**: see the previous section [Claude Code project-level `.mcp.json`](#claude-code-project-level-mcpjson-recommended-for-in-repo-development)
-- **UI entry**: Trae's top menu or sidebar MCP / tools panel (exact label varies by Trae version)
+You may also edit the config file directly:
+- Windows: `%APPDATA%\Trae\User\globalStorage\mcp.json`
+- macOS: `~/Library/Application Support/Trae/User/globalStorage/mcp.json`
 
-> [!TIP]
-> When Trae's built-in AI invokes wechat-devtools, **strongly recommend installing the wechat-devtools Skill** (see Step 5). Without it, the AI may not follow the correct `open → start → compile → preview → navigate` sequence, significantly degrading the experience.
+> [!IMPORTANT]
+> In the chat box, you **must** select the **"Builder with MCP"** agent — the default agent does not call MCP tools. Also install the wechat-devtools Skill (Step 5) so the AI follows the correct SOP sequence.
 </details>
 
 ### Step 5 — Install Skill (Required)
