@@ -217,7 +217,7 @@ codex mcp add wechat-devtools \
 <details>
 <summary><b>Trae IDE（全局 <code>mcp.json</code>）</b></summary>
 
-Trae v1.3.0+ 支持 MCP。**AI 面板 → 右上角设置 → MCP → 添加 → 手动添加**，粘贴下方 JSON 后保存。
+Trae v1.3.0+ 支持 MCP。**AI 面板 → 右上角设置 → MCP → 添加 → 手动配置**，粘贴下方 JSON 后保存。
 
 **Windows**：
 

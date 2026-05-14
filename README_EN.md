@@ -217,7 +217,7 @@ If you use Claude Code inside a Mini Program repo, drop a project-level `.mcp.js
 <details>
 <summary><b>Trae IDE (global <code>mcp.json</code>)</b></summary>
 
-Trae v1.3.0+ supports MCP. **AI panel → top-right settings → MCP → Add → Manual**, paste the JSON below and save.
+Trae v1.3.0+ supports MCP. **AI panel → top-right settings → MCP → Add → Configure manually**, paste the JSON below and save.
 
 **Windows**:
 
