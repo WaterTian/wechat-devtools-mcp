@@ -405,18 +405,6 @@ GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in 
 
 ---
 
-## Star History
-
-<a href="https://star-history.com/#WaterTian/wechat-devtools-mcp&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date" />
-  </picture>
-</a>
-
----
-
 ## 📋 Changelog
 
 | Version | Description |
@@ -464,6 +452,18 @@ GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in 
 
 - [WeChat DevTools CLI Documentation](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html)
 - [Mini Program Automation SDK](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/quick-start.html)
+
+---
+
+## Star History
+
+<a href="https://star-history.com/#WaterTian/wechat-devtools-mcp&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date" />
+  </picture>
+</a>
 
 ---
 

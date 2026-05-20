@@ -405,18 +405,6 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 
 ---
 
-## Star History
-
-<a href="https://star-history.com/#WaterTian/wechat-devtools-mcp&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date" />
-  </picture>
-</a>
-
----
-
 ## 📋 版本历史
 
 | 版本 | 说明 |
@@ -464,6 +452,18 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 
 - [微信开发者工具 CLI 官方文档](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html)
 - [小程序自动化 SDK](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/quick-start.html)
+
+---
+
+## Star History
+
+<a href="https://star-history.com/#WaterTian/wechat-devtools-mcp&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date" />
+  </picture>
+</a>
 
 ---
 
