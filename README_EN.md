@@ -412,24 +412,24 @@ GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in 
 | **0.9.6** | **macOS support**: cross-platform `cdp_enabled=true` launch (NW.js main binary `wechatdevtools` + `package.nw` entry + `pkill` cleanup); platform-aware default CLI path; Node.js probing extended with Homebrew/nvm candidates; README updated with macOS path examples |
 | **0.9.5** | **Fix dormant compile health-check bug** (ui_debug.js has no `page_stack` action, `automator_verified` wrongly reported false since v0.9.0); compile now downgrades to fail when stderr contains fatal patterns (`EACCES`/`EADDRINUSE`/`#initialize-error`), preventing "fake-success publishing old bundle"; preview auto-resolves relative paths + mtime freshness check; `wechat_automator(action='start')` upgraded to dual TCP+WS verification + `retry_after_ms` hint; compile warns when `miniprogram_npm` is stale; inspector warns on short duration for exception capture; `wechat_cloud` tool disabled (use CloudBase MCP instead) |
 | **0.9.4** | Fix switchTab navigation (use `miniProgram.switchTab()` instead of `callWxMethod`); compile reconnect stability (remove redundant process + 3s delay + WS health check); README 5 agent-friendliness improvements |
-| **0.9.3** | Add `mcp_version` field to status response for version verification; print version to stderr on startup; add pip/uv version conflict troubleshooting to README |
-| **0.9.2** | **Fix navigate timeout after compile**: daemon health check with 3s timeout protection; auto-invalidate stale cached connections after compile before reconnect; navigate currentPage polling with 2s per-call timeout; distinguish HEALTH\_CHECK\_TIMEOUT from CONNECTION\_ERROR error codes |
-| **0.9.1** | Fix cdp\_enabled=true AttributeError crash; add WXML runtime error capture (CDP auto-captures template-not-found warnings after compile) |
-| **0.9.0** | **Persistent Node daemon architecture**: single long-running daemon process with NDJSON protocol, WS connections cached by port; single daemon.bundle.js replaces 8 individual bundles; tool call latency reduced from 500ms+ to ~3ms; zero disconnections after compile with automatic reconnection |
-| **0.8.0** | Auto-reconnect automator after compile; navigate auto-detects TabBar pages using switchTab; screenshot adds full\_page/scroll\_top/page\_path params for viewport mode; page\_data adds expected\_path polling to prevent stale data; long screenshot dynamic step adjustment fixes content gaps; node\_bridge unified connection retry + 500ms call interval; start port verification increased to 20 attempts |
-| **0.7.0** | Fix navigate scoping bug (currentPageTimeout); evaluate supports declaration statements (const/let/var fallback); call_method returns current page path; automator start uses port polling instead of blind sleep; SKILL.md adds efficiency principles, recovery tiers, page navigation methods, 6 new fault entries |
-| **0.6.0** | Navigate supports query params (reLaunch timeout fallback); CDP startup noise filtering (console.assert/\_\_route\_\_/ide:// noise reduction + WXML error protection); compile returns tri-state + automator invalidation hint; navigate currentPage polling retry; configurable timeout |
-| **0.5.1** | `wechat_ide(action='open')` adds CDP startup health check: auto-captures 5s of CDP logs to detect fatal startup errors, returns failure to stop subsequent operations |
-| **0.5.0** | Skill SOP overhaul: added SOP I/J; AppID check & path validation; CDP noise filtering; screenshot stitching fuzzy matching fix |
-| **0.4.1** | Long-page screenshot rewrite: fixed region detection, DPR adaptation, dynamic overlap calculation |
-| **0.4.0** | CDP log enhancement, cloud function auto-verification, navigate smart diagnostics, new SOP G/H |
-| **0.3.0** | **Major refactor**: 44 tools consolidated into 8 APIs; CDP logs v2; SKILL.md knowledge base |
 
 <details>
-<summary>Earlier versions</summary>
+<summary>Expand v0.9.3 and earlier</summary>
 
 | Version | Description |
 |---------|-------------|
+| 0.9.3 | Add `mcp_version` field to status response for version verification; print version to stderr on startup; add pip/uv version conflict troubleshooting to README |
+| 0.9.2 | **Fix navigate timeout after compile**: daemon health check with 3s timeout protection; auto-invalidate stale cached connections after compile before reconnect; navigate currentPage polling with 2s per-call timeout; distinguish HEALTH\_CHECK\_TIMEOUT from CONNECTION\_ERROR error codes |
+| 0.9.1 | Fix cdp\_enabled=true AttributeError crash; add WXML runtime error capture (CDP auto-captures template-not-found warnings after compile) |
+| 0.9.0 | **Persistent Node daemon architecture**: single long-running daemon process with NDJSON protocol, WS connections cached by port; single daemon.bundle.js replaces 8 individual bundles; tool call latency reduced from 500ms+ to ~3ms; zero disconnections after compile with automatic reconnection |
+| 0.8.0 | Auto-reconnect automator after compile; navigate auto-detects TabBar pages using switchTab; screenshot adds full\_page/scroll\_top/page\_path params for viewport mode; page\_data adds expected\_path polling to prevent stale data; long screenshot dynamic step adjustment fixes content gaps; node\_bridge unified connection retry + 500ms call interval; start port verification increased to 20 attempts |
+| 0.7.0 | Fix navigate scoping bug (currentPageTimeout); evaluate supports declaration statements (const/let/var fallback); call_method returns current page path; automator start uses port polling instead of blind sleep; SKILL.md adds efficiency principles, recovery tiers, page navigation methods, 6 new fault entries |
+| 0.6.0 | Navigate supports query params (reLaunch timeout fallback); CDP startup noise filtering (console.assert/\_\_route\_\_/ide:// noise reduction + WXML error protection); compile returns tri-state + automator invalidation hint; navigate currentPage polling retry; configurable timeout |
+| 0.5.1 | `wechat_ide(action='open')` adds CDP startup health check: auto-captures 5s of CDP logs to detect fatal startup errors, returns failure to stop subsequent operations |
+| 0.5.0 | Skill SOP overhaul: added SOP I/J; AppID check & path validation; CDP noise filtering; screenshot stitching fuzzy matching fix |
+| 0.4.1 | Long-page screenshot rewrite: fixed region detection, DPR adaptation, dynamic overlap calculation |
+| 0.4.0 | CDP log enhancement, cloud function auto-verification, navigate smart diagnostics, new SOP G/H |
+| 0.3.0 | **Major refactor**: 44 tools consolidated into 8 APIs; CDP logs v2; SKILL.md knowledge base |
 | 0.2.6 | Added OpenAI Codex configuration to README |
 | 0.2.5 | Added Kiro editor configuration |
 | 0.2.4 | Screenshot stitching fix: `sharp` → `jimp` |
@@ -454,8 +454,6 @@ GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in 
 - [Mini Program Automation SDK](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/quick-start.html)
 
 ---
-
-## Star History
 
 <a href="https://star-history.com/#WaterTian/wechat-devtools-mcp&Date">
   <picture>

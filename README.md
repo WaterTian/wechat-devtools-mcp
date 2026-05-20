@@ -412,24 +412,24 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 | **0.9.6** | **macOS 适配**：`cdp_enabled=true` 模式跨平台启动（NW.js 主程序 `wechatdevtools` + `package.nw` 入口 + `pkill` 清理）；默认 CLI 路径按平台返回；Node.js 检测补 Homebrew/nvm 候选路径；README 增加 macOS 路径示例 |
 | **0.9.5** | **修复 compile 健康检查永久失败的潜伏 bug**（ui_debug.js 无 `page_stack` action，v0.9.0 以来 `automator_verified` 一直误报 false）；compile 对 `EACCES`/`EADDRINUSE`/`#initialize-error` 等致命 pattern 降级为 fail，杜绝「假成功发布旧 bundle」；preview 自动 resolve 相对路径 + mtime 新鲜度检测；`wechat_automator(action='start')` 升级为 TCP+WS 双重验证 + `retry_after_ms` 精确等待；compile 前检测 `miniprogram_npm` 过期发 warning；inspector 短 duration 捕获异常时发 warning；`wechat_cloud` 工具已禁用（改用 CloudBase MCP） |
 | **0.9.4** | 修复 switchTab 跳转不生效（改用 `miniProgram.switchTab()` 替代 `callWxMethod`）；compile 后重连稳定性（去冗余进程 + 3s 延迟 + WS 健康检查）；README 5 项 agent 友好性改进 |
-| **0.9.3** | status 新增 `mcp_version` 字段用于版本确认；启动时打印版本号到 stderr；README 增加 pip/uv 版本冲突排查指引 |
-| **0.9.2** | **修复 compile 后 navigate 超时**：daemon 连接健康检查增加 3s 超时保护；compile 后自动 invalidate 旧缓存连接再重连；navigate currentPage 轮询每次调用增加 2s 独立超时；区分 HEALTH\_CHECK\_TIMEOUT 和 CONNECTION\_ERROR 错误码 |
-| **0.9.1** | 修复 cdp\_enabled=true 时 AttributeError 崩溃；新增 WXML 运行时错误采集（compile 后 CDP 自动捕获 template not found 等警告） |
-| **0.9.0** | **持久化 Node daemon 架构**：单 daemon 进程常驻，NDJSON 协议通信，WS 连接按端口复用；单个 daemon.bundle.js 替代 8 个独立 bundle；工具调用延迟从 500ms+ 降至 ~3ms；compile 后 daemon 自动重建连接零断连 |
-| **0.8.0** | compile 后自动重连 automator；navigate 自动识别 TabBar 页面走 switchTab；screenshot 新增 full\_page/scroll\_top/page\_path 参数及视口截图模式；page\_data 新增 expected\_path 轮询防旧数据；长图拼接动态步长修复内容缺口；node\_bridge 统一连接断开重试 + 500ms 调用间隔；start 端口验证增至 20 次 |
-| **0.7.0** | navigate 变量作用域修复（currentPageTimeout）；evaluate 支持声明语句（const/let/var fallback）；call_method 返回当前页面路径；automator start 端口轮询验证替代盲等；SKILL.md 新增效率原则、恢复分级、页面跳转方法、6 条故障条目 |
-| **0.6.0** | navigate 支持 query 参数（reLaunch 超时 fallback）；CDP 启动噪音过滤（console.assert/\_\_route\_\_/ide:// 降噪 + WXML 错误保护）；compile 返回值三分类 + automator 失效提示；navigate currentPage 轮询重试；超时可配置 |
-| **0.5.1** | `wechat_ide(action='open')` 新增 CDP 启动健康检查：自动采集 5 秒 CDP 日志检测启动阶段致命错误，有错误直接返回失败阻止后续操作 |
-| **0.5.0** | Skill SOP 全面优化：新增 SOP I/J；增加 AppID 检查与 path 校验；CDP 噪音过滤；截图拼接模糊匹配修复 |
-| **0.4.1** | 截图长页面拼接重写：固定区域检测、DPR 自适应、动态重叠计算 |
-| **0.4.0** | CDP 日志增强、云函数部署自动验证、navigate 智能诊断、新增 SOP G/H |
-| **0.3.0** | **重大重构**：44 个工具聚合为 8 个 API；CDP 日志 v2；新增 SKILL.md 知识库 |
 
 <details>
-<summary>更早版本</summary>
+<summary>展开 v0.9.3 及更早版本</summary>
 
 | 版本 | 说明 |
 |------|------|
+| 0.9.3 | status 新增 `mcp_version` 字段用于版本确认；启动时打印版本号到 stderr；README 增加 pip/uv 版本冲突排查指引 |
+| 0.9.2 | **修复 compile 后 navigate 超时**：daemon 连接健康检查增加 3s 超时保护；compile 后自动 invalidate 旧缓存连接再重连；navigate currentPage 轮询每次调用增加 2s 独立超时；区分 HEALTH\_CHECK\_TIMEOUT 和 CONNECTION\_ERROR 错误码 |
+| 0.9.1 | 修复 cdp\_enabled=true 时 AttributeError 崩溃；新增 WXML 运行时错误采集（compile 后 CDP 自动捕获 template not found 等警告） |
+| 0.9.0 | **持久化 Node daemon 架构**：单 daemon 进程常驻，NDJSON 协议通信，WS 连接按端口复用；单个 daemon.bundle.js 替代 8 个独立 bundle；工具调用延迟从 500ms+ 降至 ~3ms；compile 后 daemon 自动重建连接零断连 |
+| 0.8.0 | compile 后自动重连 automator；navigate 自动识别 TabBar 页面走 switchTab；screenshot 新增 full\_page/scroll\_top/page\_path 参数及视口截图模式；page\_data 新增 expected\_path 轮询防旧数据；长图拼接动态步长修复内容缺口；node\_bridge 统一连接断开重试 + 500ms 调用间隔；start 端口验证增至 20 次 |
+| 0.7.0 | navigate 变量作用域修复（currentPageTimeout）；evaluate 支持声明语句（const/let/var fallback）；call_method 返回当前页面路径；automator start 端口轮询验证替代盲等；SKILL.md 新增效率原则、恢复分级、页面跳转方法、6 条故障条目 |
+| 0.6.0 | navigate 支持 query 参数（reLaunch 超时 fallback）；CDP 启动噪音过滤（console.assert/\_\_route\_\_/ide:// 降噪 + WXML 错误保护）；compile 返回值三分类 + automator 失效提示；navigate currentPage 轮询重试；超时可配置 |
+| 0.5.1 | `wechat_ide(action='open')` 新增 CDP 启动健康检查：自动采集 5 秒 CDP 日志检测启动阶段致命错误，有错误直接返回失败阻止后续操作 |
+| 0.5.0 | Skill SOP 全面优化：新增 SOP I/J；增加 AppID 检查与 path 校验；CDP 噪音过滤；截图拼接模糊匹配修复 |
+| 0.4.1 | 截图长页面拼接重写：固定区域检测、DPR 自适应、动态重叠计算 |
+| 0.4.0 | CDP 日志增强、云函数部署自动验证、navigate 智能诊断、新增 SOP G/H |
+| 0.3.0 | **重大重构**：44 个工具聚合为 8 个 API；CDP 日志 v2；新增 SKILL.md 知识库 |
 | 0.2.6 | README 新增 OpenAI Codex 配置说明 |
 | 0.2.5 | 新增 Kiro 编辑器配置说明 |
 | 0.2.4 | 截图滚动拼接修复：`sharp` → `jimp` |
@@ -454,8 +454,6 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 - [小程序自动化 SDK](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/quick-start.html)
 
 ---
-
-## Star History
 
 <a href="https://star-history.com/#WaterTian/wechat-devtools-mcp&Date">
   <picture>
