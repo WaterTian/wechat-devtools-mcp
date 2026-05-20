@@ -405,6 +405,12 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 
 ---
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date)](https://star-history.com/#WaterTian/wechat-devtools-mcp&Date)
+
+---
+
 ## 📋 版本历史
 
 | 版本 | 说明 |
@@ -458,9 +464,3 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 ## 许可证
 
 MIT
-
----
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date)](https://star-history.com/#WaterTian/wechat-devtools-mcp&Date)

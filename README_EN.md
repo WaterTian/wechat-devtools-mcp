@@ -405,6 +405,12 @@ GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in 
 
 ---
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date)](https://star-history.com/#WaterTian/wechat-devtools-mcp&Date)
+
+---
+
 ## 📋 Changelog
 
 | Version | Description |
@@ -458,9 +464,3 @@ GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in 
 ## License
 
 MIT
-
----
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=WaterTian/wechat-devtools-mcp&type=Date)](https://star-history.com/#WaterTian/wechat-devtools-mcp&Date)
