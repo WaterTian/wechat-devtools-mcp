@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.6)
+# WeChat DevTools MCP Server (v0.9.7)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
