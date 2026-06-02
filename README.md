@@ -10,7 +10,7 @@
 <!-- mcp-name: io.github.WaterTian/wechat-devtools-mcp -->
 
 > [!IMPORTANT]
-> 本项目采用「**瘦 MCP + 胖 Skill**」架构：**MCP Server 提供 8 个聚合 API，配套的 [wechat-devtools Skill](#-安装-skill必须) 提供 SOP 流程、参数速查和最佳实践。两者必须配合使用**，缺少 Skill 时 AI 将无法按正确流程操作小程序。
+> 本项目采用「**瘦 MCP + 胖 Skill**」架构：**MCP Server 提供 7 个聚合 API，配套的 [wechat-devtools Skill](#-安装-skill必须) 提供 SOP 流程、参数速查和最佳实践。两者必须配合使用**，缺少 Skill 时 AI 将无法按正确流程操作小程序。
 
 **已发布至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows / macOS）一键安装。
 
@@ -409,6 +409,8 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 
 | 版本 | 说明 |
 |------|------|
+| **0.9.8** | **修复 automator 连接稳定性**：daemon.js `currentPage()` 健康检查改为轮询重试（新连接 5 次 × 3s+1.5s），不再因页面加载慢丢弃已建立的 WebSocket 连接；`_action_start` 改用 `_run_cli` 同步检测 CLI 返回码，CLI 失败立即感知（[#3](https://github.com/WaterTian/wechat-devtools-mcp/issues/3)）|
+| **0.9.7** | **修复 daemon 孤儿进程残留**：daemon.js 增加父进程 watchdog，每 5 秒 `process.kill(ppid, 0)` 检测存活，父进程被杀后自动清理 WS 连接并退出（[#2](https://github.com/WaterTian/wechat-devtools-mcp/issues/2)）|
 | **0.9.6** | **macOS 适配**：`cdp_enabled=true` 模式跨平台启动（NW.js 主程序 `wechatdevtools` + `package.nw` 入口 + `pkill` 清理）；默认 CLI 路径按平台返回；Node.js 检测补 Homebrew/nvm 候选路径；README 增加 macOS 路径示例 |
 | **0.9.5** | **修复 compile 健康检查永久失败的潜伏 bug**（ui_debug.js 无 `page_stack` action，v0.9.0 以来 `automator_verified` 一直误报 false）；compile 对 `EACCES`/`EADDRINUSE`/`#initialize-error` 等致命 pattern 降级为 fail，杜绝「假成功发布旧 bundle」；preview 自动 resolve 相对路径 + mtime 新鲜度检测；`wechat_automator(action='start')` 升级为 TCP+WS 双重验证 + `retry_after_ms` 精确等待；compile 前检测 `miniprogram_npm` 过期发 warning；inspector 短 duration 捕获异常时发 warning；`wechat_cloud` 工具已禁用（改用 CloudBase MCP） |
 | **0.9.4** | 修复 switchTab 跳转不生效（改用 `miniProgram.switchTab()` 替代 `callWxMethod`）；compile 后重连稳定性（去冗余进程 + 3s 延迟 + WS 健康检查）；README 5 项 agent 友好性改进 |
