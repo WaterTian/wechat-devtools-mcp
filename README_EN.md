@@ -409,6 +409,7 @@ GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in 
 
 | Version | Description |
 |---------|-------------|
+| **0.9.9** | **Fix screenshot causing mini program restart**: screenshot.js replaces `reLaunch` (destroys entire page stack) with `navigateTo` (non-destructive push) for non-tab pages, fixing simulator reset on macOS after screenshot ([#4](https://github.com/WaterTian/wechat-devtools-mcp/issues/4)) |
 | **0.9.8** | **Fix automator connection stability**: daemon.js `currentPage()` health check now retries (up to 5× for new connections, 2× for cached) instead of immediately discarding established WebSocket connections on timeout; `_action_start` uses `_run_cli` for sync return-code detection instead of fire-and-forget `subprocess.Popen` ([#3](https://github.com/WaterTian/wechat-devtools-mcp/issues/3)) |
 | **0.9.7** | **Fix daemon orphan processes**: daemon.js parent-process watchdog polls `process.kill(ppid, 0)` every 5s, auto-cleans WS connections and exits when parent dies ([#2](https://github.com/WaterTian/wechat-devtools-mcp/issues/2)) |
 | **0.9.6** | **macOS support**: cross-platform `cdp_enabled=true` launch (NW.js main binary `wechatdevtools` + `package.nw` entry + `pkill` cleanup); platform-aware default CLI path; Node.js probing extended with Homebrew/nvm candidates; README updated with macOS path examples |

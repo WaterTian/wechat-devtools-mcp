@@ -409,6 +409,7 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 
 | 版本 | 说明 |
 |------|------|
+| **0.9.9** | **修复截图导致小程序重启**：screenshot.js 对非 TabBar 页面的导航方式从 `reLaunch`（销毁全部页面栈）改为 `navigateTo`（非破坏性压栈），修复 macOS 环境下截图后模拟器重置问题（[#4](https://github.com/WaterTian/wechat-devtools-mcp/issues/4)）|
 | **0.9.8** | **修复 automator 连接稳定性**：daemon.js `currentPage()` 健康检查改为轮询重试（新连接 5 次 × 3s+1.5s），不再因页面加载慢丢弃已建立的 WebSocket 连接；`_action_start` 改用 `_run_cli` 同步检测 CLI 返回码，CLI 失败立即感知（[#3](https://github.com/WaterTian/wechat-devtools-mcp/issues/3)）|
 | **0.9.7** | **修复 daemon 孤儿进程残留**：daemon.js 增加父进程 watchdog，每 5 秒 `process.kill(ppid, 0)` 检测存活，父进程被杀后自动清理 WS 连接并退出（[#2](https://github.com/WaterTian/wechat-devtools-mcp/issues/2)）|
 | **0.9.6** | **macOS 适配**：`cdp_enabled=true` 模式跨平台启动（NW.js 主程序 `wechatdevtools` + `package.nw` 入口 + `pkill` 清理）；默认 CLI 路径按平台返回；Node.js 检测补 Homebrew/nvm 候选路径；README 增加 macOS 路径示例 |
