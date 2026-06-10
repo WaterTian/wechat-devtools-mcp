@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.9)
+# WeChat DevTools MCP Server (v0.9.10)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -409,6 +409,7 @@ GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in 
 
 | Version | Description |
 |---------|-------------|
+| **0.9.10** | **Fix silent page_path failures**: screenshot.js now validates navigation success by checking page.path after jump, returning clear error for missing `/index` suffix or non-existent pages instead of silently capturing the old page; node_bridge.py fixed daemon handler errors being lost ([#5](https://github.com/WaterTian/wechat-devtools-mcp/issues/5)) |
 | **0.9.9** | **Fix screenshot causing mini program restart**: screenshot.js replaces `reLaunch` (destroys entire page stack) with `navigateTo` (non-destructive push) for non-tab pages, fixing simulator reset on macOS after screenshot ([#4](https://github.com/WaterTian/wechat-devtools-mcp/issues/4)) |
 | **0.9.8** | **Fix automator connection stability**: daemon.js `currentPage()` health check now retries (up to 5× for new connections, 2× for cached) instead of immediately discarding established WebSocket connections on timeout; `_action_start` uses `_run_cli` for sync return-code detection instead of fire-and-forget `subprocess.Popen` ([#3](https://github.com/WaterTian/wechat-devtools-mcp/issues/3)) |
 | **0.9.7** | **Fix daemon orphan processes**: daemon.js parent-process watchdog polls `process.kill(ppid, 0)` every 5s, auto-cleans WS connections and exits when parent dies ([#2](https://github.com/WaterTian/wechat-devtools-mcp/issues/2)) |
