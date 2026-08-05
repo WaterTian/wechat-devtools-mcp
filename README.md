@@ -1,5 +1,7 @@
 # 微信开发者工具 MCP Server (v0.9.10)
 
+[![MCP Toplist](https://mcptoplist.com/badge/io.github.WaterTian%2Fwechat-devtools-mcp.svg)](https://mcptoplist.com/server/io.github.WaterTian%2Fwechat-devtools-mcp)
+
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
