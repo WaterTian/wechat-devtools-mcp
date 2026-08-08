@@ -398,7 +398,7 @@ full    → 完整日志 + source 定位 → wechat_file(action='read_file', fil
 | `CLI_NOT_FOUND` | 找不到 CLI | 检查 `WECHAT_DEVTOOLS_CLI` |
 | `PROJECT_PATH_MISSING` | 项目路径未配置 | 检查 `WECHAT_PROJECT_PATH` |
 | `NODE_NOT_FOUND` | Node.js 未安装 | 安装 Node.js ≥ 8.0 |
-| `CLI_TIMEOUT` | CLI 执行超时 | 开启服务端口；重启 IDE |
+| `CLI_TIMEOUT` | CLI 执行超时 | 开启服务端口；重启 IDE；若 CLI 路径含空格/中文，见下方「CLI 路径引用」修复 |
 
 ---
 
@@ -430,6 +430,7 @@ wechat_automator(action='page_data')                # 验证
 | `Element is obfuscated` | 元素被遮挡或在 shadow-root 外 | 检查 WXML 结构，尝试父节点 |
 | `Cannot find context` | 逻辑层崩溃 / 正在重载 | 等待 3s 后重试 |
 | `CLI_TIMEOUT` | 服务端口未开启 / IDE 未运行 | 开启服务端口；`wechat_ide(action='open')` |
+| CLI 命令报 `'C:\Program' 不是内部或外部命令` / `is_login` 恒为 false | CLI 路径含空格（如 `C:\Program Files (x86)\...\cli.bat`），`cmd /c` 引号剥离导致路径被空格切分 | 修复 `core/cli.py` `_run_cli` 的 `cmd /c` 引用，见「CLI 路径引用」修复 |
 | 元素未找到 | 不在当前页面或 selector 错 | `page_stack` 确认页面；`element_info` 验证 selector |
 | `Using AppID: undefined` | project_path 指向子目录而非项目根目录 | 改为包含 `project.config.json` 的目录 |
 | `appid missing` 云函数失败 | AppID 未配置或未登录 | 检查 project_path + 登录状态 |
@@ -452,6 +453,28 @@ wechat_automator(action='page_data')                # 验证
 | navigate TabBar 页面无效 | TabBar 页面不支持 reLaunch/navigateTo | v0.8.0 自动检测并使用 switchTab；或手动 `evaluate(wx.switchTab)` |
 | 截图显示错误页面 | screenshot connect 后页面被重置 | 使用 `page_path` 参数确保截图前在正确页面 |
 | scroll-view 页面长图只有一屏 | automator SDK 无法捕获 scroll-view 内部滚动 | 已知限制，返回 `isScrollViewPage: true`；改用页面级滚动或 canvas 截图 |
+
+### CLI 路径引用修复（Windows 含空格/中文路径）
+
+**现象**：`wechat_automator(action='start')`、`wechat_ide(action='is_login'/'login')` 报 `CLI_TIMEOUT`；直接在 cmd 里运行 `cli.bat` 报 `'C:\Program' 不是内部或外部命令`；`is_login` 恒为 `false`（静默吞掉 CLI 错误）。
+
+**根因**：`cmd /c` 的引号剥离规则。当 `/c` 后紧跟一个带引号的字符串时，cmd 会去掉最外层一对引号。因此：
+
+```
+cmd /c "C:\Program Files (x86)\Tencent\微信开发者工具\cli.bat" islogin
+```
+
+会被 cmd 解析成 `C:\Program Files (x86)\...\cli.bat islogin`，第一个 token 按空格切分为 `C:\Program`，导致找不到命令。
+
+**修复**：用双层引号包裹整个命令，让 cmd 去掉最外层引号后路径引号得以保留：
+
+```
+cmd /c ""C:\Program Files (x86)\Tencent\微信开发者工具\cli.bat" islogin"
+```
+
+对应 `core/cli.py` 中 `_run_cli` 的 Windows 分支：对含空格/非 ASCII 参数单独加引号，再用 `cmd /c "..."` 整体包裹。此修复同时覆盖 `is_login`、`login`、`automator start`，因为它们都经由 `_run_cli` 调用 CLI。
+
+> 注意：若 `cli.bat` 能正常启动但命令仍**挂起**（无报错、超时），通常是 IDE 未登录（`/login` 端点返回登录二维码）或服务端口未开启所致，与路径引用无关。
 
 ### 连接断开恢复流程
 

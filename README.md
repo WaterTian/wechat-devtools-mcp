@@ -409,6 +409,7 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 
 | 版本 | 说明 |
 |------|------|
+| **本地补丁** | **修复 Windows 含空格/中文 CLI 路径的 `cmd /c` 引用**：`core/cli.py` `_run_cli` 改用双层引号包裹 `cmd /c` 命令，避免 `C:\Program Files (x86)\...\cli.bat` 被空格切分导致 `CLI_TIMEOUT` / `is_login` 恒为 false。源码见 `src/wechat_devtools_mcp/core/cli.py` |
 | **0.9.10** | **修复 page_path 静默失败**：screenshot.js 导航后验证页面路径是否匹配，缺少 `/index` 后缀或页面不存在时返回明确错误而非静默拍下旧页面；node_bridge.py 修复 daemon handler 错误信息丢失（[#5](https://github.com/WaterTian/wechat-devtools-mcp/issues/5)）|
 | **0.9.9** | **修复截图导致小程序重启**：screenshot.js 对非 TabBar 页面的导航方式从 `reLaunch`（销毁全部页面栈）改为 `navigateTo`（非破坏性压栈），修复 macOS 环境下截图后模拟器重置问题（[#4](https://github.com/WaterTian/wechat-devtools-mcp/issues/4)）|
 | **0.9.8** | **修复 automator 连接稳定性**：daemon.js `currentPage()` 健康检查改为轮询重试（新连接 5 次 × 3s+1.5s），不再因页面加载慢丢弃已建立的 WebSocket 连接；`_action_start` 改用 `_run_cli` 同步检测 CLI 返回码，CLI 失败立即感知（[#3](https://github.com/WaterTian/wechat-devtools-mcp/issues/3)）|
