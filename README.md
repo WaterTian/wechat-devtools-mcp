@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.9.10)
+# 微信开发者工具 MCP Server (v0.9.11)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -409,6 +409,7 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 
 | 版本 | 说明 |
 |------|------|
+| **0.9.11** | **兼容 mcp 2.0.0**：官方 MCP Python SDK 2.0（2026-07-28 发布）移除 `mcp.server.fastmcp`（改名 `MCPServer`）导致新装用户启动即崩，全部导入改为 1.x/2.x 双版本兼容；依赖明确为 `mcp[cli]>=1.9`（[#8](https://github.com/WaterTian/wechat-devtools-mcp/issues/8)）|
 | **0.9.10** | **修复 page_path 静默失败**：screenshot.js 导航后验证页面路径是否匹配，缺少 `/index` 后缀或页面不存在时返回明确错误而非静默拍下旧页面；node_bridge.py 修复 daemon handler 错误信息丢失（[#5](https://github.com/WaterTian/wechat-devtools-mcp/issues/5)）|
 | **0.9.9** | **修复截图导致小程序重启**：screenshot.js 对非 TabBar 页面的导航方式从 `reLaunch`（销毁全部页面栈）改为 `navigateTo`（非破坏性压栈），修复 macOS 环境下截图后模拟器重置问题（[#4](https://github.com/WaterTian/wechat-devtools-mcp/issues/4)）|
 | **0.9.8** | **修复 automator 连接稳定性**：daemon.js `currentPage()` 健康检查改为轮询重试（新连接 5 次 × 3s+1.5s），不再因页面加载慢丢弃已建立的 WebSocket 连接；`_action_start` 改用 `_run_cli` 同步检测 CLI 返回码，CLI 失败立即感知（[#3](https://github.com/WaterTian/wechat-devtools-mcp/issues/3)）|
