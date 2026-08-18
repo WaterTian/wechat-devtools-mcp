@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.12)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.13)
 
 > 本文档是 `SKILL.md` 的扩展参考，提供 7 个聚合 API 的所有参数完整说明（v0.9.5 起 `wechat_cloud` 已禁用）。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
@@ -13,7 +13,7 @@
 ```
 
 > [!IMPORTANT]
-> **必须手动开启开发者工具的服务端口**：`设置` → `安全` → `服务端口` → `开启`。未开启将导致所有 CLI 操作报 `CLI_TIMEOUT`。
+> **必须手动开启开发者工具的服务端口**：`设置` → `安全设置` → `服务端口` → `开启`。未开启将导致所有 CLI 操作报 `CLI_TIMEOUT`。
 
 
 ---
@@ -49,6 +49,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `cdp_enabled` | bool | `true` | 是否开启 CDP 调试端口 9222，`open` 时使用 |
 | `qr_format` | string | `terminal` | 二维码格式：`terminal`（终端文字画）或 `base64`，`login` 时使用 |
 | `qr_output` | string | null | 二维码输出文件路径（PNG），`login` 时使用 |
+| `result_output` | string | null | 登录结果输出文件路径，`login` 时使用（透传 CLI `--result-output`） |
 
 ### action 说明
 
@@ -67,7 +68,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 {
   "success": true,
   "data": {
-    "mcp_version": "0.9.3",
+    "mcp_version": "0.9.x",
     "cli_exists": true,
     "cli_path": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
     "project_exists": true,
@@ -419,12 +420,13 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 |------|------|--------|------|
 | `page_path` | string | **必填** | 页面路径，例如 `pages/index/index`（无需前导 `/`） |
 | `wait_ms` | int | `2000` | 跳转后等待时间（毫秒），范围 100~30000 |
+| `timeout` | int | `30` | 总超时时间（秒），范围 10~120。实际生效值 = max(timeout, wait_ms/1000 + 10)，调大 `wait_ms` 不会撞到该超时 |
 | `auto_port` | int | `9420` | 自动化监听端口 |
 | `cdp_port` | int | `9222` | CDP 调试端口 |
 | `detail_level` | string | `concise` | `concise` 或 `full` |
 | `max_logs` | int | `50` | 最大返回 CDP 日志条数 |
-| `clear_logs` | `bool` | `true` | 否 | 是否过滤跳转前的 CDP 历史日志（基于时间戳）。设为 `false` 可获取完整累积日志。 |
-| `check_data` | `bool` | `true` | 否 | 跳转后检查 page_data，如超过 70% 字段为空且 URL 含 query 参数，追加参数名错误警告。 |
+| `clear_logs` | bool | `true` | 是否过滤跳转前的 CDP 历史日志（基于时间戳）。设为 `false` 可获取完整累积日志 |
+| `check_data` | bool | `true` | 跳转后检查 page_data，如超过 70% 字段为空且 URL 含 query 参数，追加参数名错误警告 |
 | `project_path` | string | null | 项目路径（仅用于日志提示） |
 
 ### 等待时间建议

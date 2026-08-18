@@ -1,10 +1,10 @@
 ---
 name: wechat-devtools
-version: 0.9.12
+version: 0.9.13
 description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
-# Wechat DevTools MCP Skill (v0.9.12)
+# Wechat DevTools MCP Skill (v0.9.13)
 
 ## 前置条件
 
@@ -47,6 +47,7 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 | 项目路径已配置 | `status` → `project_exists: true` | 配置 `WECHAT_PROJECT_PATH` |
 | 已登录 | `is_login` → `logged_in: true` | `login(qr_format='terminal')` 扫码 |
 | Node.js 可用 | `status` → `node_available: true` | 安装 Node.js ≥ 8.0 |
+| skill 与 MCP 同版本 | `status` → `mcp_version` 与本 skill front matter 的 `version` 一致 | 不一致 ⇒ `uv tool upgrade wechat-devtools-mcp`，或重新同步 skill 副本 |
 
 ### Efficiency Principles
 

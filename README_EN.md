@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.12)
+# WeChat DevTools MCP Server (v0.9.13)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -412,6 +412,7 @@ GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in 
 
 | Version | Description |
 |---------|-------------|
+| **0.9.13** | **`--version` early exit + doc audit fixes**: `wechat-devtools-mcp --version` / `-V` prints the installed version and exits immediately with zero dependencies (uvx reuses installed environments without pulling latest, so one command confirms the actual version); doc fixes: navigate param table column misalignment, `设置 -> 安全设置` menu name, de-versioned `mcp_version` example; documented `wechat_ide` `result_output` and `wechat_navigate` `timeout` (undocumented since v0.6.0); SKILL.md Step 1 now includes a skill/MCP version consistency check |
 | **0.9.12** | **serverInfo.version + dependency upper bound**: on mcp 2.x the initialize handshake now reports the package version instead of an empty string (on 1.x it still reports the SDK version - no parameter to override); dependency upper bound `mcp[cli]>=1.9,<3` added against future SDK majors; dual-version imports consolidated into `_compat.py` ([#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9) [#10](https://github.com/WaterTian/wechat-devtools-mcp/issues/10)) |
 | **0.9.11** | **mcp 2.0.0 compatibility**: official MCP Python SDK 2.0 (released 2026-07-28) removed `mcp.server.fastmcp` (renamed to `MCPServer`), crashing fresh installs at startup; all imports now support both 1.x and 2.x; dependency declared as `mcp[cli]>=1.9` ([#8](https://github.com/WaterTian/wechat-devtools-mcp/issues/8)) |
 | **0.9.10** | **Fix silent page_path failures**: screenshot.js now validates navigation success by checking page.path after jump, returning clear error for missing `/index` suffix or non-existent pages instead of silently capturing the old page; node_bridge.py fixed daemon handler errors being lost ([#5](https://github.com/WaterTian/wechat-devtools-mcp/issues/5)) |

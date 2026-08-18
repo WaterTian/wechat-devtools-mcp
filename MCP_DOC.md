@@ -1,4 +1,4 @@
-# MCP 工具箱完整文档 (v0.9.12)
+# MCP 工具箱完整文档 (v0.9.13)
 
 v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **7 个聚合工具**（v0.9.5 起 `wechat_cloud` 已禁用）。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
@@ -57,6 +57,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `cdp_enabled` | bool | `true` | 是否开启 CDP 调试端口（9222），`open` 时使用 |
 | `qr_format` | string | `terminal` | 二维码格式，`login` 时使用 |
 | `qr_output` | string | null | 二维码输出路径，`login` 时使用 |
+| `result_output` | string | null | 登录结果输出文件路径，`login` 时使用（透传 CLI `--result-output`） |
 
 ---
 
@@ -206,6 +207,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 |------|------|--------|------|
 | `page_path` | string | **必填** | 要跳转的页面路径，例如 `pages/index/index` |
 | `wait_ms` | int | `2000` | 跳转后等待时间（毫秒），范围 100~30000 |
+| `timeout` | int | `30` | 总超时时间（秒），范围 10~120。实际生效值 = max(timeout, wait_ms/1000 + 10)，调大 `wait_ms` 不会撞到该超时 |
 | `auto_port` | int | `9420` | 自动化监听端口 |
 | `cdp_port` | int | `9222` | CDP 调试端口 |
 | `detail_level` | string | `concise` | `concise`（仅 errors+warnings）或 `full` |
