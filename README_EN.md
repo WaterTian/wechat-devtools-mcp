@@ -42,9 +42,10 @@ uv tool install wechat-devtools-mcp --force     # One-click install to global is
 > **Version compatibility**: >=0.9.11 supports both mcp 1.x and 2.x (dependency declared as `mcp[cli]>=1.9,<3`). **<=0.9.10 is incompatible with mcp >=2.0** (fresh installs fail with `ModuleNotFoundError: mcp.server.fastmcp`, see [#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9)) -- pinned installs should upgrade to >=0.9.11, or add `--with "mcp<2"` when installing.
 
 > [!TIP]
-> - Check installed version:
+> - Check the actually running version (≥0.9.13):
 >   ```bash
->   uv tool list | grep wechat    # Check installed version offline
+>   wechat-devtools-mcp --version    # prints the installed version with zero dependencies; uvx reuses installed environments without pulling latest, so this confirms it directly
+>   uv tool list | grep wechat       # Check installed version offline
 >   ```
 > - Upgrade: if your editor is running the MCP service, stop the process first:
 >   ```bash

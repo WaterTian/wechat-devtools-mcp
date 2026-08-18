@@ -42,9 +42,10 @@ uv tool install wechat-devtools-mcp --force     # 一键安装到全局隔离环
 > **版本兼容性**：≥0.9.11 支持 mcp 1.x 与 2.x 双版本（依赖声明 `mcp[cli]>=1.9,<3`）。**≤0.9.10 与 mcp ≥2.0 不兼容**（新装会报 `ModuleNotFoundError: mcp.server.fastmcp`，见 [#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9)）--钉版用户请升级到 ≥0.9.11，或安装时追加 `--with "mcp<2"`。
 
 > [!TIP]
-> - 查看已安装版本：
+> - 查看实际运行版本（≥0.9.13）：
 >   ```bash
->   uv tool list | grep wechat    # 离线确认已安装版本
+>   wechat-devtools-mcp --version    # 零依赖打印实际安装版本；uvx 复用已装环境不自拉最新，此命令可直接确认
+>   uv tool list | grep wechat       # 离线确认已安装版本
 >   ```
 > - 升级工具：如果编辑器正在运行 MCP 服务，需先终止进程再升级：
 >   ```bash
