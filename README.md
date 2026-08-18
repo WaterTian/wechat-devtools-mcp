@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.9.11)
+# 微信开发者工具 MCP Server (v0.9.12)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -37,6 +37,9 @@ uv tool install wechat-devtools-mcp --force     # 一键安装到全局隔离环
 > pip uninstall wechat-devtools-mcp
 > ```
 > `pip install` 的路径（如 `Python313/Scripts/`）可能优先于 `uv tool install` 的路径（`~/.local/bin/`），导致实际运行旧版本。可通过 `wechat_ide(action='status')` 返回的 `mcp_version` 字段确认当前版本。
+
+> [!WARNING]
+> **版本兼容性**：≥0.9.11 支持 mcp 1.x 与 2.x 双版本（依赖声明 `mcp[cli]>=1.9,<3`）。**≤0.9.10 与 mcp ≥2.0 不兼容**（新装会报 `ModuleNotFoundError: mcp.server.fastmcp`，见 [#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9)）--钉版用户请升级到 ≥0.9.11，或安装时追加 `--with "mcp<2"`。
 
 > [!TIP]
 > - 查看已安装版本：
@@ -409,6 +412,7 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 
 | 版本 | 说明 |
 |------|------|
+| **0.9.12** | **握手返回包版本 + 依赖上界**：mcp 2.x 下 `initialize` 的 `serverInfo.version` 由空串改为本包版本（1.x 下仍报 SDK 版本，SDK 无参数可覆盖）；依赖补上界 `mcp[cli]>=1.9,<3` 防范 mcp 未来大版本破坏；双版本导入统一收敛至 `_compat.py`（[#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9) [#10](https://github.com/WaterTian/wechat-devtools-mcp/issues/10)）|
 | **0.9.11** | **兼容 mcp 2.0.0**：官方 MCP Python SDK 2.0（2026-07-28 发布）移除 `mcp.server.fastmcp`（改名 `MCPServer`）导致新装用户启动即崩，全部导入改为 1.x/2.x 双版本兼容；依赖明确为 `mcp[cli]>=1.9`（[#8](https://github.com/WaterTian/wechat-devtools-mcp/issues/8)）|
 | **0.9.10** | **修复 page_path 静默失败**：screenshot.js 导航后验证页面路径是否匹配，缺少 `/index` 后缀或页面不存在时返回明确错误而非静默拍下旧页面；node_bridge.py 修复 daemon handler 错误信息丢失（[#5](https://github.com/WaterTian/wechat-devtools-mcp/issues/5)）|
 | **0.9.9** | **修复截图导致小程序重启**：screenshot.js 对非 TabBar 页面的导航方式从 `reLaunch`（销毁全部页面栈）改为 `navigateTo`（非破坏性压栈），修复 macOS 环境下截图后模拟器重置问题（[#4](https://github.com/WaterTian/wechat-devtools-mcp/issues/4)）|

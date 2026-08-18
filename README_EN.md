@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.11)
+# WeChat DevTools MCP Server (v0.9.12)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -37,6 +37,9 @@ uv tool install wechat-devtools-mcp --force     # One-click install to global is
 > pip uninstall wechat-devtools-mcp
 > ```
 > The `pip install` path (e.g., `Python313/Scripts/`) may take precedence over `uv tool install` path (`~/.local/bin/`), causing the old version to run instead. Use `wechat_ide(action='status')` to check the `mcp_version` field.
+
+> [!WARNING]
+> **Version compatibility**: >=0.9.11 supports both mcp 1.x and 2.x (dependency declared as `mcp[cli]>=1.9,<3`). **<=0.9.10 is incompatible with mcp >=2.0** (fresh installs fail with `ModuleNotFoundError: mcp.server.fastmcp`, see [#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9)) -- pinned installs should upgrade to >=0.9.11, or add `--with "mcp<2"` when installing.
 
 > [!TIP]
 > - Check installed version:
@@ -409,6 +412,7 @@ GUI clients (e.g. Claude Desktop) may launch MCP without `/opt/homebrew/bin` in 
 
 | Version | Description |
 |---------|-------------|
+| **0.9.12** | **serverInfo.version + dependency upper bound**: on mcp 2.x the initialize handshake now reports the package version instead of an empty string (on 1.x it still reports the SDK version - no parameter to override); dependency upper bound `mcp[cli]>=1.9,<3` added against future SDK majors; dual-version imports consolidated into `_compat.py` ([#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9) [#10](https://github.com/WaterTian/wechat-devtools-mcp/issues/10)) |
 | **0.9.11** | **mcp 2.0.0 compatibility**: official MCP Python SDK 2.0 (released 2026-07-28) removed `mcp.server.fastmcp` (renamed to `MCPServer`), crashing fresh installs at startup; all imports now support both 1.x and 2.x; dependency declared as `mcp[cli]>=1.9` ([#8](https://github.com/WaterTian/wechat-devtools-mcp/issues/8)) |
 | **0.9.10** | **Fix silent page_path failures**: screenshot.js now validates navigation success by checking page.path after jump, returning clear error for missing `/index` suffix or non-existent pages instead of silently capturing the old page; node_bridge.py fixed daemon handler errors being lost ([#5](https://github.com/WaterTian/wechat-devtools-mcp/issues/5)) |
 | **0.9.9** | **Fix screenshot causing mini program restart**: screenshot.js replaces `reLaunch` (destroys entire page stack) with `navigateTo` (non-destructive push) for non-tab pages, fixing simulator reset on macOS after screenshot ([#4](https://github.com/WaterTian/wechat-devtools-mcp/issues/4)) |
