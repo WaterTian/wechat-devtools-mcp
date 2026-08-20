@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.13)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.14)
 
 > 本文档是 `SKILL.md` 的扩展参考，提供 7 个聚合 API 的所有参数完整说明（v0.9.5 起 `wechat_cloud` 已禁用）。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
@@ -170,6 +170,8 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 ```
 
 启动持久化 Node daemon 并开启自动化端口，自动轮询验证连接（最多 10 秒）。返回 `data.verified: true` 表示连接就绪；`verified: false` 表示已启动但未确认连接，此时额外返回 `hint`（操作建议）、`attempts_made`（已尝试次数）、`max_wait_seconds`（最大等待时间）。v0.9.0 起 compile 后 daemon 自动重连，无需再次调用 start。
+
+> 冷启动（IDE 刚 `open`）时可能连续返回 `verified: false`，属正常现象：`open` 成功仅代表进程启动，automator WS 握手可能滞后 10~15 秒。按返回的 `retry_after_ms` 等待后重试即可；期间可先执行不依赖 automator 的操作（`compile` / `build_npm` / `preview`）。
 
 #### `tap` — 点击元素
 
@@ -437,6 +439,8 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | 含网络请求的页面 | 3000~5000 |
 | 含动画/懒加载的页面 | 5000+ |
 
+> **reLaunch 运行时限制**：`navigation_method: reLaunch` 进入的页面，云函数调用可能丢上下文（小程序运行时行为，非 MCP 可控）。非 tabBar 页面优先用 `evaluate` + `wx.navigateTo` 进入。
+
 ### 返回示例
 
 ```json
@@ -496,6 +500,10 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 - `index.wxss` — 样式
 - `index.js` — 逻辑（含 Page/Component 定义）
 - `index.json` — 页面配置
+- `resolved_base` — 实际命中的根目录（云开发项目会是 `<proj>/miniprogram`）
+
+> 路径口径与 `list_pages` 一致：先按 `project.config.json` 的 `miniprogramRoot` 解析，再回退项目根。
+> 因此 `list_pages` 返回的路径可直接喂给 `read_page`（云开发项目也适用）。
 
 #### `read_file` — 读取任意文件
 
@@ -503,7 +511,14 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 {"action": "read_file", "file_path": "components/header/header.js"}
 ```
 
-最多返回 800 行，超出时附注截断说明。
+最多返回 800 行，超出时附注截断说明。返回额外字段：
+
+- `resolved_path` — 实际读取到的绝对路径
+- `also_found_at` — 仅当同名文件在多个根下都存在时出现，列出未被采用的那些路径
+
+> 解析顺序：`miniprogramRoot` → 项目根（普通项目两者相同）。
+> 例外：`project.config.json` / `project.private.config.json` 按定义属于项目根产物，**优先取项目根那份**——
+> 云开发项目的 `miniprogram/` 下可能另有一份内容不同的非权威副本，此时 `also_found_at` 会列出它。
 
 ---
 

@@ -1,10 +1,10 @@
 ---
 name: wechat-devtools
-version: 0.9.13
+version: 0.9.14
 description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
-# Wechat DevTools MCP Skill (v0.9.13)
+# Wechat DevTools MCP Skill (v0.9.14)
 
 ## 前置条件
 
@@ -83,7 +83,7 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 
 | `preview` | 生成预览二维码 | `qr_format="terminal"` |
 | `upload` | 上传到微信后台 | **`version`（必填）**, `desc?` |
-| `build_npm` | 构建 NPM 依赖（upload 前必做） | — |
+| `build_npm` | 构建 NPM 依赖（upload 前必做；新增/更新 npm 包后也必须执行，否则运行时报 `@babel/runtime/helpers/... is not defined`） | — |
 | `cache_clean` | 清除缓存 | `clean_type="compile"` |
 
 ### `wechat_automator` — 自动化交互
@@ -151,6 +151,9 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 | `read_page` | 读取页面源码（wxml/wxss/js/json） | `page_path` |
 | `read_file` | 读取任意单文件（最多 800 行） | `file_path` |
 
+- **路径口径**：`read_page` / `read_file` 与 `list_pages` 一致，先按 `miniprogramRoot` 解析再回退项目根 —— 云开发项目直接把 `list_pages` 的输出喂给 `read_page` 即可，无需自己拼 `miniprogram/` 前缀
+- `read_file` 返回 `resolved_path`；若同名文件在多个根下都有，会带 `also_found_at` 提示（`project.config.json` 固定取项目根那份）
+
 > **云函数与云数据库管理**：本 MCP 自 v0.9.5 起不再提供 `wechat_cloud` 工具。请改用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)（`manageFunctions` / `readNoSqlDatabaseContent` / `writeNoSqlDatabaseContent` 等），无 IDE 依赖且覆盖更完整。
 
 ---
@@ -168,6 +171,8 @@ wechat_ide(action='open', cdp_enabled=True)         # 开启 IDE + CDP 9222 + �
   ↳ 返回 success=true → 启动正常，继续后续步骤
   ↳ IDE 冷启动可能出现瞬态错误（simulator not found / subPackages of undefined），属正常现象，忽略并继续执行 compile 即可刷新
 wechat_automator(action='start')                    # 启动 daemon + 开启自动化 9420
+  ↳ 冷启动可能返回 verified=false（open 成功 ≠ automator 就绪，WS 握手滞后 10~15s）
+  ↳ 按 retry_after_ms 等待重试；期间可先执行不依赖 automator 的操作（compile / build_npm / preview）
 wechat_file(action='project_info')                  # [可选] 确认项目结构
 wechat_build(action='cache_clean', clean_type='all')     # 清除全部缓存
 wechat_build(action='compile')                            # 编译建立干净 CDP 基线（自动重连 automator）
@@ -197,6 +202,8 @@ wechat_automator(action='page_data')                # 验证连接可用
 | tabBar 页面 | `wechat_navigate(page_path='<tabBar路径>')` 自动走 switchTab |
 | 强制重置 | `evaluate(expression="wx.reLaunch({url:'<path>'}); 'ok'")` |
 | 跳转后 | `page_data` 校验 `path` 匹配预期 |
+
+> **reLaunch 运行时限制**：reLaunch 进入的页面云函数调用可能丢上下文（小程序运行时行为，非 MCP 可控）。非 tabBar 页面优先 `navigateTo`。
 
 ### SOP B：UI 调试（数据/布局问题）
 
@@ -339,6 +346,7 @@ full    → 完整日志 + source 定位 → wechat_file(action='read_file', fil
 | 快速诊断 | `duration=5, detail_level='concise', max_logs=20` |
 | 深度排查 | `duration=10, detail_level='full', max_logs=100` |
 | 页面巡检 | `duration=3, detail_level='concise', max_logs=30` |
+| 排查 JS 异常 | `duration=8+`（3~5 秒可能漏捕真实异常，重大问题 15s 兜底） |
 
 > **重要**：CDP 错误计数可能包含跨页面累积的历史日志。v0.4.0 的 `clear_logs=true`（默认）会基于时间戳过滤历史日志，但仍建议以 `page_data` 作为最终验证标准。
 
@@ -453,6 +461,8 @@ wechat_automator(action='page_data')                # 验证
 | navigate TabBar 页面无效 | TabBar 页面不支持 reLaunch/navigateTo | v0.8.0 自动检测并使用 switchTab；或手动 `evaluate(wx.switchTab)` |
 | 截图显示错误页面 | screenshot connect 后页面被重置 | 使用 `page_path` 参数确保截图前在正确页面 |
 | scroll-view 页面长图只有一屏 | automator SDK 无法捕获 scroll-view 内部滚动 | 已知限制，返回 `isScrollViewPage: true`；改用页面级滚动或 canvas 截图 |
+| 运行时报 `@babel/runtime/helpers/xxx is not defined` | npm 依赖新增/升级后未构建（compile 不会自动 build_npm） | `build_npm` → `compile`，再用 `console(duration≥8, log_type='exception')` 验证 |
+| `start` 连续返回 verified=false（冷启动常见） | IDE 刚启动，automator WS 握手未就绪（open 成功 ≠ automator 可用） | 按 `retry_after_ms` 等待重试（冷启动可能需 10~15s）；期间先执行 compile / build_npm 等不依赖 automator 的操作 |
 
 ### 连接断开恢复流程
 

@@ -1,4 +1,4 @@
-# MCP 工具箱完整文档 (v0.9.13)
+# MCP 工具箱完整文档 (v0.9.14)
 
 v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **7 个聚合工具**（v0.9.5 起 `wechat_cloud` 已禁用）。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
@@ -238,6 +238,17 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `project_path` | string | 环境变量 | 小程序项目路径 |
 | `page_path` | string | null | 页面路径，`read_page` 时必填，例如 `pages/index/index` |
 | `file_path` | string | null | 相对文件路径，`read_file` 时必填，例如 `app.json` |
+
+**路径解析规则**
+
+`read_page` / `read_file` 与 `list_pages` / `project_info` 口径一致：先按 `project.config.json` 的
+`miniprogramRoot` 解析，再回退项目根（普通项目两者相同）。因此云开发项目里 `list_pages` 返回的
+`pages/home/index` 可直接喂给 `read_page`，`app.json` 也能被 `read_file` 读到。
+
+- `read_page` 返回 `resolved_base`（实际命中的根目录）
+- `read_file` 返回 `resolved_path`；同名文件在多个根下都存在时额外返回 `also_found_at`
+- 例外：`project.config.json` / `project.private.config.json` 优先取项目根那份（云开发项目的
+  `miniprogram/` 下可能有内容不同的非权威副本）
 
 ---
 

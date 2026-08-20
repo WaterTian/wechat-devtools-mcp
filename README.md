@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.9.13)
+# 微信开发者工具 MCP Server (v0.9.14)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -413,6 +413,7 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 
 | 版本 | 说明 |
 |------|------|
+| **0.9.14** | **文件读取路径修复 + 参数失效修复**：`wechat_file` 的 `read_page`/`read_file` 改为与 `list_pages` 同口径（先按 `project.config.json` 的 `miniprogramRoot` 解析，再回退项目根）——此前云开发项目里 `list_pages` 返回的 `pages/xxx/index` 喂给 `read_page` 必然报「未找到页面文件」，SOP G 第一步即受影响；同名文件在两个根下都存在时新增 `also_found_at` 如实提示，`project.config.json` 固定取项目根那份权威副本；`read_page` 返回 `resolved_base`、`read_file` 返回 `resolved_path`。`wechat_inspector(action='cdp')` 补上 `cdp_port` 透传（此前该参数形同虚设，永远连 9222）。`subprocess.CREATE_NO_WINDOW` 全部改用 `getattr` 兜底，消除非 Windows 平台的 `AttributeError` 隐患 |
 | **0.9.13** | **`--version` 早退 + 文档核对修复**：`wechat-devtools-mcp --version` / `-V` 零依赖打印安装版本后直接退出（uvx 复用已装环境不自拉最新，一行命令即可确认实际版本）；文档修复：navigate 参数表 5 列错位、`设置 -> 安全设置` 菜单名、`mcp_version` 示例去版本化；补记 `wechat_ide` `result_output` 与 `wechat_navigate` `timeout`（此前自 v0.6.0 起未进文档）；SKILL.md Step 1 新增 skill/MCP 版本一致性自检行 |
 | **0.9.12** | **握手返回包版本 + 依赖上界**：mcp 2.x 下 `initialize` 的 `serverInfo.version` 由空串改为本包版本（1.x 下仍报 SDK 版本，SDK 无参数可覆盖）；依赖补上界 `mcp[cli]>=1.9,<3` 防范 mcp 未来大版本破坏；双版本导入统一收敛至 `_compat.py`（[#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9) [#10](https://github.com/WaterTian/wechat-devtools-mcp/issues/10)）|
 | **0.9.11** | **兼容 mcp 2.0.0**：官方 MCP Python SDK 2.0（2026-07-28 发布）移除 `mcp.server.fastmcp`（改名 `MCPServer`）导致新装用户启动即崩，全部导入改为 1.x/2.x 双版本兼容；依赖明确为 `mcp[cli]>=1.9`（[#8](https://github.com/WaterTian/wechat-devtools-mcp/issues/8)）|
