@@ -1,1 +1,5 @@
 star-history.svg
+
+# mcp-publisher 二进制：按平台自行从官方 releases 下载，不入库
+mcp-publisher
+mcp-publisher.exe
