@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.9.14)
+# 微信开发者工具 MCP Server (v0.9.15)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -413,6 +413,7 @@ GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt
 
 | 版本 | 说明 |
 |------|------|
+| **0.9.15** | **适配开发者工具 2.x(Electron) + 修复 CDP 采集长期失效**：开发者工具 2.x 改用 Electron（1.06.x Stable 仍是 NW.js，双轨兼容不替换）。macOS 启动路径按 `Resources/package.nw` 有无自动判定运行时、入口读 Info.plist 的 `CFBundleExecutable`，kill 模式改用 `.app` 包路径——旧模式匹配不到 Electron 进程，导致 macOS 上默认参数的 `wechat_ide(action='open')` 完全不可用；2.x 不再识别命令行 `--project`，改为先带 CDP 起进程再由 CLI 打开项目，并等 CDP 与 IDE 服务端口双双就绪才继续（否则 CLI 会另起一个不带 CDP 的实例，出现「项目开了但 CDP 连不上」的假成功）。**修复 `wechat_inspector(action='cdp')` 自 v0.9.0 起恒返回 0 条**——daemon 把结果放在 `data`，而 inspector 读的是并不存在的 `logs`，最常用的查错工具静默失灵了 8 个小版本。daemon 流上限由 asyncio 默认 64 KiB 提到 16 MiB（2.x 下 6 秒采集实测 634 KiB，超限会静默丢弃全部结果）。CDP 噪音过滤适配 2.x target 结构，剔除新增的 IDE 外壳页与因 `type=webview` 漏网的 `devtools://`（实测 734 条 → 206 条）。IDE 端口探测改读 IDE 落盘的 `.ide` 文件（硬编码候选端口在 2.x 下完全猜不中）；`status` 新增 `service_port_enabled`（`CLI_TIMEOUT` 的头号原因，现可自诊断）与 `ide_port`；`wechat_ide` / `wechat_build` 新增 `cdp_port` 参数（9222 常被 Chrome 占用） |
 | **0.9.14** | **文件读取路径修复 + 参数失效修复**：`wechat_file` 的 `read_page`/`read_file` 改为与 `list_pages` 同口径（先按 `project.config.json` 的 `miniprogramRoot` 解析，再回退项目根）——此前云开发项目里 `list_pages` 返回的 `pages/xxx/index` 喂给 `read_page` 必然报「未找到页面文件」，SOP G 第一步即受影响；同名文件在两个根下都存在时新增 `also_found_at` 如实提示，`project.config.json` 固定取项目根那份权威副本；`read_page` 返回 `resolved_base`、`read_file` 返回 `resolved_path`。`wechat_inspector(action='cdp')` 补上 `cdp_port` 透传（此前该参数形同虚设，永远连 9222）。`subprocess.CREATE_NO_WINDOW` 全部改用 `getattr` 兜底，消除非 Windows 平台的 `AttributeError` 隐患 |
 | **0.9.13** | **`--version` 早退 + 文档核对修复**：`wechat-devtools-mcp --version` / `-V` 零依赖打印安装版本后直接退出（uvx 复用已装环境不自拉最新，一行命令即可确认实际版本）；文档修复：navigate 参数表 5 列错位、`设置 -> 安全设置` 菜单名、`mcp_version` 示例去版本化；补记 `wechat_ide` `result_output` 与 `wechat_navigate` `timeout`（此前自 v0.6.0 起未进文档）；SKILL.md Step 1 新增 skill/MCP 版本一致性自检行 |
 | **0.9.12** | **握手返回包版本 + 依赖上界**：mcp 2.x 下 `initialize` 的 `serverInfo.version` 由空串改为本包版本（1.x 下仍报 SDK 版本，SDK 无参数可覆盖）；依赖补上界 `mcp[cli]>=1.9,<3` 防范 mcp 未来大版本破坏；双版本导入统一收敛至 `_compat.py`（[#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9) [#10](https://github.com/WaterTian/wechat-devtools-mcp/issues/10)）|

@@ -1,4 +1,4 @@
-# MCP 工具箱完整文档 (v0.9.14)
+# MCP 工具箱完整文档 (v0.9.15)
 
 v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **7 个聚合工具**（v0.9.5 起 `wechat_cloud` 已禁用）。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
@@ -54,10 +54,25 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `appid` | string | null | 小程序 AppID |
 | `port` | int | null | IDE HTTP 服务端口号 |
 | `lang` | string | null | 界面语言：`en` 或 `zh` |
-| `cdp_enabled` | bool | `true` | 是否开启 CDP 调试端口（9222），`open` 时使用 |
+| `cdp_enabled` | bool | `true` | 是否开启 CDP 调试端口，`open` 时使用 |
+| `cdp_port` | int | `9222` | CDP 调试端口。被 Chrome 等占用时可换端口，需与 `wechat_inspector` / `wechat_navigate` 的 `cdp_port` 保持一致 |
 | `qr_format` | string | `terminal` | 二维码格式，`login` 时使用 |
 | `qr_output` | string | null | 二维码输出路径，`login` 时使用 |
 | `result_output` | string | null | 登录结果输出文件路径，`login` 时使用（透传 CLI `--result-output`） |
+
+**`action='status'` 返回字段**
+
+除 `mcp_version` / `cli_exists` / `project_exists` / `node_available` 外，另返回：
+
+- `service_port_enabled` — 开发者工具「设置 → 安全设置 → 服务端口」的开关状态。**未开启是 `CLI_TIMEOUT` 的头号原因**，为 `false` 时 message 会直接点出。读不到为 `null`（无法判断，非「已关闭」）
+- `ide_port` — IDE 当前的服务端口，由 IDE 自己落盘的状态文件读出
+
+**`action='open'` 返回字段**
+
+- `ide_runtime` — `nwjs`（IDE 1.x）/ `electron`（IDE 2.x）/ `win32`
+- `cdp_ready` — 仅 IDE 2.x 出现。CDP 端口是否确认在监听。为避免「项目打开了但 CDP 没起来」的假成功，
+  2.x 会先等 CDP 端口与 IDE 服务端口双双就绪才继续；任一未就绪直接返回失败
+- `project_opened` — 仅 IDE 2.x 出现。2.x 不再识别命令行 `--project`，需先带 CDP 起进程再由 CLI 打开项目，此字段表示第二步是否成功
 
 ---
 
@@ -89,6 +104,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `compile_type` | string | null | 编译类型：`miniprogram` 或 `plugin` |
 | `clean_type` | string | `compile` | 缓存类型：`storage`、`file`、`compile`、`auth`、`network`、`session`、`all` |
 | `port` | int | null | IDE HTTP 服务端口号 |
+| `cdp_port` | int | `9222` | CDP 调试端口，`compile` 采集 WXML 运行时错误时使用。**须与 `wechat_ide(open)` 的 `cdp_port` 一致**，否则 `wxml_errors` 会恒为空且无提示 |
 | `lang` | string | null | 界面语言 |
 
 ---
@@ -111,7 +127,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `call_method` | 调用当前页面的指定方法，返回当前页面路径 | **`method`** |
 | `call_wx` | 直接调用 wx 对象上的方法 | **`method`** |
 | `mock_wx` | Mock wx API 的返回值 | **`method`**, **`result_json`** |
-| `evaluate` | 在逻辑层执行 JS 代码（支持表达式和声明语句） | **`expression`** |
+| `evaluate` | 在逻辑层执行 JS 代码（支持表达式和声明语句，多语句须用 IIFE 包裹，见下方注意） | **`expression`** |
 | `page_stack` | 获取当前页面栈信息 | — |
 | `page_data` | 读取当前活跃页面的 data 状态 | — |
 | `system_info` | 获取运行时系统信息 | — |

@@ -1,10 +1,10 @@
 ---
 name: wechat-devtools
-version: 0.9.14
+version: 0.9.15
 description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
-# Wechat DevTools MCP Skill (v0.9.14)
+# Wechat DevTools MCP Skill (v0.9.15)
 
 ## 前置条件
 
@@ -44,6 +44,7 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 | 检查项 | 偏好命令 | 失败时操作 |
 |--------|---------|----------|
 | CLI 已安装 | `status` → `cli_exists: true` | 安装工具并配置 `WECHAT_DEVTOOLS_CLI` |
+| **服务端口已开启** | `status` → `service_port_enabled: true` | 为 `false` 时所有 CLI 操作必然 `CLI_TIMEOUT`，去 `设置 → 安全设置 → 服务端口` 打开；为 `null` 表示读不到，不代表关闭 |
 | 项目路径已配置 | `status` → `project_exists: true` | 配置 `WECHAT_PROJECT_PATH` |
 | 已登录 | `is_login` → `logged_in: true` | `login(qr_format='terminal')` 扫码 |
 | Node.js 可用 | `status` → `node_available: true` | 安装 Node.js ≥ 8.0 |
@@ -103,6 +104,11 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 | `evaluate` | 执行 JS 表达式（逻辑层万能钥匙） | `expression` |
 
 - **注意**：v0.7.0 起支持声明语句（const/let/var）
+- ⚠ **多语句必须用 IIFE 包裹**：裸写 `a(); b(); c()` **只会执行第一条**且无任何提示——
+  内部拼成 `return a(); b(); c()`，语法合法所以不会 fallback 到语句模式，`return` 之后全是死代码。
+  正确：`(function(){ a(); b(); return c() })()`
+- ⚠ **声明语句需显式 `return`**：`const p=getCurrentPages(); p.length` 返回 `null`；
+  写成 `const p=getCurrentPages(); return p.length` 才有值
 - **v0.9.2**：compile 后自动 invalidate 旧缓存连接再重连，daemon 健康检查 3s 超时保护，navigate currentPage 轮询 2s 独立超时
 - **v0.9.0**：底层改为持久化 Node daemon（NDJSON 协议），WS 连接按端口缓存复用，工具调用延迟 ~3ms
 
@@ -350,6 +356,15 @@ full    → 完整日志 + source 定位 → wechat_file(action='read_file', fil
 
 > **重要**：CDP 错误计数可能包含跨页面累积的历史日志。v0.4.0 的 `clear_logs=true`（默认）会基于时间戳过滤历史日志，但仍建议以 `page_data` 作为最终验证标准。
 
+### 两种采集方式对历史消息的差异（实测）
+
+| action | 底层机制 | 采集开始**之前**的消息 |
+|--------|---------|----------------------|
+| `cdp` | CDP `Console.enable` 会回放缓冲区 | ✅ **能拿到**（实测 12 秒前打的错误仍可捕获），与 IDE 调试器面板一致 |
+| `console` | automator 事件监听 | ❌ 拿不到，只收连接建立后的事件 |
+
+> 排查「刚才报的那个错」优先用 `cdp`；需要与交互严格对齐时间线时才用 `console`。
+
 ### CDP 日志噪音过滤
 
 以下日志来源属于开发工具内部噪音，**不代表应用错误**，应在判断时排除：
@@ -456,6 +471,8 @@ wechat_automator(action='page_data')                # 验证
 | compile_condition 入口页被覆盖 | app 路由守卫覆盖编译入口 | 编译默认页，evaluate(wx.reLaunch) 跳转 |
 | switchTab ok 但未切换 | switchTab 异步未完成 | 增加 wait_ms；v0.8.0 navigate 已自动处理 TabBar 页面 |
 | evaluate 报 `Unexpected token 'const'` | v0.6.0 仅支持表达式（v0.7.0 已修复） | 升级到 v0.7.0；或用 IIFE 包裹 |
+| evaluate 里多条语句只生效了第一条（无报错） | 内部拼成 `return a(); b()`，语法合法故不触发语句模式，`return` 之后是死代码 | 用 IIFE 包裹：`(function(){ a(); b(); return c() })()` |
+| evaluate 用了 const/let 却返回 `null` | 走函数体模式，没有 `return` 就没有返回值 | 末尾补 `return`，或改用 IIFE |
 | 截图看不到弹窗/蒙层 | fixed/absolute overlay 不在同一渲染层 | 以 page_data 为准 |
 | call_method 报 `page.xxx not exists` 且无页面信息 | v0.6.0 未返回路径（v0.7.0 已修复） | 升级到 v0.7.0；或先 page_data 确认 path |
 | navigate TabBar 页面无效 | TabBar 页面不支持 reLaunch/navigateTo | v0.8.0 自动检测并使用 switchTab；或手动 `evaluate(wx.switchTab)` |
@@ -463,6 +480,10 @@ wechat_automator(action='page_data')                # 验证
 | scroll-view 页面长图只有一屏 | automator SDK 无法捕获 scroll-view 内部滚动 | 已知限制，返回 `isScrollViewPage: true`；改用页面级滚动或 canvas 截图 |
 | 运行时报 `@babel/runtime/helpers/xxx is not defined` | npm 依赖新增/升级后未构建（compile 不会自动 build_npm） | `build_npm` → `compile`，再用 `console(duration≥8, log_type='exception')` 验证 |
 | `start` 连续返回 verified=false（冷启动常见） | IDE 刚启动，automator WS 握手未就绪（open 成功 ≠ automator 可用） | 按 `retry_after_ms` 等待重试（冷启动可能需 10~15s）；期间先执行 compile / build_npm 等不依赖 automator 的操作 |
+| `找不到 macOS IDE 主程序：…/wechatdevtools` | 开发者工具 2.x 改用 Electron，NW.js 的主程序与 package.nw 已不存在 | 升级 MCP；新版按 Info.plist 自动识别 1.x/2.x 两种运行时 |
+| CDP 采集恒为 0 条但 IDE 正常 | 单条响应超过流上限被静默丢弃（IDE 2.x 下 6s 采集就有 634 KiB） | 升级 MCP；新版已把 daemon 流上限提到 16 MiB |
+| CDP 端口起不来 / 采到的全是别的东西 | 9222 被 Chrome 等占用（`curl 127.0.0.1:9222/json/version` 可确认是谁） | 换端口：`open(cdp_port=9223)`，并让 `inspector` / `navigate` 用同一个 `cdp_port` |
+| `ide:///extensions/inject/…` 来源的 warning | **不是噪音**，是框架报的真实应用问题（无效 app.json 字段、API 废弃、WXSS 选择器不合法等） | 当作真实告警处理，不要过滤 |
 
 ### 连接断开恢复流程
 

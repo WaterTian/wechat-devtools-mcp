@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.14)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.15)
 
 > 本文档是 `SKILL.md` 的扩展参考，提供 7 个聚合 API 的所有参数完整说明（v0.9.5 起 `wechat_cloud` 已禁用）。  
 > 基础 SOP 流程请参阅 `SKILL.md`。
@@ -46,7 +46,8 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `appid` | string | null | 小程序 AppID（`open` 时可选，覆盖 project.config.json 中的值） |
 | `port` | int | null | IDE HTTP 服务端口号（多 IDE 实例时使用） |
 | `lang` | string | null | 界面语言：`en` 或 `zh` |
-| `cdp_enabled` | bool | `true` | 是否开启 CDP 调试端口 9222，`open` 时使用 |
+| `cdp_enabled` | bool | `true` | 是否开启 CDP 调试端口，`open` 时使用 |
+| `cdp_port` | int | `9222` | CDP 调试端口。被 Chrome 等占用时换个端口，须与 `wechat_inspector` / `wechat_navigate` 的 `cdp_port` 一致 |
 | `qr_format` | string | `terminal` | 二维码格式：`terminal`（终端文字画）或 `base64`，`login` 时使用 |
 | `qr_output` | string | null | 二维码输出文件路径（PNG），`login` 时使用 |
 | `result_output` | string | null | 登录结果输出文件路径，`login` 时使用（透传 CLI `--result-output`） |
@@ -55,7 +56,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | action | 功能描述 | 条件参数 | 注意事项 |
 |--------|----------|----------|----------|
-| `open` | 打开 IDE 并载入项目，自动触发编译 | `cdp_enabled=true` | 若 IDE 已运行会 kill 并重启，确保 CDP 端口绑定 |
+| `open` | 打开 IDE 并载入项目，自动触发编译 | `cdp_enabled=true` | 若 IDE 已运行会 kill 并重启，确保 CDP 端口绑定。返回 `ide_runtime`（`nwjs`/`electron`/`win32`）；IDE 2.x 另返回 `cdp_ready` 与 `project_opened`（2.x 需先等 CDP 与 IDE 服务双双就绪，未就绪直接失败而非假成功） |
 | `login` | 生成登录二维码 | `qr_format`, `qr_output` | 需用户手机扫码，终端输出文字二维码 |
 | `is_login` | 检查当前登录状态 | 无 | 返回 `data.logged_in: bool` |
 | `close` | 关闭指定项目窗口 | `project_path` | 不退出 IDE 进程 |
@@ -101,6 +102,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `compile_type` | string | null | 编译类型：`miniprogram` 或 `plugin` |
 | `clean_type` | string | `compile` | `cache_clean` 时的缓存类型：`storage` / `file` / `compile` / `auth` / `network` / `session` / `all` |
 | `port` | int | null | IDE HTTP 服务端口号 |
+| `cdp_port` | int | `9222` | CDP 调试端口，`compile` 采集 WXML 运行时错误时使用。**须与 `wechat_ide(open)` 的 `cdp_port` 一致**，否则 `wxml_errors` 恒为空且无提示 |
 | `lang` | string | null | 界面语言 |
 
 ### action 说明
@@ -242,6 +244,16 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 ```
 
 支持表达式和声明语句（`const`/`let`/`var`）。表达式模式优先，失败后自动 fallback 到语句模式。
+
+> ⚠ **两个静默陷阱（实测）**
+>
+> 1. **多语句只执行第一条**：`a(); b(); c()` 内部拼成 `return a(); b(); c()`，
+>    语法合法所以不会 fallback，`return` 之后全是死代码，且**不报任何错**。
+>    正确写法：`(function(){ a(); b(); return c() })()`
+> 2. **声明语句不写 `return` 就得到 `null`**：`const p=getCurrentPages(); p.length` → `null`；
+>    `const p=getCurrentPages(); return p.length` → 正确值。
+>
+> 一句话：**只要不是单个表达式，就用 IIFE 包起来并显式 `return`。**
 
 #### `page_stack` — 获取页面栈
 
