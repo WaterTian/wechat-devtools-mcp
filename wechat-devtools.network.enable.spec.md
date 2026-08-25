@@ -78,6 +78,14 @@ wechat_inspector(
 
 正则编译失败必须返回输入验证错误；CDP 端口不可用应返回 `CDP_UNAVAILABLE`，而不是空的成功结果。
 
+| error_code | 场景 |
+| --- | --- |
+| `CDP_UNAVAILABLE` | 调试端口无响应，或 IDE 未以 `cdp_enabled=true` 启动。 |
+| `NETWORK_DOMAIN_UNSUPPORTED` | `Network.enable` 返回 CDP protocol error，或没有任何 target 成功启用该域。 |
+| `UNKNOWN_ERROR` | daemon、target discovery 或 WebSocket 的未分类异常。 |
+
+采集窗口内没有请求是有效的成功结果，不能据此推断 Network 域不受支持。
+
 ## 建议返回结构
 
 ```json
