@@ -3,3 +3,35 @@ star-history.svg
 # mcp-publisher 二进制：按平台自行从官方 releases 下载，不入库
 mcp-publisher
 mcp-publisher.exe
+
+# Python
+__pycache__
+*.egg-info/
+/dist/
+build/
+.venv/
+.pytest_cache/
+.env
+
+# Node
+node_modules
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# 凭据（防呆：这些文件永远不应入库）
+.pypi_token
+.mcpregistry_github_token
+.mcpregistry_registry_token
+
+# 编辑器 / Agent 本地配置
+.idea/
+.vscode/
+.claude/
+.kiro/
+.cursor/mcp.json
+
+# 运行产物
+screenshots
+test_screenshots/

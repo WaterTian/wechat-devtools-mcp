@@ -294,7 +294,7 @@ system_info()                                              # 记录 windowWidth/
 
 ```
 wechat_file(action='read_page', page_path='pages/xxx/xxx')  # ① 查看 onLoad 方法
-  ↳ 从 options 参数中确认 query 参数名（如 id / matchId）
+  ↳ 从 options 参数中确认 query 参数名（如 id / detailId）
 wechat_navigate(page_path='pages/xxx/xxx?正确参数名=值', wait_ms=3000)  # ② 跳转
 wechat_automator(action='page_data')                          # ③ 验证数据
   ↳ 关键字段非空 → ✅

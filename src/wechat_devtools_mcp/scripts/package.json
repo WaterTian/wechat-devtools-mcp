@@ -1,0 +1,20 @@
+{
+    "name": "wechat-devtools-mcp-scripts",
+    "version": "0.1.4",
+    "description": "WeChat DevTools MCP 辅助脚本 - 通过 miniprogram-automator 监听运行时事件",
+    "private": true,
+    "scripts": {
+        "bundle": "ncc build daemon.js -o dist/daemon_tmp && mv dist/daemon_tmp/index.js dist/daemon.bundle.js && rm -rf dist/daemon_tmp"
+    },
+    "dependencies": {
+        "jimp": "^1.6.0",
+        "miniprogram-automator": "^0.12.0",
+        "puppeteer-core": "^24.38.0"
+    },
+    "devDependencies": {
+        "@vercel/ncc": "^0.38.0"
+    },
+    "engines": {
+        "node": ">=8.0.0"
+    }
+}
