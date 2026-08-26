@@ -75,7 +75,7 @@ class WechatAutomatorInput(BaseModel):
 
 class WechatInspectorInput(BaseModel):
     """日志采集聚合输入。"""
-    action: Literal["console", "cdp"] = Field(..., description="采集方式。")
+    action: Literal["console", "cdp", "network"] = Field(..., description="采集方式。")
     duration: int = Field(
         default=10, ge=1, le=120,
         description=(
@@ -94,6 +94,28 @@ class WechatInspectorInput(BaseModel):
     )
     max_logs: int = Field(default=50, ge=1, le=500, description="最大返回日志条数，超出时截断并标注 truncated=true。")
     cdp_port: int = Field(default=9222, description="CDP 调试端口。", ge=1, le=65535)
+
+    # network 参数
+    url_pattern: Optional[str] = Field(
+        default=None,
+        description="network action 的 URL 过滤正则；留空则返回全部请求。",
+    )
+    include_post_data: bool = Field(
+        default=True,
+        description="network action 是否返回脱敏后的请求 postData。",
+    )
+    include_responses: bool = Field(
+        default=False,
+        description="network action 是否返回 responseReceived 中的状态码和 MIME type。",
+    )
+    max_requests: int = Field(
+        default=100, ge=1, le=500,
+        description="network action 最大返回请求数，超出时截断并标注 truncated=true。",
+    )
+    appservice_only: bool = Field(
+        default=True,
+        description="network action 是否只采集 /appservice/ 逻辑层 target。",
+    )
 
     # console 参数
     auto_port: int = Field(default=9420, description="自动化端口。", ge=1, le=65535)

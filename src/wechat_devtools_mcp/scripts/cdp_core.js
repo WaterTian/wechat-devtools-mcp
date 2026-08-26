@@ -191,6 +191,106 @@ function startDiscovery(cdpPort, logs, activeConnections, intervalMs = 1000) {
 }
 
 /**
+ * 连接到业务 CDP target，开启 Network 协议并收集请求事件。
+ *
+ * Network 使用独立连接，避免改变既有 Console/Runtime/Log 采集的事件流。
+ */
+function attachTargetNetwork(target, events, activeConnections, state, options = {}) {
+    const key = `network:${target.id}`;
+    if (activeConnections.has(key) || isIdeShellTarget(target)) return;
+
+    const targetUrl = (target && target.url) || '';
+    const isAppService = targetUrl.includes('/appservice/');
+    const isPageFrame = targetUrl.includes('/__pageframe__/');
+    if (options.appserviceOnly && !isAppService) return;
+
+    const targetHint = isAppService ? 'appservice' : (isPageFrame ? 'pageframe' : 'other');
+    activeConnections.set(key, null);
+
+    try {
+        const ws = new WebSocket(target.webSocketDebuggerUrl);
+        activeConnections.set(key, ws);
+        ws.on('open', () => ws.send(JSON.stringify({ id: 1, method: 'Network.enable' })));
+        ws.on('message', (data) => {
+            try {
+                const msg = JSON.parse(data);
+                if (msg.id === 1) {
+                    if (msg.error) state.networkErrors.push(msg.error.message || 'Network.enable failed');
+                    else state.networkEnabledTargets += 1;
+                    return;
+                }
+                if (!msg.method || !msg.params) return;
+                const params = msg.params;
+                const base = {
+                    timestamp: new Date().toISOString(),
+                    targetType: target.type,
+                    targetHint,
+                };
+                if (msg.method === 'Network.requestWillBeSent') {
+                    events.push({
+                        ...base,
+                        type: 'REQUEST',
+                        content: {
+                            requestId: params.requestId,
+                            url: params.request && params.request.url,
+                            method: params.request && params.request.method,
+                            postData: (params.request && params.request.postData) || null,
+                        },
+                    });
+                } else if (msg.method === 'Network.responseReceived') {
+                    events.push({
+                        ...base,
+                        type: 'RESPONSE',
+                        content: {
+                            requestId: params.requestId,
+                            status: params.response && params.response.status,
+                            mimeType: params.response && params.response.mimeType,
+                        },
+                    });
+                } else if (msg.method === 'Network.loadingFinished') {
+                    events.push({
+                        ...base, type: 'FINISHED',
+                        content: { requestId: params.requestId, encodedDataLength: params.encodedDataLength },
+                    });
+                } else if (msg.method === 'Network.loadingFailed') {
+                    events.push({
+                        ...base, type: 'FAILED',
+                        content: {
+                            requestId: params.requestId, errorText: params.errorText,
+                            canceled: params.canceled, blockedReason: params.blockedReason,
+                        },
+                    });
+                }
+            } catch (_) { }
+        });
+        ws.on('close', () => activeConnections.delete(key));
+        ws.on('error', () => activeConnections.delete(key));
+    } catch (_) {
+        activeConnections.delete(key);
+    }
+}
+
+function startNetworkDiscovery(cdpPort, events, activeConnections, state, options, intervalMs = 1000) {
+    return setInterval(async () => {
+        try {
+            const targets = await getTargets(cdpPort);
+            for (const target of targets) {
+                attachTargetNetwork(target, events, activeConnections, state, options);
+            }
+        } catch (_) { }
+    }, intervalMs);
+}
+
+function closeConnections(activeConnections) {
+    for (const ws of activeConnections.values()) {
+        if (ws && typeof ws.close === 'function') {
+            try { ws.close(); } catch (_) { }
+        }
+    }
+    activeConnections.clear();
+}
+
+/**
  * 停止 target 持续发现。
  * @param {NodeJS.Timeout} timer
  */
@@ -207,5 +307,5 @@ function getTimestamp() {
 
 module.exports = {
     getTargets, attachTarget, startDiscovery, stopDiscovery, getTimestamp,
-    isIdeShellTarget,
+    isIdeShellTarget, attachTargetNetwork, startNetworkDiscovery, closeConnections,
 };

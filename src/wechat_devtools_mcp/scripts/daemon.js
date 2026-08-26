@@ -13,6 +13,7 @@ const handlers = {
     automation:       require('./automation'),
     console_listener: require('./console_listener'),
     cdp_listener:     require('./cdp_listener'),
+    network_listener: require('./network_listener'),
     navigate_capture: require('./navigate_capture'),
     screenshot:       require('./screenshot'),
     ui_debug:         require('./ui_debug'),

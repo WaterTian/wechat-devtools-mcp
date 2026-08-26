@@ -57,7 +57,7 @@ class TestAutomatorSchema:
 class TestInspectorSchema:
     """wechat_inspector Schema 测试。"""
 
-    @pytest.mark.parametrize("action", ["console", "cdp"])
+    @pytest.mark.parametrize("action", ["console", "cdp", "network"])
     def test_valid_actions(self, action: str):
         inp = WechatInspectorInput(action=action)
         assert inp.action == action
