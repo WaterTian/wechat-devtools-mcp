@@ -68,7 +68,13 @@ async def wechat_screenshot(params: WechatScreenshotInput) -> str:
 
         if not result.get("success"):
             error_msg = result.get("error") or result.get("message") or "未知错误"
-            return _fail(ErrorCode.UNKNOWN_ERROR, f"截图失败：{error_msg}")
+            # JS 侧对跳转失败等场景给了具体 hint（如「末尾可能需要 /index」），
+            # 是排障关键，不能只把 error 抛出去。
+            return _fail(
+                ErrorCode.UNKNOWN_ERROR,
+                f"截图失败：{error_msg}",
+                hint=result.get("hint", ""),
+            )
 
         abs_path = result.get("path", resolved_path)
         file_size = 0
@@ -77,15 +83,57 @@ async def wechat_screenshot(params: WechatScreenshotInput) -> str:
         except OSError:
             pass
 
-        return _ok(
-            {
-                "path": abs_path,
-                "width": result.get("width", 0),
-                "height": result.get("height", 0),
-                "segments": result.get("segments", 1),
-                "file_size": file_size,
-            },
-            message=f"截图成功，共 {result.get('segments', 1)} 段，已保存至 {abs_path}。",
-        )
+        segments = result.get("segments", 1)
+        data: dict = {
+            "path": abs_path,
+            "width": result.get("width", 0),
+            "height": result.get("height", 0),
+            "segments": segments,
+            "file_size": file_size,
+        }
+
+        # ── 拼接质量诊断 ──
+        # 这些字段 JS 一直在算，但此前全被丢弃，调用方无从判断「拍全了没有」。
+        warnings: list[str] = []
+
+        if result.get("isScrollViewPage"):
+            data["is_scroll_view_page"] = True
+            warnings.append(
+                "该页面用 scroll-view 组件滚动，automator 无法捕获其内部滚动帧，"
+                "**只截到了当前视口**，不是完整长图"
+            )
+
+        if result.get("truncated"):
+            data["truncated"] = True
+            warnings.append(
+                f"页面过长，已在 {segments} 段处截断，底部内容未拍到"
+            )
+
+        gaps = result.get("contentGaps") or 0
+        if gaps:
+            data["content_gaps"] = gaps
+            warnings.append(
+                f"有 {gaps} 处拼接缺口：固定头部/底部吃光了滚动重叠，"
+                "中间内容丢失。可增大 overlap 参数重试"
+            )
+
+        # 固定区域测不准（如懒加载导致内容既不稳定也不按滚动位移）。
+        # 此时头尾高度是猜的，宁可明说也不要让调用方以为拼接是准的。
+        if result.get("detectionConfident") is False:
+            data["detection_confident"] = False
+            warnings.append(
+                "固定头部/底部未能可靠识别（页面可能有懒加载或滚动中变化的元素），"
+                "导航栏可能重复出现或内容被多裁；结果仅供参考"
+            )
+
+        for js_key, py_key in (("fixedHeader", "fixed_header"), ("fixedFooter", "fixed_footer")):
+            if result.get(js_key):
+                data[py_key] = result[js_key]
+
+        message = f"截图成功，共 {segments} 段，已保存至 {abs_path}。"
+        if warnings:
+            message += " ⚠ " + "；".join(warnings) + "。"
+
+        return _ok(data, message=message)
     except Exception as e:
         return _fail(ErrorCode.UNKNOWN_ERROR, f"截图异常：{type(e).__name__}: {e}")

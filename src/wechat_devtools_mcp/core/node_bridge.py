@@ -141,11 +141,17 @@ async def _response_reader() -> None:
                 if not future.done():
                     if msg.get("success") is False:
                         # 优先用顶层 error，fallback 到 data.error (daemon respond 把 error 嵌套在 data 内)
-                        err = msg.get("error") or (msg.get("data", {}) or {}).get("error") or "未知错误"
-                        future.set_result({
-                            "success": False,
-                            "error": err,
-                        })
+                        data = msg.get("data") or {}
+                        if not isinstance(data, dict):
+                            data = {}
+                        err = msg.get("error") or data.get("error") or "未知错误"
+                        failure = {"success": False, "error": err}
+                        # handler 给的 hint 是排障关键（如截图跳转失败时的「末尾可能需要
+                        # /index」），此前连同 data 一起被丢弃，调用方只能看到干巴巴的报错。
+                        hint = msg.get("hint") or data.get("hint")
+                        if hint:
+                            failure["hint"] = hint
+                        future.set_result(failure)
                     else:
                         result = msg.get("data", {})
                         if isinstance(result, list):

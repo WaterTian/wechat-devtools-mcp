@@ -1,78 +1,25 @@
 #!/usr/bin/env node
 /**
  * test_screenshot_detect.js
- * 测试 detectFixedRegions 的像素比对逻辑（模糊匹配 + 安全区跳过 + 间隙容忍）
+ * 测试 detectFixedRegions —— 长图拼接时固定头部/底部的识别。
+ *
+ * 判据是「找会动的」：img1 是 img0 向下滚 delta 后的截图，
+ * 能按 delta 找到对应行的就是滚动内容，其余是固定区域。
+ * 因此**不要求固定元素像素级稳定** —— 半透明导航栏、跳变的状态栏时钟
+ * 都不会让它失效，而旧的「找没变的」判据在这些场景下会直接返回 0。
  *
  * 用法: node tests/test_screenshot_detect.js
  */
 
 'use strict';
 
-// 直接从源码中提取核心函数进行测试
-function pixelsClose(c1, c2, tolerance) {
-    if (c1 === c2) return true;
-    const r1 = (c1 >>> 24) & 0xFF, r2 = (c2 >>> 24) & 0xFF;
-    const g1 = (c1 >>> 16) & 0xFF, g2 = (c2 >>> 16) & 0xFF;
-    const b1 = (c1 >>> 8)  & 0xFF, b2 = (c2 >>> 8)  & 0xFF;
-    return Math.abs(r1 - r2) <= tolerance
-        && Math.abs(g1 - g2) <= tolerance
-        && Math.abs(b1 - b2) <= tolerance;
-}
-
-function rowMatches(img0, img1, y, width, tolerance, matchRatio) {
-    let matched = 0;
-    for (let x = 0; x < width; x++) {
-        if (pixelsClose(img0.getPixelColor(x, y), img1.getPixelColor(x, y), tolerance)) {
-            matched++;
-        }
-    }
-    return (matched / width) >= matchRatio;
-}
-
-function detectFixedRegions(img0, img1) {
-    const width = img0.bitmap.width;
-    const height = img0.bitmap.height;
-    const maxScan = Math.floor(height / 3);
-    const TOLERANCE = 3;
-    const MATCH_RATIO = 0.98;
-    const MAX_GAP = 2;
-    const SAFE_AREA_SKIP = 6;
-
-    let headerHeight = 0;
-    let headerGap = 0;
-    for (let y = 0; y < maxScan; y++) {
-        if (rowMatches(img0, img1, y, width, TOLERANCE, MATCH_RATIO)) {
-            headerHeight = y + 1;
-            headerGap = 0;
-        } else {
-            headerGap++;
-            if (headerGap > MAX_GAP) break;
-        }
-    }
-
-    let footerHeight = 0;
-    let footerGap = 0;
-    const bottomStart = height - 1 - SAFE_AREA_SKIP;
-    for (let y = bottomStart; y >= height - maxScan; y--) {
-        if (rowMatches(img0, img1, y, width, TOLERANCE, MATCH_RATIO)) {
-            footerHeight = height - y;
-            footerGap = 0;
-        } else {
-            footerGap++;
-            if (footerGap > MAX_GAP) break;
-        }
-    }
-
-    if (footerHeight > 0) {
-        footerHeight += SAFE_AREA_SKIP;
-    }
-
-    return { headerHeight, footerHeight };
-}
+const path = require('path');
+const {
+    detectFixedRegions,
+} = require(path.join(__dirname, '..', 'src', 'wechat_devtools_mcp', 'scripts', 'screenshot.js'));
 
 // ===== 模拟图片对象 =====
 function createMockImage(width, height, pixelFn) {
-    // pixelFn(x, y) => 32-bit RGBA color
     const data = new Uint32Array(width * height);
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
@@ -85,164 +32,142 @@ function createMockImage(width, height, pixelFn) {
     };
 }
 
-// RGBA helper: pack into 32-bit
 function rgba(r, g, b, a) {
     return ((r & 0xFF) << 24) | ((g & 0xFF) << 16) | ((b & 0xFF) << 8) | (a & 0xFF);
 }
 
-// ===== 测试用例 =====
-let passed = 0;
-let failed = 0;
+/**
+ * 构造一对「滚动前 / 滚动后」截图。
+ *
+ * @param opts.header    固定头部高度
+ * @param opts.footer    固定底部高度
+ * @param opts.delta     滚动距离
+ * @param opts.headerFn  (x,y,phase) => color 头部像素；phase 0=滚动前 1=滚动后
+ * @param opts.footerFn  同上
+ * @param opts.contentFn (x, absoluteY) => color 内容像素（按页面绝对坐标，
+ *                       因此滚动后自然发生位移）
+ */
+function makePair(W, H, opts) {
+    const { header = 0, footer = 0, delta = 200 } = opts;
+    const contentFn = opts.contentFn
+        || ((x, ay) => rgba((ay * 3) % 256, (x * 7) % 256, (ay + x) % 256, 255));
+    const headerFn = opts.headerFn || (() => rgba(30, 60, 45, 255));
+    const footerFn = opts.footerFn || (() => rgba(80, 80, 80, 255));
 
+    const build = (phase, scrollTop) => createMockImage(W, H, (x, y) => {
+        if (y < header) return headerFn(x, y, phase);
+        if (y >= H - footer) return footerFn(x, y - (H - footer), phase);
+        // 内容区：屏幕行 y 对应页面绝对行 scrollTop + y
+        return contentFn(x, scrollTop + y);
+    });
+
+    return { img0: build(0, 0), img1: build(1, delta), delta };
+}
+
+let passed = 0, failed = 0;
 function assert(condition, msg) {
-    if (condition) {
-        passed++;
-        console.log(`  ✅ ${msg}`);
-    } else {
-        failed++;
-        console.log(`  ❌ ${msg}`);
+    if (condition) { passed++; console.log(`  ✅ ${msg}`); }
+    else { failed++; console.log(`  ❌ ${msg}`); }
+}
+// 边界允许 ±RUN 的检测误差（RUN=3 的判定窗口所致）
+function near(actual, expected, slack = 4) {
+    return Math.abs(actual - expected) <= slack;
+}
+
+// ---------- Test 1: 基本情形 ----------
+console.log('\nTest 1: 不透明固定头(120) + 固定底(90)');
+{
+    const { img0, img1, delta } = makePair(100, 600, { header: 120, footer: 90, delta: 200 });
+    const r = detectFixedRegions(img0, img1, delta);
+    assert(near(r.headerHeight, 120), `headerHeight = ${r.headerHeight}（期望 ≈120）`);
+    assert(near(r.footerHeight, 90), `footerHeight = ${r.footerHeight}（期望 ≈90）`);
+    assert(r.confident === true, `confident = ${r.confident}（期望 true）`);
+}
+
+// ---------- Test 2: 半透明导航栏（旧判据在此必挂）----------
+console.log('\nTest 2: 半透明头部 —— 每一行都随下方内容变化');
+{
+    // 头部像素随 phase 改变（模拟透出下方滚动内容），旧判据从第 0 行就判负 → 返回 0
+    const { img0, img1, delta } = makePair(100, 600, {
+        header: 130, footer: 0, delta: 200,
+        headerFn: (x, y, phase) => rgba(30 + phase * 25, 60 + phase * 25, 45 + phase * 25, 255),
+    });
+    const r = detectFixedRegions(img0, img1, delta);
+    assert(near(r.headerHeight, 130), `headerHeight = ${r.headerHeight}（期望 ≈130，旧判据会得 0）`);
+}
+
+// ---------- Test 3: 状态栏时钟跳变 ----------
+console.log('\nTest 3: 头部含跳变时钟（局部像素变化）');
+{
+    const { img0, img1, delta } = makePair(200, 600, {
+        header: 140, footer: 0, delta: 200,
+        headerFn: (x, y, phase) => {
+            // 第 20~50 行、x 在 10~40 之间模拟时钟数字，滚动后内容不同
+            if (y >= 20 && y < 50 && x >= 10 && x < 40) {
+                return rgba(255, 255, 255 - phase * 120, 255);
+            }
+            return rgba(30, 60, 45, 255);
+        },
+    });
+    const r = detectFixedRegions(img0, img1, delta);
+    assert(near(r.headerHeight, 140), `headerHeight = ${r.headerHeight}（期望 ≈140，不应被时钟打断）`);
+}
+
+// ---------- Test 4: 无固定区域 ----------
+console.log('\nTest 4: 整页滚动，无固定头尾');
+{
+    const { img0, img1, delta } = makePair(100, 600, { header: 0, footer: 0, delta: 200 });
+    const r = detectFixedRegions(img0, img1, delta);
+    assert(r.headerHeight === 0, `headerHeight = ${r.headerHeight}（期望 0）`);
+    assert(r.footerHeight === 0, `footerHeight = ${r.footerHeight}（期望 0）`);
+}
+
+// ---------- Test 5: 纯色内容不应被误判为固定区 ----------
+console.log('\nTest 5: 内容区是大片纯色 —— 旧判据会误判为固定区');
+{
+    const { img0, img1, delta } = makePair(100, 600, {
+        header: 100, footer: 0, delta: 200,
+        contentFn: () => rgba(250, 250, 250, 255),   // 纯白内容，滚动前后逐行相同
+    });
+    const r = detectFixedRegions(img0, img1, delta);
+    // 纯色内容按 delta 位移后仍然匹配 → 正确归入内容区，头部边界仍在 100 附近
+    assert(r.headerHeight <= 110, `headerHeight = ${r.headerHeight}（期望 ≤110，不应吞掉纯色内容）`);
+}
+
+// ---------- Test 6: delta 非法时明确表示测不准 ----------
+console.log('\nTest 6: delta 缺失 / 超过视口高度');
+{
+    const { img0, img1 } = makePair(100, 600, { header: 120, footer: 90, delta: 200 });
+    for (const [d, label] of [[0, '0'], [undefined, 'undefined'], [600, '=视口高']]) {
+        const r = detectFixedRegions(img0, img1, d);
+        assert(r.confident === false && r.headerHeight === 0,
+            `delta=${label} → confident=${r.confident}, header=${r.headerHeight}（期望 false/0）`);
     }
 }
 
-// ---------- Test 1: 精确匹配 - 有 header 和 footer ----------
-console.log('\nTest 1: 精确匹配检测 header(40px) + footer(50px)');
+// ---------- Test 7: 亚像素错位容忍 ----------
+console.log('\nTest 7: 真实位移比 delta 少 1px（dpr 取整误差）');
 {
-    const W = 100, H = 300;
-    const HEADER = 40, FOOTER = 50;
-
-    const img0 = createMockImage(W, H, (x, y) => {
-        if (y < HEADER) return rgba(200, 200, 200, 255);       // 固定 header
-        if (y >= H - FOOTER) return rgba(100, 100, 100, 255);  // 固定 footer
-        return rgba(y * 2 % 256, x % 256, 0, 255);             // 可滚动内容
-    });
-
-    const img1 = createMockImage(W, H, (x, y) => {
-        if (y < HEADER) return rgba(200, 200, 200, 255);       // 固定 header（相同）
-        if (y >= H - FOOTER) return rgba(100, 100, 100, 255);  // 固定 footer（相同）
-        return rgba((y * 2 + 50) % 256, (x + 30) % 256, 0, 255); // 不同的滚动内容
-    });
-
-    const result = detectFixedRegions(img0, img1);
-    assert(result.headerHeight === HEADER, `headerHeight = ${result.headerHeight} (expected ${HEADER})`);
-    // footer 会加上 SAFE_AREA_SKIP(6)，所以检测到的 footerHeight = FOOTER + 6
-    // 但实际上由于安全区跳过，我们从 H-1-6 开始扫描，匹配到 H-FOOTER 行
-    // footerHeight = H - (H-FOOTER) = FOOTER，然后 +6 = 56
-    assert(result.footerHeight === FOOTER + 6, `footerHeight = ${result.footerHeight} (expected ${FOOTER + 6})`);
+    const W = 100, H = 600, header = 120, realShift = 199, reported = 200;
+    const contentFn = (x, ay) => rgba((ay * 3) % 256, (x * 7) % 256, (ay + x) % 256, 255);
+    const img0 = createMockImage(W, H, (x, y) =>
+        y < header ? rgba(30, 60, 45, 255) : contentFn(x, y));
+    const img1 = createMockImage(W, H, (x, y) =>
+        y < header ? rgba(30, 60, 45, 255) : contentFn(x, y + realShift));
+    const r = detectFixedRegions(img0, img1, reported);
+    assert(near(r.headerHeight, header), `headerHeight = ${r.headerHeight}（期望 ≈${header}，±1px 错位应被吸收）`);
 }
 
-// ---------- Test 2: 无固定区域 ----------
-console.log('\nTest 2: 完全不同的图片 - 无固定区域');
+// ---------- Test 8: 内容既不稳定也不位移 → 不自信 ----------
+console.log('\nTest 8: 内容随机变化（模拟懒加载）—— 应识别为测不准');
 {
-    const W = 50, H = 200;
-    const img0 = createMockImage(W, H, (x, y) => rgba((y * 7 + 50) % 256, 0, 0, 255));
-    const img1 = createMockImage(W, H, (x, y) => rgba(0, (y * 13 + 100) % 256, 0, 255));
-
-    const result = detectFixedRegions(img0, img1);
-    assert(result.headerHeight === 0, `headerHeight = ${result.headerHeight} (expected 0)`);
-    assert(result.footerHeight === 0, `footerHeight = ${result.footerHeight} (expected 0)`);
+    const W = 100, H = 600;
+    const img0 = createMockImage(W, H, (x, y) => rgba((y * 3) % 256, (x * 7) % 256, 0, 255));
+    const img1 = createMockImage(W, H, (x, y) => rgba((y * 11 + 77) % 256, (x * 5 + 33) % 256, 99, 255));
+    const r = detectFixedRegions(img0, img1, 200);
+    assert(r.confident === false, `confident = ${r.confident}（期望 false，不该硬猜）`);
 }
 
-// ---------- Test 3: 模糊匹配 - 亚像素渲染差异 ----------
-console.log('\nTest 3: 底部导航栏有 ±2 的亚像素差异（应仍能检测）');
-{
-    const W = 100, H = 300;
-    const FOOTER = 60;
-
-    const img0 = createMockImage(W, H, (x, y) => {
-        if (y >= H - FOOTER) return rgba(50, 50, 50, 255);
-        return rgba(y % 256, x % 256, 100, 255);
-    });
-
-    const img1 = createMockImage(W, H, (x, y) => {
-        if (y >= H - FOOTER) {
-            // 引入 ±2 的渲染差异
-            const jitter = (x % 5 === 0) ? 2 : 0;
-            return rgba(50 + jitter, 50 - jitter, 50 + jitter, 255);
-        }
-        return rgba((y + 40) % 256, (x + 20) % 256, 150, 255);
-    });
-
-    const result = detectFixedRegions(img0, img1);
-    assert(result.headerHeight === 0, `headerHeight = ${result.headerHeight} (expected 0)`);
-    assert(result.footerHeight > 0, `footerHeight = ${result.footerHeight} (expected > 0, got ${result.footerHeight})`);
-}
-
-// ---------- Test 4: 旧版精确匹配会失败的情况 - 单像素差异 ----------
-console.log('\nTest 4: footer 中有 1% 像素差异（旧版精确匹配会失败，新版应成功）');
-{
-    const W = 200, H = 400;
-    const FOOTER = 65;
-
-    const img0 = createMockImage(W, H, (x, y) => {
-        if (y >= H - FOOTER) return rgba(80, 80, 80, 255);
-        return rgba(y % 256, x % 256, 0, 255);
-    });
-
-    const img1 = createMockImage(W, H, (x, y) => {
-        if (y >= H - FOOTER) {
-            // 每行只有 1 个像素不同（0.5%）
-            if (x === 0) return rgba(255, 0, 0, 255); // 完全不同的像素
-            return rgba(80, 80, 80, 255);
-        }
-        return rgba((y + 100) % 256, (x + 50) % 256, 200, 255);
-    });
-
-    const result = detectFixedRegions(img0, img1);
-    assert(result.footerHeight > 0, `footerHeight = ${result.footerHeight} (expected > 0 with 98% threshold)`);
-}
-
-// ---------- Test 5: 底部安全区像素不同但 tab 栏相同 ----------
-console.log('\nTest 5: 底部 6px 安全区不同，但 tab 栏 50px 相同（应跳过安全区检测到 tab 栏）');
-{
-    const W = 100, H = 300;
-    const TAB_HEIGHT = 50;
-
-    const img0 = createMockImage(W, H, (x, y) => {
-        if (y >= H - 6) return rgba(10, 10, 10, 255);                         // 安全区
-        if (y >= H - 6 - TAB_HEIGHT) return rgba(150, 150, 150, 255);         // tab 栏
-        return rgba(y % 256, x % 256, 0, 255);
-    });
-
-    const img1 = createMockImage(W, H, (x, y) => {
-        if (y >= H - 6) return rgba(20, 20, 20, 255);                         // 安全区（不同！）
-        if (y >= H - 6 - TAB_HEIGHT) return rgba(150, 150, 150, 255);         // tab 栏（相同）
-        return rgba((y + 80) % 256, (x + 40) % 256, 100, 255);
-    });
-
-    const result = detectFixedRegions(img0, img1);
-    assert(result.footerHeight >= TAB_HEIGHT, `footerHeight = ${result.footerHeight} (expected >= ${TAB_HEIGHT})`);
-}
-
-// ---------- Test 6: 间隙容忍 - header 中有 1 行阴影差异 ----------
-console.log('\nTest 6: header 中第 20 行有阴影渲染差异（应被间隙容忍跳过）');
-{
-    const W = 100, H = 300;
-    const HEADER = 40;
-
-    const img0 = createMockImage(W, H, (x, y) => {
-        if (y < HEADER) return rgba(200, 200, 200, 255);
-        return rgba(y % 256, x % 256, 0, 255);
-    });
-
-    const img1 = createMockImage(W, H, (x, y) => {
-        if (y < HEADER) {
-            if (y === 20) return rgba(0, 0, 0, 255); // 第 20 行完全不同（阴影）
-            return rgba(200, 200, 200, 255);
-        }
-        return rgba((y + 60) % 256, (x + 30) % 256, 50, 255);
-    });
-
-    const result = detectFixedRegions(img0, img1);
-    // MAX_GAP=2，所以 1 行不匹配应该被跳过，继续检测到 HEADER
-    assert(result.headerHeight >= HEADER - 1, `headerHeight = ${result.headerHeight} (expected >= ${HEADER - 1})`);
-}
-
-// ===== 汇总 =====
 console.log(`\n========================================`);
 console.log(`Total: ${passed + failed}  Passed: ${passed}  Failed: ${failed}`);
-if (failed > 0) {
-    process.exit(1);
-} else {
-    console.log('All tests passed!');
-    process.exit(0);
-}
+process.exit(failed > 0 ? 1 : 0);

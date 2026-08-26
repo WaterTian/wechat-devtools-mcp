@@ -134,8 +134,21 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 - `page_path`（可选）：确保截图前在指定页面上，若当前页面不匹配则自动跳转
 - **前提**：先调用 `wechat_automator(action='start')`
 - **注意**：不要主动截图，仅在用户明确要求或排查异常需要视觉确认时才调用
-- **限制**：使用 `scroll-view` 组件滚动的页面无法长图拼接（automator SDK 限制），仅截取当前视口
 - **限制**：截图可能无法捕获 fixed/absolute overlay（弹窗、蒙层），以 page_data 为准
+
+> [!IMPORTANT]
+> **拿到结果先看 message 里有没有 ⚠**。长图是多屏拼出来的，下面三种情况拍到的**不是完整页面**，
+> 但图片本身看着是连续的，只凭图无法察觉：
+
+| 返回字段 | 含义 | 应对 |
+|---------|------|------|
+| `is_scroll_view_page: true` | 页面靠 `scroll-view` 组件滚动，automator 无法捕获其内部滚动帧，**只截到当前视口** | 改用页面级滚动；或用 `evaluate` 读取数据代替视觉确认 |
+| `truncated: true` | 页面过长，已在分段上限处截断，**底部没拍到** | 用 `full_page=false` + `scroll_top` 分段截取关注区域 |
+| `content_gaps: N` | 固定头部/底部吃光了滚动重叠，有 N 处内容**真的丢了** | 调大 `overlap`（如 `overlap=150`）重试 |
+| `detection_confident: false` | 固定头部/底部没能可靠识别（页面有懒加载或滚动中变化的元素），导航栏可能重复或内容被多裁 | 结果仅供参考；关键结论改用 `page_data` 核对 |
+
+- `fixed_header` / `fixed_footer`：检测到的固定区域高度（物理像素），拼接时各只保留一份。
+  数值异常偏大说明固定区域误判，可配合 `overlap` 调整
 - **路径规约**：推荐 `<project>/screenshots/` 或显式绝对路径。**避免写入 `.claude/image-cache/`** — 这是 Claude Code 的用户发图缓存目录，MCP 截图混入会互相污染
 
 ### `wechat_navigate` — 跳转并采集日志
@@ -477,7 +490,9 @@ wechat_automator(action='page_data')                # 验证
 | call_method 报 `page.xxx not exists` 且无页面信息 | v0.6.0 未返回路径（v0.7.0 已修复） | 升级到 v0.7.0；或先 page_data 确认 path |
 | navigate TabBar 页面无效 | TabBar 页面不支持 reLaunch/navigateTo | v0.8.0 自动检测并使用 switchTab；或手动 `evaluate(wx.switchTab)` |
 | 截图显示错误页面 | screenshot connect 后页面被重置 | 使用 `page_path` 参数确保截图前在正确页面 |
-| scroll-view 页面长图只有一屏 | automator SDK 无法捕获 scroll-view 内部滚动 | 已知限制，返回 `isScrollViewPage: true`；改用页面级滚动或 canvas 截图 |
+| scroll-view 页面长图只有一屏 | automator SDK 无法捕获 scroll-view 内部滚动 | 已知限制，返回 `is_scroll_view_page: true` 且 message 带 ⚠；改用页面级滚动或 canvas 截图 |
+| 长图只有前两屏就没了 | 滚动慢启动被误判为「已到底部」（旧版缺陷，已修复） | 升级 MCP 到最新版 |
+| 长图看着连续但内容对不上/少一截 | 固定头部+底部吃光了滚动重叠 | 看返回的 `content_gaps`，增大 `overlap` 重试 |
 | 运行时报 `@babel/runtime/helpers/xxx is not defined` | npm 依赖新增/升级后未构建（compile 不会自动 build_npm） | `build_npm` → `compile`，再用 `console(duration≥8, log_type='exception')` 验证 |
 | `start` 连续返回 verified=false（冷启动常见） | IDE 刚启动，automator WS 握手未就绪（open 成功 ≠ automator 可用） | 按 `retry_after_ms` 等待重试（冷启动可能需 10~15s）；期间先执行 compile / build_npm 等不依赖 automator 的操作 |
 | `找不到 macOS IDE 主程序：…/wechatdevtools` | 开发者工具 2.x 改用 Electron，NW.js 的主程序与 package.nw 已不存在 | 升级 MCP；新版按 Info.plist 自动识别 1.x/2.x 两种运行时 |

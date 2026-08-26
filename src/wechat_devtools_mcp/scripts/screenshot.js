@@ -5,11 +5,17 @@
  * 导出 { handle, parseArgs } 供 daemon 调用。
  *
  * 核心策略：
- *   1. 截取前两屏后，通过像素比对自动检测固定头部（导航栏）和固定底部（tab 栏）
- *   2. 拼接时从每段中只提取可滚动内容区域，避免固定元素重复
- *   3. 最终图片 = 头部(仅1份) + 所有内容条带 + 底部(仅1份)
- *   4. 根据实际截图尺寸推算真实 DPR，确保裁剪精度
- *   5. 每次滚动后验证实际 scrollTop，动态计算真实重叠量
+ *   1. 首步用保守步长（半屏）起步 —— 此时尚不知固定头尾多高，步长偏小只多些
+ *      重叠（会被裁掉），步长偏大则造成无法追补的内容缺口，代价不对等
+ *   2. 拍完第二段后识别固定头部/底部，再把步长放宽到真实所需
+ *   3. 识别判据是「找会动的」：img1 是 img0 滚动 delta 后的图，能按 delta 找到
+ *      对应行的即滚动内容，其余为固定区域。不要求固定元素像素级稳定，
+ *      因此半透明导航栏、跳变的状态栏时钟都不会使其失效
+ *   4. 拼接时每段只取内容条带，最终图 = 头部(1份) + 所有内容条带 + 底部(1份)
+ *   5. 根据实际截图尺寸推算真实 DPR，确保裁剪精度
+ *   6. 每次滚动后验证实际 scrollTop，动态计算真实重叠量
+ *   7. 拍不全或测不准时如实上报（truncated / contentGaps / detectionConfident /
+ *      isScrollViewPage），绝不让调用方以为拿到了完整长图
  */
 
 'use strict';
@@ -34,11 +40,21 @@ function parseArgs(argv) {
 }
 
 /**
- * 等待滚动完成，返回实际的 scrollTop（逻辑像素）
+ * 等待滚动完成，返回实际的 scrollTop（逻辑像素）。
+ *
+ * @param {number} fromScrollTop - 本次滚动前的位置，用于区分「还没动」与「到底了」
+ * @param {number} minSettle - 未观测到位移时，至少等待多久才认可当前值（毫秒）
+ *
+ * 为什么需要 fromScrollTop：旧实现只要连续两次读数相同就返回。若 pageScrollTo
+ * 尚未生效（渲染层滞后 >100ms），两次读到的都还是**滚动前**的位置，于是返回旧值，
+ * 调用方算出 actualDelta <= 0 判定「已到底部」直接 break —— 长图就这样被截断在
+ * 前两屏，且没有任何报错。现在要求「确认动过」或「等够 minSettle」才认可稳定值：
+ * 真到底部时静止读数会在 minSettle 后被接受，行为不变；只是慢启动不再被误判。
  */
-async function waitForScrollComplete(miniProgram, targetScrollY, maxWait = 1000) {
+async function waitForScrollComplete(miniProgram, targetScrollY, fromScrollTop = -1, maxWait = 1500, minSettle = 500) {
     const startTime = Date.now();
     let lastScrollTop = -1;
+    let moved = false;
 
     while (Date.now() - startTime < maxWait) {
         await new Promise(r => setTimeout(r, 100));
@@ -52,7 +68,11 @@ async function waitForScrollComplete(miniProgram, targetScrollY, maxWait = 1000)
                 });
             });
 
-            if (scrollTop === lastScrollTop) {
+            if (fromScrollTop < 0 || scrollTop !== fromScrollTop) {
+                moved = true;
+            }
+
+            if (scrollTop === lastScrollTop && (moved || Date.now() - startTime >= minSettle)) {
                 return scrollTop;
             }
             lastScrollTop = scrollTop;
@@ -93,58 +113,115 @@ function rowMatches(img0, img1, y, width, tolerance, matchRatio) {
     return (matched / width) >= matchRatio;
 }
 
+/** 跨图、跨行比较：imgA 的第 yA 行 与 imgB 的第 yB 行是否为同一内容。 */
+function rowsAlike(imgA, yA, imgB, yB, width, tolerance, matchRatio) {
+    if (yA < 0 || yA >= imgA.bitmap.height) return false;
+    if (yB < 0 || yB >= imgB.bitmap.height) return false;
+    let matched = 0;
+    for (let x = 0; x < width; x++) {
+        if (pixelsClose(imgA.getPixelColor(x, yA), imgB.getPixelColor(x, yB), tolerance)) {
+            matched++;
+        }
+    }
+    return (matched / width) >= matchRatio;
+}
+
+// 检测参数。相较旧版放宽了单行容差与匹配率：新判据靠「是否按 delta 位移」定性，
+// 不再要求固定元素像素级稳定，因此不需要靠严阈值来压误判。
+const TOLERANCE = 6;        // RGB 通道容差（吸收抗锯齿差异）
+const MATCH_RATIO = 0.95;   // 行内像素匹配率
+const RUN = 3;              // 连续多少行判为内容，才认定内容区已开始
+const SHIFT_JITTER = 2;     // delta 取整误差的搜索半径
+
 /**
- * 通过像素比对检测固定头部和固定底部的物理像素高度。
- * 比较两张不同滚动位置的截图，从顶部/底部逐行比对，连续相同的行即为固定区域。
+ * 判断某行是否为「滚动内容」——即它能在另一张图里按 delta 找到对应行。
  *
- * v0.5.0 改进：
- *   - 使用颜色容差（tolerance=3）代替精确匹配，兼容亚像素渲染差异
- *   - 行级匹配阈值 98%，允许少量边缘像素不同
- *   - 底部检测跳过安全区域（最底部 6px），避免 Home Indicator 干扰
- *   - 允许最多 2 行连续不匹配后继续扫描（应对分割线/阴影渲染差异）
+ * 为什么要 ±SHIFT_JITTER：delta 由 round(逻辑位移 × dpr) 得到，而 dpr 常是
+ * 非整数（实测 724/375 ≈ 1.93），真实位移未必是整数物理像素，直接按 delta
+ * 对齐会整行错开一两像素、全是抗锯齿差异。这里在邻域内取最优对齐。
  */
-function detectFixedRegions(img0, img1) {
+function isMovedRow(imgA, yA, imgB, baseYB, width) {
+    for (let d = -SHIFT_JITTER; d <= SHIFT_JITTER; d++) {
+        if (rowsAlike(imgA, yA, imgB, baseYB + d, width, TOLERANCE, MATCH_RATIO)) return true;
+    }
+    return false;
+}
+
+/**
+ * 检测固定头部/底部的物理像素高度。
+ *
+ * 判据是「找会动的」，而不是旧版的「找没变的」：
+ *
+ *   img1 是 img0 向下滚动 delta 后的截图，因此
+ *     · img1 第 y 行若是滚动内容，它应等于 img0 的第 y+delta 行
+ *     · img0 第 y 行若是滚动内容，它应等于 img1 的第 y-delta 行
+ *   「按 delta 位移」是滚动内容的定义性特征，与它长什么样无关。
+ *   于是从顶部向下扫，第一处稳定出现的内容行就是内容区起点，其上皆为固定头部；
+ *   底部对称处理。
+ *
+ * 为什么不再沿用旧判据（逐行比对、相同即固定）：
+ *   旧判据要求固定元素**像素级稳定**，而现实中固定元素经常不稳定——半透明/毛玻璃
+ *   导航栏会透出下方滚动内容、滚动时加阴影或标题渐显、状态栏还带会跳变的时钟。
+ *   任一情况都会让它从第 0 行就判负，直接返回 headerHeight=0，导航栏被当作内容
+ *   重复拼进每一段。旧版为此堆了 MAX_GAP（容忍分割线）和 SAFE_AREA_SKIP（躲开
+ *   Home Indicator）两个补丁，每个补丁都绑死了一种设备/设计假设。
+ *   新判据不依赖固定元素稳定，这两个补丁的存在理由随之消失。
+ *
+ * @param {Object} img0 - 滚动前截图
+ * @param {Object} img1 - 滚动后截图
+ * @param {number} delta - 两张图之间的滚动距离（物理像素，正数）
+ * @returns {{headerHeight:number, footerHeight:number, confident:boolean}}
+ *          confident=false 表示无法可靠判定（如懒加载导致内容既不稳定也不位移），
+ *          调用方应据此告警而不是把结果当真。
+ */
+function detectFixedRegions(img0, img1, delta) {
     const width = img0.bitmap.width;
     const height = img0.bitmap.height;
-    const maxScan = Math.floor(height / 3); // 最多扫描 1/3 视口
-    const TOLERANCE = 3;       // RGB 通道容差
-    const MATCH_RATIO = 0.98;  // 行内像素匹配阈值
-    const MAX_GAP = 2;         // 允许连续不匹配行数（应对阴影/分割线）
-    const SAFE_AREA_SKIP = 6;  // 底部安全区域跳过像素数（Home Indicator）
 
-    // 检测固定头部：从顶部逐行比较
+    // delta 不合法（未传、非正、大于等于视口高度=无重叠）时无从判断
+    if (!delta || delta <= 0 || delta >= height) {
+        return { headerHeight: 0, footerHeight: 0, confident: false };
+    }
+
+    // ── 头部：扫 img1 顶部，找第一处连续 RUN 行的滚动内容 ──
+    const headerScanLimit = Math.min(Math.floor(height * 0.5), height - delta);
     let headerHeight = 0;
-    let headerGap = 0;
-    for (let y = 0; y < maxScan; y++) {
-        if (rowMatches(img0, img1, y, width, TOLERANCE, MATCH_RATIO)) {
-            headerHeight = y + 1;
-            headerGap = 0;
+    let headerFound = false;
+    let run = 0;
+    for (let y = 0; y < headerScanLimit; y++) {
+        if (isMovedRow(img1, y, img0, y + delta, width)) {
+            if (++run >= RUN) {
+                headerHeight = y - RUN + 1;
+                headerFound = true;
+                break;
+            }
         } else {
-            headerGap++;
-            if (headerGap > MAX_GAP) break;
+            run = 0;
         }
     }
 
-    // 检测固定底部：从底部逐行比较，跳过安全区域
+    // ── 底部：扫 img0 底部，找最后一处连续 RUN 行的滚动内容 ──
+    const footerScanFloor = Math.max(Math.ceil(height * 0.5), delta);
     let footerHeight = 0;
-    let footerGap = 0;
-    const bottomStart = height - 1 - SAFE_AREA_SKIP;
-    for (let y = bottomStart; y >= height - maxScan; y--) {
-        if (rowMatches(img0, img1, y, width, TOLERANCE, MATCH_RATIO)) {
-            footerHeight = height - y;
-            footerGap = 0;
+    let footerFound = false;
+    run = 0;
+    for (let y = height - 1; y >= footerScanFloor; y--) {
+        if (isMovedRow(img0, y, img1, y - delta, width)) {
+            if (++run >= RUN) {
+                footerHeight = height - 1 - (y + RUN - 1);
+                footerFound = true;
+                break;
+            }
         } else {
-            footerGap++;
-            if (footerGap > MAX_GAP) break;
+            run = 0;
         }
     }
 
-    // 修正：如果跳过了安全区域，将其加入 footer 高度
-    if (footerHeight > 0) {
-        footerHeight += SAFE_AREA_SKIP;
-    }
-
-    return { headerHeight, footerHeight };
+    return {
+        headerHeight: Math.max(0, headerHeight),
+        footerHeight: Math.max(0, footerHeight),
+        confident: headerFound && footerFound,
+    };
 }
 
 /**
@@ -201,6 +278,10 @@ async function stitchImages(segments, outputPath, headerHeight, footerHeight) {
 
     // 从每段中提取内容条带（去掉 header 和 footer）
     const contentStrips = [];
+    // 内容缺口计数：固定区域吃光滚动重叠时，两段之间的内容是真的丢了。
+    // 旧实现用 Math.max(0, ...) 把负重叠夹到 0，缺口被无声吞掉，
+    // 拼出来的图看着连续、实则少了一截。这里如实统计并上报。
+    let contentGaps = 0;
 
     for (let i = 0; i < images.length; i++) {
         const h = images[i].bitmap.height;
@@ -227,7 +308,9 @@ async function stitchImages(segments, outputPath, headerHeight, footerHeight) {
         } else {
             // 后续段：裁掉内容重叠区域
             // 内容重叠 = 视口总重叠 - 头部 - 底部（固定区域在重叠区内各占一份）
-            const contentOverlap = Math.max(0, segments[i].physicalOverlap - headerHeight - footerHeight);
+            const rawContentOverlap = segments[i].physicalOverlap - headerHeight - footerHeight;
+            if (rawContentOverlap < 0) contentGaps++;
+            const contentOverlap = Math.max(0, rawContentOverlap);
             const cropTop = Math.min(contentOverlap, strip.bitmap.height - 1);
 
             if (cropTop > 0) {
@@ -280,7 +363,7 @@ async function stitchImages(segments, outputPath, headerHeight, footerHeight) {
     }
 
     await canvas.write(outputPath);
-    return { width, height: totalHeight };
+    return { width, height: totalHeight, contentGaps };
 }
 
 async function handle(miniProgram, args) {
@@ -418,61 +501,103 @@ async function handle(miniProgram, args) {
         // 固定区域检测结果（截取第二段后检测）
         let headerHeight = 0;
         let footerHeight = 0;
+        let detectionConfident = true;
+        // 页面长到撞上分段上限 —— 拍到的不是完整长图，必须让调用方知道
+        let truncated = false;
 
         if (needsScroll) {
-            let effectiveStep = Math.max(1, windowHeight - overlap);
-            const maxSegments = Math.min(Math.ceil(contentHeight / effectiveStep) + 2, 30);
+            // 首步刻意保守：此刻还不知道固定头尾有多高，用半屏步长（50% 重叠）起步。
+            // 步长偏小只会多一点重叠（重叠会被裁掉，不影响成图），而步长偏大会直接
+            // 造成内容缺口且无法追补 —— 两种偏差的代价完全不对等，故向安全一侧取。
+            // 第二段拍完、固定区域测出来后，立刻放宽到真实所需步长。
+            const conservativeStep = Math.max(1, Math.round(windowHeight * 0.5));
+            const requestedStep = Math.max(1, windowHeight - overlap);
+            let effectiveStep = Math.min(conservativeStep, requestedStep);
+            // 分段上限必须按**实际步长**算，不能按用户请求的步长：固定头尾会吃掉重叠、
+            // 把实际步长压小，按请求步长估出来的上限会偏紧，长页面还没拍完就被判"截断"。
+            // 实测 points/log 页即因此在 6 段处误报 truncated。步长在检测后会变，故此处
+            // 先按保守步长估，检测完再重算。30 是防跑飞的硬上限。
+            const capFor = (step) => Math.min(Math.ceil(contentHeight / Math.max(1, step)) + 3, 30);
+            let segmentCap = capFor(effectiveStep);
             let prevScrollTop = 0;
 
-            for (let i = 1; i < maxSegments; i++) {
-                const targetScrollY = prevScrollTop + effectiveStep;
-
+            /**
+             * 滚到指定位置并截一段。返回 null 表示没滚动（到底了）或截图失败。
+             */
+            const captureAt = async (index, fromScrollTop, step) => {
+                const targetScrollY = fromScrollTop + step;
                 try {
                     await miniProgram.pageScrollTo(targetScrollY);
                 } catch (e) {
-                    break;
+                    return null;
                 }
 
-                // 等待滚动完成并获取实际滚动位置
-                const actualScrollTop = await waitForScrollComplete(miniProgram, targetScrollY);
+                const actualScrollTop = await waitForScrollComplete(
+                    miniProgram, targetScrollY, fromScrollTop);
+                const actualDelta = actualScrollTop - fromScrollTop;
+                if (actualDelta <= 0) return null;   // 已到底部
 
-                // 实际滚动距离（逻辑像素）
-                const actualDelta = actualScrollTop - prevScrollTop;
-
-                // 如果没有实际滚动（已到底部），停止
-                if (actualDelta <= 0) {
-                    break;
-                }
-
-                const segPath = path.join(tmpDir, `seg_${i}.png`);
+                const segPath = path.join(tmpDir, `seg_${index}.png`);
                 await miniProgram.screenshot({ path: segPath });
-                if (!fs.existsSync(segPath)) break;
+                if (!fs.existsSync(segPath)) return null;
 
-                // 计算本段需要裁剪的物理像素
                 const logicalOverlap = windowHeight - actualDelta;
-                const physicalOverlap = Math.round(logicalOverlap * pixelRatio);
+                return {
+                    segment: {
+                        path: segPath,
+                        physicalOverlap: Math.max(0, Math.round(logicalOverlap * pixelRatio)),
+                    },
+                    actualScrollTop,
+                    actualDelta,
+                };
+            };
 
-                segments.push({ path: segPath, physicalOverlap: Math.max(0, physicalOverlap) });
+            for (let i = 1; i < segmentCap; i++) {
+                const shot = await captureAt(i, prevScrollTop, effectiveStep);
+                if (!shot) break;
 
-                // 第二段截取后，检测固定头部和底部
+                segments.push(shot.segment);
+                const { actualScrollTop, actualDelta } = shot;
+
+                // 懒加载列表越滚越长，开拍前那次 page.size() 会严重低估。
+                // 实测积分明细页初始高度只够 3 步，实际滚了 6 段仍未到底，
+                // 于是被按初始高度算出的上限误判为「截断」。这里跟随页面实际增长
+                // 刷新上限；真正无限滚动的列表由 30 段硬上限兜住。
+                try {
+                    const sz = await page.size();
+                    if (sz && sz.height > contentHeight) {
+                        contentHeight = sz.height;
+                        segmentCap = capFor(effectiveStep);
+                    }
+                } catch (e) { /* 读不到就沿用现有上限 */ }
+
+                // 第二段截取后，检测固定头部和底部，并据此把步长放宽到真实所需
                 if (i === 1 && segments.length === 2) {
                     try {
                         const { Jimp } = require('jimp');
                         const img0 = await Jimp.read(segments[0].path);
                         const img1 = await Jimp.read(segments[1].path);
-                        const fixed = detectFixedRegions(img0, img1);
+                        // 传入两段之间的真实物理位移 —— 新判据靠它识别「哪些行在动」
+                        const fixed = detectFixedRegions(
+                            img0, img1, Math.round(actualDelta * pixelRatio));
                         headerHeight = fixed.headerHeight;
                         footerHeight = fixed.footerHeight;
+                        detectionConfident = fixed.confident;
 
-                        // 固定区域可能吃掉所有重叠，导致内容缺口
-                        // 动态调大步长使内容区有足够重叠（至少 20px）
+                        // 内容区至少保留 20 逻辑像素重叠，避免拼接错位
                         const fixedTotal = Math.round((headerHeight + footerHeight) / pixelRatio);
-                        const minContentOverlap = 20;
-                        const neededLogicalOverlap = fixedTotal + minContentOverlap;
-                        if (overlap < neededLogicalOverlap) {
-                            effectiveStep = Math.max(1, windowHeight - neededLogicalOverlap);
-                        }
-                    } catch (e) { /* 检测失败，按无固定区域处理 */ }
+                        const neededLogicalOverlap = fixedTotal + 20;
+                        // 首步是保守值，这里按实测结果放宽（但不超过用户要求的步长）
+                        effectiveStep = Math.min(
+                            requestedStep,
+                            Math.max(1, windowHeight - neededLogicalOverlap),
+                        );
+                        // 步长定了，按它重算分段上限
+                        segmentCap = capFor(effectiveStep);
+                    } catch (e) {
+                        // 检测失败：保持保守步长继续拍，宁可多几段也不留缺口
+                        detectionConfident = false;
+                    }
                 }
 
                 // 如果实际滚动距离远小于预期，说明接近底部了
@@ -481,6 +606,11 @@ async function handle(miniProgram, args) {
                 }
 
                 prevScrollTop = actualScrollTop;
+
+                // 撞到分段上限：页面比能拍的更长，底部内容拍不到，必须如实上报
+                if (i === segmentCap - 1) {
+                    truncated = true;
+                }
             }
 
             // 滚回顶部
@@ -494,12 +624,13 @@ async function handle(miniProgram, args) {
             throw new Error('截图失败：未获取到任何分段图片');
         }
 
-        let finalWidth = 0, finalHeight = 0;
+        let finalWidth = 0, finalHeight = 0, contentGaps = 0;
 
         if (jimpAvailable && segments.length > 1) {
             const dims = await stitchImages(segments, absOutput, headerHeight, footerHeight);
             finalWidth = dims.width;
             finalHeight = dims.height;
+            contentGaps = dims.contentGaps || 0;
         } else {
             fs.copyFileSync(segments[0].path, absOutput);
             if (jimpAvailable) {
@@ -521,6 +652,9 @@ async function handle(miniProgram, args) {
             fixedHeader: headerHeight,
             fixedFooter: footerHeight,
             isScrollViewPage: isScrollViewPage || undefined,
+            truncated: truncated || undefined,
+            contentGaps: contentGaps || undefined,
+            detectionConfident: segments.length > 1 ? detectionConfident : undefined,
         };
 
     } finally {
@@ -532,4 +666,9 @@ async function handle(miniProgram, args) {
     }
 }
 
-module.exports = { handle, parseArgs };
+// detectFixedRegions / pixelsClose / rowMatches 一并导出供 tests/ 直接验证真实实现，
+// 避免测试复制一份副本、源码改了测试还绿。
+module.exports = {
+    handle, parseArgs, detectFixedRegions, pixelsClose, rowMatches, rowsAlike,
+    waitForScrollComplete,
+};

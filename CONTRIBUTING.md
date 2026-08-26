@@ -35,11 +35,14 @@ python -m pytest tests/ -q          # 全量测试（205 项，无需启动 IDE�
 
 测试通过 `tests/conftest.py` 把 `src/` 插入 `sys.path`，因此**不装包也能直接跑**。
 
-另有一个不归 pytest 管的独立脚本，改动截图拼接逻辑时需手动执行：
+另有两个不归 pytest 管的独立脚本，改动截图逻辑时需手动执行：
 
 ```bash
-node tests/test_screenshot_detect.js   # 验证长图拼接的固定区域检测
+node tests/test_screenshot_detect.js   # 长图拼接的固定区域像素检测
+node tests/test_screenshot_scroll.js   # 滚动等待逻辑（长图截断的根因）
 ```
+
+两者都直接 `require` 线上的 `screenshot.js`，不复制实现，因此能真正守护源码。
 
 ## 修改 JS 后必须重建 bundle
 
