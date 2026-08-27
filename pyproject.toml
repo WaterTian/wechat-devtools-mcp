@@ -1,6 +1,6 @@
 [project]
 name = "wechat-devtools-mcp"
-version = "0.9.15"
+version = "0.9.16"
 description = "MCP Server for WeChat DevTools CLI - 微信开发者工具 MCP 服务"
 readme = "README.md"
 authors = [
