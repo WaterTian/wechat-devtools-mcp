@@ -30,7 +30,7 @@ Python MCP Server (src/wechat_devtools_mcp/)
 
 ```bash
 pip install -e .                    # 开发安装
-python -m pytest tests/ -q          # 全量测试（205 项，无需启动 IDE）
+python -m pytest tests/ -q          # 全量测试（214 项，无需启动 IDE）
 ```
 
 测试通过 `tests/conftest.py` 把 `src/` 插入 `sys.path`，因此**不装包也能直接跑**。
@@ -92,9 +92,25 @@ daemon.js 通过 `require` 引入其余各 handler，因此**只需构建 daemon
 
 ## 想找事情做？
 
-[`docs/TODO.md`](docs/TODO.md) 记录了已确认存在、但尚未处理的问题，每条都注明了「当时为何没做」。
-其中 **P2（Windows 侧 IDE 2.x 未验证）** 和 **P3（Linux 适配）** 缺的是真机环境而非思路，
-如果你手上有对应平台的机器，这两条最容易推进。
+以下两条缺的是**真机环境**而不是思路，如果你手上有对应平台的机器，最容易推进：
+
+**① Windows 侧开发者工具 2.x 未验证**
+
+`core/ide_state.py` 的 `_resolve_ide_executable_for_cdp()` 在 Windows 分支上
+仍把 `runtime` 硬编码为 `"win32"`，没有 1.x(NW.js) / 2.x(Electron) 的双轨判定，
+安装根也靠对 CLI 路径做字符串替换得来。macOS 上这两处在 2.x 下都已失效，
+Windows 大概率同样失效。需要一台装了 2.x 的 Windows 机器确认：
+Electron 分支的启动参数、以及 kill 进程时的命令行特征。
+
+**② Linux 适配**
+
+同一函数对 linux 直接抛 `NotImplementedError`。官方开发者工具本身不发 Linux 版，
+所以这不算与官方的能力差距；但如果你在用第三方移植版
+（如 `msojocs/wechat-web-devtools-linux`），欢迎确认它是否保留了相同的
+目录结构，再照 [`docs/macos-internals.md`](docs/macos-internals.md) 的思路补上。
+
+除此之外，Issue 区里没有 `good first issue` 标签的问题也都欢迎认领——
+提 Issue 说一声你想做哪条即可，避免撞车。
 
 ## 提交信息风格
 
