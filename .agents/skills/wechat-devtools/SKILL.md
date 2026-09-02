@@ -123,6 +123,7 @@ uv tool install wechat-devtools-mcp --force  # 通过uv安装wechat-devtools-mcp
 |--------|------|---------|
 | `console` | 采集 console 日志和 JS 异常 | `duration=10`, `log_type="all"` |
 | `cdp` | CDP 协议采集底层日志（WXML/渲染层） | `duration=10`, `detail_level="concise"`, `max_logs=50` |
+| `network` | 采集真实 `wx.request` 请求 | `duration=10`, `url_pattern?`, `appservice_only=true` |
 
 > **cdp 前提**：以 `cdp_enabled=true` 打开项目，确保端口 9222 可用。
 
@@ -286,14 +287,18 @@ wechat_automator(action='page_data')                        # 验证 data 变化
 
 ### SOP F：网络调试与 UI 适配
 
-**① 网络与 API 调试**
+**① 网络与 API / 埋点验收**
 
 ```
-# 拦截请求（逻辑层注入）
-evaluate(expression='var o=wx.request; wx.request=function(p){console.log(p.url);return o.apply(wx,arguments)}')
-# 模拟超时
-mock_wx(method='request', result_json='{"errMsg":"request:fail timeout"}')
+wechat_ide(action='open', cdp_enabled=true)                 # 启用 CDP
+wechat_inspector(action='network', duration=15, url_pattern='dig\\.|ulog|track')
+  # 在采集窗口内触发页面曝光/点击；检查 requests[].query 或 post_data
+  # 批量 POST 上报可能延迟，必要时延长 duration
 ```
+
+`cdp` 采集 console/WXML 诊断日志，**不等于**网络请求采集。埋点与 API 验收须以
+`network` 返回的真实请求为准，不得以私有 console hook 作为通过依据。默认只采集 appservice
+逻辑层；若没有请求且需排查 target，可设 `appservice_only=false`。
 
 **② UI 适配测试**
 

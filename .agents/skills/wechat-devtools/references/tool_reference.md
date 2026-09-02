@@ -297,7 +297,7 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `action` | string | **必填** | `console` 或 `cdp` |
+| `action` | string | **必填** | `console`、`cdp` 或 `network` |
 | `duration` | int | `10` | 采集持续时间（秒），范围 1~120 |
 | `detail_level` | string | `concise` | `cdp` 时：`concise`（仅 errors+warnings）或 `full`（全量） |
 | `max_logs` | int | `50` | `cdp` 时：最大返回条数，超出 `truncated=true` |
@@ -306,6 +306,11 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `log_type` | string | `all` | `console` 时：`all` / `console` / `exception` |
 | `tap_selector` | string | null | 采集期间自动点击的元素（触发懒加载/交互日志） |
 | `tap_delay` | int | `500` | 点击延迟（毫秒） |
+| `url_pattern` | string | null | `network` 时 URL 过滤正则 |
+| `include_post_data` | bool | `true` | `network` 时返回脱敏后的请求体 |
+| `include_responses` | bool | `false` | `network` 时返回响应状态码和 MIME type |
+| `max_requests` | int | `100` | `network` 时最大返回请求数，范围 1~500 |
+| `appservice_only` | bool | `true` | `network` 时仅采集 `/appservice/` 逻辑层 target |
 
 ### action 说明
 
@@ -337,6 +342,11 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
   "max_logs": 50
 }
 ```
+
+#### `network` — 真实网络请求
+
+通过 CDP `Network.enable` 观察 `wx.request`，独立于 `cdp` 日志。先以 `cdp_enabled=true` 打开 IDE；
+默认只采集逻辑层请求。用 `url_pattern` 筛选埋点/API URL，POST 埋点从已脱敏的 `post_data` 断言。
 
 ### CDP 返回结构
 

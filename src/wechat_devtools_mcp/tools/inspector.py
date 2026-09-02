@@ -10,6 +10,7 @@ from ..core.errors import ErrorCode
 from ..core.node_bridge import _run_node_script
 from ..models.schemas import WechatInspectorInput
 from ..utils.cdp_helpers import _format_cdp_logs_v2
+from ..utils.network_helpers import _format_network_requests
 from ..utils.response import _ok, _fail
 
 if TYPE_CHECKING:
@@ -33,7 +34,8 @@ def register_inspector(mcp: "FastMCP") -> None:
 async def wechat_inspector(params: WechatInspectorInput) -> str:
     """采集小程序运行时日志和异常。
     支持 action: console(automator端口采集console日志和JS异常),
-    cdp(通过CDP协议采集WXML警告、渲染层报错、废弃API提示等底层日志)。
+    cdp(通过CDP协议采集WXML警告、渲染层报错、废弃API提示等底层日志),
+    network(通过 CDP Network.enable 采集 wx.request)。
     cdp action 需先以 cdp_enabled=true 打开项目，确保端口 9222 可用。
     返回 JSON: {success, data: {logs, summary}, message}。
     """
@@ -42,6 +44,8 @@ async def wechat_inspector(params: WechatInspectorInput) -> str:
             return await _action_console(params)
         elif params.action == "cdp":
             return await _action_cdp(params)
+        elif params.action == "network":
+            return await _action_network(params)
         return _fail(ErrorCode.UNKNOWN_ERROR, f"未知 action: {params.action}")
     except Exception as e:
         return _fail(ErrorCode.UNKNOWN_ERROR, f"执行失败：{type(e).__name__}: {e}")
@@ -141,3 +145,56 @@ async def _action_cdp(params: WechatInspectorInput) -> str:
     msg = f"采集 {params.duration} 秒，发现 {error_cnt} 个错误、{warn_cnt} 个警告。"
 
     return _ok(formatted, message=msg)
+
+
+async def _action_network(params: WechatInspectorInput) -> str:
+    """通过 CDP Network.enable 采集小程序逻辑层网络请求。"""
+    result = await _run_node_script(
+        "network_listener.js",
+        "--duration", str(params.duration),
+        "--cdp-port", str(params.cdp_port),
+        "--appservice-only", str(params.appservice_only).lower(),
+        timeout=params.duration + 10,
+    )
+    if isinstance(result, dict) and not result.get("success", True):
+        payload = result.get("data") if isinstance(result.get("data"), dict) else result
+        code = payload.get("code")
+        if code == "CDP_UNAVAILABLE":
+            return _fail(
+                ErrorCode.CDP_UNAVAILABLE,
+                f"CDP 采集不可用：{payload.get('error', '调试端口无响应')}",
+                hint=f"请确认已用 cdp_enabled=true 打开项目，且端口 {params.cdp_port} 可用。",
+            )
+        if code == "NETWORK_DOMAIN_UNSUPPORTED":
+            return _fail(
+                ErrorCode.NETWORK_DOMAIN_UNSUPPORTED,
+                f"当前 CDP target 不支持 Network 域：{payload.get('error', '')}",
+            )
+        return _fail(ErrorCode.UNKNOWN_ERROR, f"Network 采集失败：{payload.get('error', result)}")
+
+    payload = result.get("data") if isinstance(result, dict) else result
+    if not isinstance(payload, dict):
+        payload = {}
+    raw_events = payload.get("events")
+    if not isinstance(raw_events, list):
+        raw_events = []
+    try:
+        formatted = _format_network_requests(
+            raw_events, params.url_pattern, params.include_post_data,
+            params.include_responses, params.max_requests,
+        )
+    except ValueError as exc:
+        return _fail(ErrorCode.PARAM_MISSING, str(exc))
+
+    formatted["summary"]["cdp_available"] = True
+    formatted["summary"]["network_enabled_targets"] = payload.get("network_enabled_targets", 0)
+    formatted["duration"] = params.duration
+    formatted["cdp_port"] = params.cdp_port
+    summary = formatted["summary"]
+    return _ok(
+        formatted,
+        message=(
+            f"采集 {params.duration} 秒，共 {summary['total']} 条请求，"
+            f"匹配 {summary['matched']} 条。"
+        ),
+    )

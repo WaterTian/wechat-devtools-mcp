@@ -162,6 +162,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 |--------|------|---------|
 | `console` | 采集 console 日志和 JS 运行时异常 | automator 端口 |
 | `cdp` | 采集底层高清日志（WXML 警告/废弃 API/渲染层报错） | CDP 9222 端口 |
+| `network` | 采集 `wx.request` 网络请求 | CDP 9222 端口 |
 
 > **cdp 前提**：调用 `wechat_ide(action='open', cdp_enabled=True)` 确保端口 9222 可用。
 
@@ -169,7 +170,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `action` | string | **必填** | `console` 或 `cdp` |
+| `action` | string | **必填** | `console`、`cdp` 或 `network` |
 | `duration` | int | `10` | 采集持续时间（秒），范围 1~120 |
 | `detail_level` | string | `concise` | `cdp` 时使用：`concise`（仅 errors+warnings）或 `full`（全量） |
 | `max_logs` | int | `50` | `cdp` 时使用：最大返回条数，超出时 `truncated=true` |
@@ -178,6 +179,11 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `log_type` | string | `all` | `console` 时使用：`all`、`console`、`exception` |
 | `tap_selector` | string | null | 采集期间自动点击的 CSS 选择器 |
 | `tap_delay` | int | `500` | 点击延迟（毫秒） |
+| `url_pattern` | string | null | `network` 时 URL 过滤正则；留空返回全部请求 |
+| `include_post_data` | bool | `true` | `network` 时是否返回脱敏后的请求体 |
+| `include_responses` | bool | `false` | `network` 时是否返回响应状态码和 MIME type |
+| `max_requests` | int | `100` | `network` 时最大返回请求数，范围 1~500 |
+| `appservice_only` | bool | `true` | `network` 时仅采集逻辑层 `/appservice/` target |
 
 **返回值格式（cdp action）**
 
@@ -194,6 +200,16 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
   "message": "采集 10 秒，发现 2 个错误、1 个警告。"
 }
 ```
+
+**network action**
+
+`network` 与 `cdp` 日志采集独立：前者通过 `Network.enable` 观察真实 `wx.request`，不依赖
+console hook。先用 `wechat_ide(action='open', cdp_enabled=True)` 启动 IDE；批量上报可能延迟，
+建议 `duration=10~15`。请求 URL query 和 `postData` 中的 `token`、`cookie`、`session` 等敏感字段
+会被掩码，单条 `postData` 最大返回 64 KiB。
+
+`CDP_UNAVAILABLE` 表示调试端口不可用；`NETWORK_DOMAIN_UNSUPPORTED` 表示已连接 target 但该 target
+拒绝 `Network.enable`。采集窗口内没有请求是成功的空结果，不表示 Network 域不受支持。
 
 ---
 
