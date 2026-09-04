@@ -17,5 +17,7 @@ class TestAutomatorRequiredParams:
         assert "method" in REQUIRED_PARAMS["mock_wx"]
         assert "result_json" in REQUIRED_PARAMS["mock_wx"]
 
-    def test_evaluate_requires_expression(self):
-        assert "expression" in REQUIRED_PARAMS["evaluate"]
+    def test_evaluate_not_in_static_required_params(self):
+        """evaluate 的必填是 expression / fn_source 二选一，不走静态表，
+        由 wechat_automator 单独校验（见 tests/test_evaluate_fn_source.py）。"""
+        assert "evaluate" not in REQUIRED_PARAMS

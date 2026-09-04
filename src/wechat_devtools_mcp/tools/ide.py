@@ -7,6 +7,7 @@ wechat_close_project、wechat_quit_ide、wechat_get_status。
 import asyncio
 import json
 import os
+import subprocess
 import sys
 from typing import TYPE_CHECKING
 
@@ -79,6 +80,54 @@ def _read_bundle_executable(contents: str) -> str:
         return ""
 
 
+# Windows 2.x(Electron) 主程序候选文件名。照抄官方 wechatide-skill 的
+# skills/installer/scripts/install-root.mjs 里 App Paths 注册表键名顺序
+# （IDE 2.02.2607271 与 2.02.2608060 自带的脚本内容一致）。
+# 2026-09-03：Windows 真机未验证，按存在性择一；kill 直接用选中的镜像名。
+_WIN_ELECTRON_EXE_CANDIDATES: tuple[str, ...] = (
+    "微信开发者工具.exe",
+    "wechatwebdevtools.exe",
+    "wechatdevtools.exe",
+)
+
+
+def _resolve_windows_ide_executable() -> tuple[list[str], str, str]:
+    """Windows 侧 1.x(NW.js) / 2.x(Electron) 双轨判定。
+
+    安装根就是 CLI_PATH 所在目录（cli.bat 放在安装根下）。判定点照抄官方
+    install-root.mjs（与 macOS 完全同构，只是根目录不同）：
+
+        nw       = <root>\\code\\package.nw\\package.json           → 1.x(NW.js)
+        electron = <root>\\resources\\app.asar.unpacked\\package.json → 2.x(Electron)
+
+    为什么必须做：2.x 自 2026-08-18 起是官方 Stable（2.02.2608040），1.06 已下架，
+    Windows 用户升级后旧的「cli.bat → 微信开发者工具.exe」推导虽可能仍指向一个存在的
+    文件，但 runtime 若不标成 electron，_action_open 会把 --project 塞给不认它的主程序。
+
+    两个探测点都不存在（路径不在本机、或未知布局）→ 保持旧行为，runtime 记 "win32"，
+    不抛错，避免误伤仍能工作的老安装。
+    """
+    root = os.path.dirname(CLI_PATH)
+    legacy_exe = CLI_PATH.replace("cli.bat", "微信开发者工具.exe")
+    nw_marker = os.path.join(root, "code", "package.nw", "package.json")
+    electron_marker = os.path.join(root, "resources", "app.asar.unpacked", "package.json")
+
+    if os.path.isfile(electron_marker):
+        for name in _WIN_ELECTRON_EXE_CANDIDATES:
+            exe = os.path.join(root, name)
+            if os.path.isfile(exe):
+                return [exe], name, "electron"
+        raise FileNotFoundError(
+            f"找不到 Windows IDE 主程序：{root} 已识别为 2.x(Electron) 布局，"
+            f"但目录下没有 {' / '.join(_WIN_ELECTRON_EXE_CANDIDATES)}"
+        )
+
+    if os.path.isfile(nw_marker):
+        return [legacy_exe], "wechatdevtools.exe", "nwjs"
+
+    return [legacy_exe], "wechatdevtools.exe", "win32"
+
+
 def _resolve_ide_executable_for_cdp() -> tuple[list[str], str, str]:
     """从 CLI_PATH 推导 IDE 主程序启动命令前缀、kill 模式与运行时类型。
 
@@ -87,6 +136,8 @@ def _resolve_ide_executable_for_cdp() -> tuple[list[str], str, str]:
           cmd_prefix  - 启动 IDE 主程序的命令前缀（不含 --remote-debugging-port）
           kill_pattern - taskkill 镜像名（Windows）或 pkill -f 模式（macOS，用 .app 包路径）
           runtime     - "nwjs" / "electron" / "win32"，决定项目如何打开
+                        （"win32" 仅在 Windows 两个布局探测点都不存在时出现，表示沿用旧的
+                        字符串替换行为，见 _resolve_windows_ide_executable）
 
     macOS 双轨（2026-08-20 实测 IDE 2.02.2607271）：
       - 1.x 是 NW.js，主程序 wechatdevtools + Resources/package.nw 入口
@@ -98,8 +149,7 @@ def _resolve_ide_executable_for_cdp() -> tuple[list[str], str, str]:
         NotImplementedError: 当前平台不支持 cdp_enabled。
     """
     if sys.platform == "win32":
-        exe = CLI_PATH.replace("cli.bat", "微信开发者工具.exe")
-        return [exe], "wechatdevtools.exe", "win32"
+        return _resolve_windows_ide_executable()
 
     if sys.platform == "darwin":
         # CLI_PATH 形如 /Applications/wechatwebdevtools.app/Contents/MacOS/cli
@@ -159,30 +209,75 @@ async def _wait_ide_ready(cdp_port: int, timeout: int = 60) -> tuple[bool, bool]
             service_ready = bool(svc and _port_listening(svc))
         if cdp_ready and service_ready:
             return True, True
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
     return cdp_ready, service_ready
 
 
+async def _wait_miniprogram_targets(
+    cdp_port: int, timeout: float = 8.0, interval: float = 0.5,
+) -> bool:
+    """等小程序运行时的 CDP target（__pageframe__ / appservice）出现。
+
+    IDE 进程与服务端口就绪 ≠ 小程序已加载：项目窗口起来后渲染层/逻辑层 target
+    还要再等一两秒。此前用固定 sleep(5) 兜底，多数情况下白等；改为轮询
+    /json/list，一出现就返回 True，超时返回 False（调用方照旧采集，不视为失败）。
+    """
+    def _has_targets() -> bool:
+        targets = _http_get_json(cdp_port, "/json/list", 1.0)
+        for t in targets if isinstance(targets, list) else []:
+            u = str(t.get("url") or "")
+            if "__pageframe__" in u or "/appservice/" in u:
+                return True
+        return False
+
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        if await asyncio.to_thread(_has_targets):
+            return True
+        if asyncio.get_running_loop().time() >= deadline:
+            return False
+        await asyncio.sleep(interval)
+
+
 async def _kill_existing_ide(kill_pattern: str) -> None:
-    """跨平台 kill 已运行的 IDE 主程序，并等待 2s 确保端口释放。"""
-    import subprocess
+    """跨平台 kill 已运行的 IDE 主程序，等到进程消失（上限 2s）再返回。
+
+    macOS 用 pgrep 轮询，通常 0.2s 内就干净；Windows 无等价廉价探测，沿用固定 2s。
+    """
     if sys.platform == "win32":
         subprocess.run(
             ["taskkill", "/F", "/IM", kill_pattern],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
-    elif sys.platform == "darwin":
+        await asyncio.sleep(2)
+        return
+
+    if sys.platform == "darwin":
         subprocess.run(
             ["pkill", "-9", "-f", kill_pattern],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
+        for _ in range(10):
+            probe = subprocess.run(
+                ["pgrep", "-f", kill_pattern],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            # pgrep 非 0 = 没有匹配进程（桩返回 None 时同样视为已消失）
+            if getattr(probe, "returncode", 1) != 0:
+                return
+            await asyncio.sleep(0.2)
+        return
+
     await asyncio.sleep(2)
 
 
 async def _action_open(params: WechatIdeInput) -> str:
     """打开微信开发者工具 IDE 或项目。"""
-    import subprocess
+    # 文档口径一直是「不填则使用 WECHAT_PROJECT_PATH」，此前只看入参：
+    # 2.x 两步式的第二步（cli open --project）会被整个跳过，项目全靠 IDE 自己的会话恢复
+    # 顺手打开（真机 2026-09-03 发现，返回 project_opened: null）。
+    project_path = params.project_path or DEFAULT_PROJECT_PATH
 
     runtime = ""
     if params.cdp_enabled:
@@ -194,17 +289,17 @@ async def _action_open(params: WechatIdeInput) -> str:
         cmd_args = list(cmd_prefix) + [f"--remote-debugging-port={params.cdp_port}"]
         # IDE 2.x(Electron) 不再识别 --project（实测 projectpath 为空），
         # 改为进程带 CDP 起来后再用 CLI open 打开项目，见下方两步式处理。
-        if params.project_path and runtime != "electron":
+        if project_path and runtime != "electron":
             if sys.platform == "darwin":
-                cmd_args.append(f"--project={params.project_path}")
+                cmd_args.append(f"--project={project_path}")
             else:
-                cmd_args.extend(["--project", params.project_path])
+                cmd_args.extend(["--project", project_path])
 
         await _kill_existing_ide(kill_pattern)
     else:
         cli_args = ["open"]
         cli_args.extend(_build_global_args(
-            project_path=params.project_path,
+            project_path=project_path,
             appid=params.appid,
             port=params.port,
             lang=params.lang,
@@ -234,6 +329,8 @@ async def _action_open(params: WechatIdeInput) -> str:
                 await asyncio.sleep(0.5)
                 if proc.poll() is not None:
                     break
+                if _port_listening(params.cdp_port):
+                    break  # CDP 已监听说明进程活着，不必再等
             if proc.returncode not in (None, 0):
                 return _fail(
                     ErrorCode.UNKNOWN_ERROR,
@@ -275,9 +372,9 @@ async def _action_open(params: WechatIdeInput) -> str:
                     extra={"cdp_port": params.cdp_port, "runtime": runtime},
                 )
 
-        if params.cdp_enabled and runtime == "electron" and params.project_path:
+        if params.cdp_enabled and runtime == "electron" and project_path:
             open_result = await _run_cli(
-                "open", "--project", params.project_path, timeout=90,
+                "open", "--project", project_path, timeout=90,
             )
             project_opened = open_result["success"]
             if not project_opened:
@@ -289,11 +386,12 @@ async def _action_open(params: WechatIdeInput) -> str:
                     extra={"cdp_port": params.cdp_port, "runtime": runtime},
                 )
 
-        # CDP 启动健康检查：采集 5 秒日志，检测启动阶段致命错误
+        # CDP 启动健康检查：等小程序 target 出现后采集 3 秒，检测启动阶段致命错误。
+        # Console.enable 会回放缓冲区，加载阶段已发生的错误也能拿到，不必长采。
         if params.cdp_enabled:
-            await asyncio.sleep(5)  # 等待小程序页面加载
+            await _wait_miniprogram_targets(params.cdp_port, timeout=8.0)
             cdp_result = await _run_node_script(
-                "cdp_listener.js", "5", str(params.cdp_port), timeout=20,
+                "cdp_listener.js", "3", str(params.cdp_port), timeout=20,
             )
             raw_logs = cdp_result.get("data", cdp_result.get("logs", []))
             if not isinstance(raw_logs, list):
@@ -376,15 +474,79 @@ async def _action_close(params: WechatIdeInput) -> str:
     return _fail(ErrorCode.UNKNOWN_ERROR, result.get("stderr") or "关闭失败")
 
 
+async def _wait_ide_exit(timeout: float = 10.0) -> bool | None:
+    """等 IDE 进程真正退出。macOS 用 pgrep 轮询 .app 路径；其它平台返回 None（无法判断）。
+
+    真机（2.02.2608060）：`cli quit` 0.3s 就返回，Electron 各子进程要 ~10s 才退干净。
+    不等的话紧接着的 open / 手动启动会撞上单实例锁。
+    """
+    if sys.platform != "darwin" or "/Contents/" not in CLI_PATH:
+        return None
+    app_path = CLI_PATH.split("/Contents/", 1)[0]
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        probe = subprocess.run(
+            ["pgrep", "-f", app_path],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        if getattr(probe, "returncode", 1) != 0:
+            return True
+        if asyncio.get_running_loop().time() >= deadline:
+            return False
+        await asyncio.sleep(0.5)
+
+
 async def _action_quit(params: WechatIdeInput) -> str:
-    """退出整个微信开发者工具 IDE。"""
+    """退出整个微信开发者工具 IDE，并等进程真正消失（macOS，上限 10s）。"""
     args = ["quit"]
     if params.port is not None:
         args.extend(["--port", str(params.port)])
     result = await _run_cli(*args)
-    if result["success"]:
-        return _ok({}, message="IDE 已退出。")
-    return _fail(ErrorCode.UNKNOWN_ERROR, result.get("stderr") or "退出失败")
+    if not result["success"]:
+        return _fail(ErrorCode.UNKNOWN_ERROR, result.get("stderr") or "退出失败")
+    exited = await _wait_ide_exit()
+    if exited is False:
+        message = "IDE 已收到退出指令，但 10 秒内进程仍未完全退出。"
+    else:
+        message = "IDE 已退出。"
+    return _ok({"exited": exited}, message=message)
+
+
+def _http_get_json(port: int, path: str, timeout: float):
+    """对本机回环端口发一次 GET，解析 JSON；任何失败返回 None。
+
+    用 http.client 直连而不是 urllib：不经过代理配置，也不碰 ssl 模块
+    （urllib 建 opener 会按 sys.platform 初始化证书链，跨平台单测里会炸）。
+    """
+    import http.client
+
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=timeout)
+    try:
+        conn.request("GET", path)
+        resp = conn.getresponse()
+        if resp.status != 200:
+            return None
+        return json.loads(resp.read().decode("utf-8", errors="replace"))
+    except Exception:
+        return None
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+async def _probe_official_mcp(port: int, timeout: float = 1.5) -> dict | None:
+    """探测开发者工具 2.x 内建 MCP 服务的心跳，返回解析后的 JSON，不通则 None。
+
+    IDE 2.x 在 http://127.0.0.1:<idePort>/mcp 内建 Streamable HTTP MCP Server
+    （2026-08-28 实测，2.02.2607271 RC；2.x 自 2026-08-18 起为官方 Stable），
+    GET /mcp/heartbeat 返回 {"ok":true,"service":"mcp","running":true,"port":N,"sessions":N}。
+    这里只做 GET 心跳，**不发 initialize**——那会在 IDE 侧登记一条已授权客户端记录。
+    1.06 无此服务、IDE 未启动、端口漂移都表现为不通，一律返回 None 由调用方降级。
+    """
+    body = await asyncio.to_thread(_http_get_json, port, "/mcp/heartbeat", timeout)
+    return body if isinstance(body, dict) else None
 
 
 async def _action_status() -> str:
@@ -412,6 +574,22 @@ async def _action_status() -> str:
         "ide_port": ide_port,
     }
 
+    # 开发者工具 2.x 内建 MCP 服务探测（只读心跳）。available 为 True 时用户同时拥有
+    # 官方 46+ 工具与本项目 7 工具，SKILL 据此把基础操作让给官方、本项目专注差异面。
+    official_mcp: dict = {
+        "available": False, "port": ide_port, "running": None, "sessions": None,
+    }
+    if ide_port:
+        heartbeat = await _probe_official_mcp(ide_port)
+        if heartbeat and heartbeat.get("ok"):
+            official_mcp = {
+                "available": True,
+                "port": ide_port,
+                "running": bool(heartbeat.get("running")),
+                "sessions": heartbeat.get("sessions"),
+            }
+    data["official_mcp"] = official_mcp
+
     if project_exists:
         config_path = os.path.join(project_path, "project.config.json")
         if os.path.exists(config_path):
@@ -437,4 +615,11 @@ async def _action_status() -> str:
             "这是 CLI_TIMEOUT 的头号原因，所有 CLI 操作都会超时"
         )
 
-    return _ok(data, message="状态正常" if not hints else "；".join(hints))
+    message = "状态正常" if not hints else "；".join(hints)
+    if official_mcp["available"]:
+        message += (
+            f"。检测到开发者工具内建 MCP 服务（2.x，端口 {ide_port}）："
+            "打开项目/编译/预览/上传/点击输入等基础操作可优先使用官方工具，"
+            "本 MCP 专注长图截图、CDP 结构化日志与任务级 SOP"
+        )
+    return _ok(data, message=message)

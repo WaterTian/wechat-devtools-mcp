@@ -1,410 +1,277 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.16)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.17)
 
-> 本文档是 `SKILL.md` 的扩展参考，提供 7 个聚合 API 的所有参数完整说明（v0.9.5 起 `wechat_cloud` 已禁用）。  
-> 基础 SOP 流程请参阅 `SKILL.md`。
+> `SKILL.md` 的扩展参考：7 个聚合工具的全部参数、action 与返回字段，均对照源码核对。SOP 流程见 `SKILL.md`。
 
-所有工具返回统一 JSON 信封：
+统一返回信封：
 
 ```json
-// 成功
-{"success": true, "data": {...}, "message": "操作描述"}
-// 失败
+{"success": true,  "data": {...}, "message": "操作描述"}
 {"success": false, "error_code": "PARAM_MISSING", "message": "...", "hint": "修复建议"}
 ```
 
-> [!IMPORTANT]
-> **必须手动开启开发者工具的服务端口**：`设置` → `安全设置` → `服务端口` → `开启`。未开启将导致所有 CLI 操作报 `CLI_TIMEOUT`。
+失败时可能追加顶层字段（如 `open` 的 `startup_errors`、`compile` 的 `fatal_errors`）。`error_code` 见 [第 8 节](#8-错误码速查表)。
 
-
----
+> 必须开启开发者工具服务端口：`设置 → 安全设置 → 服务端口`。未开启则所有 CLI 操作报 `CLI_TIMEOUT`。
 
 ## 目录
 
-1. [wechat_ide — IDE 生命周期管理](#1-wechat_ide)
-2. [wechat_build — 构建与发布](#2-wechat_build)
-3. [wechat_automator — 自动化交互](#3-wechat_automator)
-4. [wechat_inspector — 运行时日志采集](#4-wechat_inspector)
-5. [wechat_screenshot — 界面截图](#5-wechat_screenshot)
-6. [wechat_navigate — 跳转并采集日志](#6-wechat_navigate)
-7. [wechat_file — 项目文件读取](#7-wechat_file)
+1. [wechat_ide](#1-wechat_ide)
+2. [wechat_build](#2-wechat_build)
+3. [wechat_automator](#3-wechat_automator)
+4. [wechat_inspector](#4-wechat_inspector)
+5. [wechat_screenshot](#5-wechat_screenshot)
+6. [wechat_navigate](#6-wechat_navigate)
+7. [wechat_file](#7-wechat_file)
 8. [错误码速查表](#8-错误码速查表)
 
-> 云函数/云数据库管理请改用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)，无 IDE 依赖且能力更完整。
+云函数 / 云数据库请用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)，本 MCP 不提供云开发工具。
 
 ---
 
 ## 1. wechat_ide
 
-IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_login`、`wechat_close_project`、`wechat_quit_ide`、`wechat_get_status`。
+IDE 生命周期管理。
 
 ### 参数
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `action` | string | **必填** | `open` / `login` / `is_login` / `close` / `quit` / `status` |
-| `project_path` | string | 环境变量 | 小程序项目绝对路径，不填则使用 `WECHAT_PROJECT_PATH` |
-| `appid` | string | null | 小程序 AppID（`open` 时可选，覆盖 project.config.json 中的值） |
-| `port` | int | null | IDE HTTP 服务端口号（多 IDE 实例时使用） |
-| `lang` | string | null | 界面语言：`en` 或 `zh` |
-| `cdp_enabled` | bool | `true` | 是否开启 CDP 调试端口，`open` 时使用 |
-| `cdp_port` | int | `9222` | CDP 调试端口。被 Chrome 等占用时换个端口，须与 `wechat_inspector` / `wechat_navigate` 的 `cdp_port` 一致 |
-| `qr_format` | string | `terminal` | 二维码格式：`terminal`（终端文字画）或 `base64`，`login` 时使用 |
-| `qr_output` | string | null | 二维码输出文件路径（PNG），`login` 时使用 |
-| `result_output` | string | null | 登录结果输出文件路径，`login` 时使用（透传 CLI `--result-output`） |
+| `action` | string | 必填 | `open` / `login` / `is_login` / `close` / `quit` / `status` |
+| `project_path` | string | `WECHAT_PROJECT_PATH` | 项目根目录绝对路径，`open` / `close` 使用 |
+| `appid` | string | null | 覆盖 project.config.json 的 AppID，`open`（`cdp_enabled=false`）时透传 CLI |
+| `port` | int | null | IDE HTTP 服务端口，多实例时使用 |
+| `lang` | string | null | 界面语言 `en` / `zh` |
+| `cdp_enabled` | bool | `true` | `open` 时是否带 CDP 调试端口启动 |
+| `cdp_port` | int | `9222` | CDP 端口。被 Chrome 等占用时换一个，须与 `wechat_inspector` / `wechat_navigate` / `wechat_build(compile)` 一致 |
+| `qr_format` | string | `terminal` | `login` 二维码格式：`terminal` / `image` / `base64` |
+| `qr_output` | string | null | `login` 二维码输出文件 |
+| `result_output` | string | null | `login` 结果输出文件（透传 CLI `--result-output`） |
 
 ### action 说明
 
-| action | 功能描述 | 条件参数 | 注意事项 |
-|--------|----------|----------|----------|
-| `open` | 打开 IDE 并载入项目，自动触发编译 | `cdp_enabled=true` | 若 IDE 已运行会 kill 并重启，确保 CDP 端口绑定。返回 `ide_runtime`（`nwjs`/`electron`/`win32`）；IDE 2.x 另返回 `cdp_ready` 与 `project_opened`（2.x 需先等 CDP 与 IDE 服务双双就绪，未就绪直接失败而非假成功） |
-| `login` | 生成登录二维码 | `qr_format`, `qr_output` | 需用户手机扫码，终端输出文字二维码 |
-| `is_login` | 检查当前登录状态 | 无 | 返回 `data.logged_in: bool` |
-| `close` | 关闭指定项目窗口 | `project_path` | 不退出 IDE 进程 |
-| `quit` | 完全退出 IDE 进程 | 无 | ⚠️ 会终止所有项目 |
-| `status` | 环境全面诊断 | 无 | 返回 `mcp_version`、CLI 路径、Node.js、项目路径等状态 |
+| action | 行为 | 返回 `data` |
+|--------|------|-------------|
+| `open` | `cdp_enabled=true`：kill 已运行的 IDE，带 `--remote-debugging-port` 重启。IDE 2.x 为两步式：等 CDP 端口与 IDE 服务端口都监听后再由 CLI 打开项目（1.x 直接透传 `--project`）。随后等小程序 target 出现，采集 3 秒 CDP 日志做启动健康检查，有 error 即返回 `success:false` + `startup_errors` + `cdp_summary`。`cdp_enabled=false`：只执行 `cli open`，不重启 IDE | `cdp_enabled`、`cdp_port`、`ide_runtime`（`nwjs` / `electron` / `win32`，`win32` 表示 Windows 两个布局探测点都不存在、沿用旧推导）、`cdp_ready`、`project_opened`（后两者仅 2.x） |
+| `login` | 生成登录二维码，需手机扫码 | `stdout` |
+| `is_login` | 查登录态 | `logged_in`、`stdout` |
+| `close` | 关闭项目窗口，不退出 IDE | `{}` |
+| `quit` | 退出 IDE 进程，并等进程真正消失（macOS，上限 10s） | `exited: true/false`（非 macOS 为 `null`） |
+| `status` | 环境诊断，只读 | 见下例 |
 
-### 返回示例（status action）
+### `status` 返回示例
 
 ```json
 {
   "success": true,
   "data": {
-    "mcp_version": "0.9.x",
+    "mcp_version": "0.9.17",
+    "cli_path": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
     "cli_exists": true,
-    "cli_path": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
+    "project_path": "/Users/me/Projects/mini-app",
     "project_exists": true,
-    "project_path": "D:\\MyProject",
     "node_available": true,
-    "node_path": "node (v22.19.0)"
+    "node_path": "/opt/homebrew/bin/node",
+    "service_port_enabled": true,
+    "ide_port": 11071,
+    "official_mcp": {"available": true, "port": 11071, "running": true, "sessions": 0},
+    "project_name": "mini-app",
+    "appid": "wx1234567890",
+    "lib_version": "3.8.0"
   },
-  "message": "状态正常"
+  "message": "状态正常。检测到开发者工具内建 MCP 服务（2.x，端口 11071）：……"
 }
 ```
+
+- `service_port_enabled`：读 IDE 落盘的状态文件，`null` 表示读不到，不等于关闭。
+- `official_mcp`：对 `http://127.0.0.1:<ide_port>/mcp/heartbeat` 做一次只读探测，不发 `initialize`。1.06、IDE 未启动或端口漂移时 `available: false`。
+- `project_name` / `appid` / `lib_version` 仅在项目目录存在且有 project.config.json 时出现。
 
 ---
 
 ## 2. wechat_build
 
-构建与发布。覆盖原 `wechat_compile_check`、`wechat_preview`、`wechat_upload`、`wechat_build_npm`、`wechat_cache_clean`。
+构建与发布。
 
 ### 参数
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `action` | string | **必填** | `compile` / `preview` / `upload` / `build_npm` / `cache_clean` |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `version` | string | null | 版本号，`upload` 时**必填**，例如 `1.0.0` |
-| `desc` | string | null | 版本描述，`upload` 时使用 |
-| `qr_format` | string | `base64` | 二维码格式：`terminal` 或 `base64` |
-| `qr_output` | string | null | 二维码保存路径 |
-| `info_output` | string | null | 编译/上传信息写入的 JSON 文件路径 |
-| `compile_condition` | string | null | 自定义编译条件（JSON 字符串）。注意：对 tabBar 页面可能无效（app 路由守卫覆盖），用 `evaluate` + `wx.reLaunch` 更可靠 |
-| `compile_type` | string | null | 编译类型：`miniprogram` 或 `plugin` |
-| `clean_type` | string | `compile` | `cache_clean` 时的缓存类型：`storage` / `file` / `compile` / `auth` / `network` / `session` / `all` |
-| `port` | int | null | IDE HTTP 服务端口号 |
-| `cdp_port` | int | `9222` | CDP 调试端口，`compile` 采集 WXML 运行时错误时使用。**须与 `wechat_ide(open)` 的 `cdp_port` 一致**，否则 `wxml_errors` 恒为空且无提示 |
+| `action` | string | 必填 | `compile` / `preview` / `upload` / `build_npm` / `cache_clean` |
+| `project_path` | string | `WECHAT_PROJECT_PATH` | 项目根目录 |
+| `version` | string | null | `upload` 必填，如 `1.0.0` |
+| `desc` | string | null | `upload` 版本描述 |
+| `qr_format` | string | `base64` | `preview` 二维码格式：`terminal` / `base64` |
+| `qr_output` | string | null | `preview` 二维码文件。相对路径相对 `project_path` 解析，父目录自动创建 |
+| `info_output` | string | null | `preview` 编译信息 JSON 文件，解析规则同上 |
+| `compile_condition` | string | null | `preview` 自定义编译条件（JSON 字符串）。对 tabBar 页可能被路由守卫覆盖 |
+| `compile_type` | string | null | `miniprogram` / `plugin` |
+| `clean_type` | string | `compile` | `cache_clean` 类型：`storage` / `file` / `compile` / `auth` / `network` / `session` / `all` |
+| `cdp_port` | int | `9222` | `compile` 采集 WXML 运行时错误用。须与 `wechat_ide(open)` 一致，否则 `wxml_errors` 恒为空 |
+| `port` | int | null | IDE HTTP 服务端口 |
 | `lang` | string | null | 界面语言 |
 
 ### action 说明
 
-| action | 功能描述 | 条件必填 | 注意事项 |
-|--------|----------|----------|----------|
-| `compile` | 触发编译并捕获所有 Error/Warning | 无 | **最常用**；v0.9.0 daemon 自动重连 automator，无需重新 `start` |
-| `preview` | 生成预览二维码 | 无 | 需已登录；手机扫码可预览 |
-| `upload` | 上传代码到微信后台 | **`version`** | ⚠️ 生产操作，执行前确认代码无误 |
-| `build_npm` | 构建 NPM 依赖 | 无 | 新增/更新 npm 包后必须执行 |
-| `cache_clean` | 清除缓存 | 无 | 默认清编译缓存；`all` 会清除所有，**小心使用** |
+| action | 行为 | 返回 `data` |
+|--------|------|-------------|
+| `compile` | 触发编译，按行分类 stderr 为 errors / warnings / status（进度指示与 Node 弃用提示已跳过）；再采集 3 秒 CDP 提取 `wxml_errors`；成功后若默认端口 9420 在监听，则清掉 daemon 旧连接并做 WS 级健康检查。CLI 返回 0 但 stderr 命中端口占用等致命模式时降级为失败并返回 `fatal_errors` | `compiled`、`errors`、`warnings`、`status`、`compile_info`、`project`、`wxml_errors`、`npm_warning`（miniprogram_npm 缺失或早于 node_modules）、`automator_reconnected`、`automator_verified`、`reconnect_error`、`port_changed`、`old_port`、`new_port` |
+| `preview` | 生成预览二维码，需已登录 | `stdout`、`qr_output`、`qr_output_mtime`、`qr_stale_warning`（二维码文件 mtime 未变，bundle 可能没刷新）、`info_output` |
+| `upload` | 上传到微信后台，生产操作 | `version`、`stdout` |
+| `build_npm` | 构建 npm 依赖。新增或更新依赖后必须执行 | `{}` |
+| `cache_clean` | 清缓存，`all` 慎用 | `clean_type` |
 
-### 返回示例（compile action）
+### `compile` 返回示例
 
 ```json
 {
   "success": true,
   "data": {
+    "compiled": true,
     "errors": [],
     "warnings": ["pages/index/index.wxml: 属性 wx:key 应使用唯一标识符"],
-    "compile_time_ms": 1234,
+    "status": ["✓ compile success"],
+    "compile_info": {},
+    "project": "/Users/me/Projects/mini-app",
+    "wxml_errors": [],
     "automator_reconnected": true,
     "automator_verified": true,
-    "port_changed": false,
-    "old_port": 9420,
-    "new_port": 9420
+    "port_changed": false
   },
-  "message": "编译完成，0 个错误，1 个警告"
+  "message": "编译成功。 automator 已自动重连并验证就绪。"
 }
 ```
+
+自动重连只针对默认 9420。用了非默认 `auto_port` 的话 compile 后自行调一次 `start`。
 
 ---
 
 ## 3. wechat_automator
 
-自动化交互与运行时查询。覆盖所有原自动化工具（13 个 action）。
-
-> **前提**：需先调用 `wechat_automator(action='start')` 开启 9420 自动化端口，**整个会话只调用一次**。
+自动化交互与运行时查询，13 个 action。先调 `start` 开启自动化端口，整个会话一次。
 
 ### 参数
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `action` | string | **必填** | 见下表 13 个 action |
-| `auto_port` | int | `9420` | 自动化监听端口 |
-| `project_path` | string | 环境变量 | 项目路径，`start` 时使用 |
-| `selector` | string | null | CSS 选择器，例如 `.submit-btn`、`#login`；`tap`/`input`/`element_info` 时**必填** |
-| `value` | string | null | 输入值，`input` 时**必填** |
-| `style_prop` | string | null | CSS 属性名，`element_info` 时可选 |
-| `data_json` | string | null | JSON 数据字符串，`set_data` 时**必填**，例如 `{"key": "val"}` |
-| `method` | string | null | 方法名，`call_method`/`call_wx`/`mock_wx` 时**必填** |
-| `args_json` | string | null | 方法参数（JSON 数组字符串），例如 `[1, "hello"]` |
-| `expression` | string | null | JS 代码（支持表达式和声明语句），`evaluate` 时**必填** |
-| `result_json` | string | null | Mock 返回值（JSON 字符串），`mock_wx` 时**必填** |
-| `key` | string | null | Storage key，`storage` 时可选（空=列出全部） |
-| `auto_account` | string | null | 指定 openid（测试账号），`start` 时可选 |
+| `action` | string | 必填 | 见下表 |
+| `auto_port` | int | `9420` | 自动化端口 |
+| `project_path` | string | `WECHAT_PROJECT_PATH` | `start` 使用 |
+| `auto_account` | string | null | `start` 指定测试账号 openid |
+| `selector` | string | null | CSS 选择器，`tap` / `input` / `element_info` 必填 |
+| `value` | string | null | `input` 必填 |
+| `style_prop` | string | null | `element_info` 可选，取指定 CSS 属性 |
+| `data_json` | string | null | `set_data` 必填，JSON 对象字符串 |
+| `method` | string | null | `call_method` / `call_wx` / `mock_wx` 必填 |
+| `args_json` | string | null | JSON 数组：`call_method` / `call_wx` 的参数，或 `evaluate(fn_source)` 的入参 |
+| `result_json` | string | null | `mock_wx` 必填，Mock 返回值 JSON |
+| `fn_source` | string | null | `evaluate` 推荐入口：完整函数源码 |
+| `expression` | string | null | `evaluate` 兼容入口：单个表达式。与 `fn_source` 二选一，同时给以 `fn_source` 为准 |
+| `key` | string | null | `storage` 指定 key，不传列出全部 |
+| `expected_path` | string | null | `page_data` 期望页面路径，传入后最多轮询 10 次（300ms 间隔）等页面匹配 |
 
-### action 详细说明
+### action 说明
 
-#### `start` — 开启自动化端口（含连接验证）
+| action | 行为 | 返回 `data` |
+|--------|------|-------------|
+| `start` | 执行 `cli auto`，再做 TCP 与 WS 两级验证。端口不监听时重跑 `cli auto`（最多 3 轮，间隔 3s；纯 CLI open 后窗口未加载完会假成功）；WS 失败会清缓存退避 2 秒重试一次 | 就绪：`port`、`verified: true`、`tcp_ready`、`ws_ready`、`verify_attempts`、`cli_attempts`。未就绪：`verified: false`、`retry_after_ms: 3000`、`hint`。3 轮后端口仍不监听则失败并附恢复 hint |
+| `tap` | 点击元素 | `selector` |
+| `input` | 输入文本 | `selector`、`value` |
+| `element_info` | 元素信息 | `element{tagName, text, wxml, size, offset, style?}` |
+| `set_data` | 热更新当前页 data，无需重编译 | `path`、`updated_keys` |
+| `call_method` | 调用当前页方法 | `method`、`return_value`、`path`。失败时 message 附当前页面路径 |
+| `call_wx` | 调用 `wx.<method>` | `method`、`return_value` |
+| `mock_wx` | Mock `wx.<method>` 返回值，当前会话有效 | `method` |
+| `evaluate` | 逻辑层执行 JS | `result`、`mode`、`hint?` |
+| `page_stack` | 页面栈 | `depth`、`pages` |
+| `page_data` | 当前页 data | `path`、`data`；不匹配 `expected_path` 时加 `path_mismatch: true`、`warning` |
+| `system_info` | `wx.getSystemInfo` 等价 | `system_info` |
+| `storage` | 本地缓存 | 传 `key`：`key`、`value`；不传：`keys`、`current_size`、`limit_size` |
 
-```json
-{
-  "tool": "wechat_automator",
-  "arguments": {"action": "start", "project_path": "D:\\MyProject"}
-}
-```
+### `evaluate` 说明
 
-启动持久化 Node daemon 并开启自动化端口，自动轮询验证连接（最多 10 秒）。返回 `data.verified: true` 表示连接就绪；`verified: false` 表示已启动但未确认连接，此时额外返回 `hint`（操作建议）、`attempts_made`（已尝试次数）、`max_wait_seconds`（最大等待时间）。v0.9.0 起 compile 后 daemon 自动重连，无需再次调用 start。
-
-> 冷启动（IDE 刚 `open`）时可能连续返回 `verified: false`，属正常现象：`open` 成功仅代表进程启动，automator WS 握手可能滞后 10~15 秒。按返回的 `retry_after_ms` 等待后重试即可；期间可先执行不依赖 automator 的操作（`compile` / `build_npm` / `preview`）。
-
-#### `tap` — 点击元素
-
-```json
-{"action": "tap", "selector": ".submit-btn"}
-```
-
-#### `input` — 输入文本
-
-```json
-{"action": "input", "selector": "input.search-box", "value": "搜索关键词"}
-```
-
-#### `element_info` — 获取元素详情
+推荐 `fn_source`，与官方 `automation_evaluate(fnSource, args)` 同构。函数在小程序 AppService 内以 `page.evaluate(fn, ...args)` 执行，函数体写几条语句、要不要 `return` 都由调用方决定：
 
 ```json
-{"action": "element_info", "selector": ".card-item", "style_prop": "color"}
+{"action": "evaluate",
+ "fn_source": "function(url){ const p = getCurrentPages(); wx.reLaunch({url}); return p.length }",
+ "args_json": "[\"/pages/index/index\"]"}
 ```
 
-返回：元素文本内容、包围盒（x/y/width/height）、WXML 结构、指定 CSS 值。
+`expression` 只传单个表达式，如 `getApp().globalData.userInfo`。多语句会退回语句模式（全部执行），没有 `return` 时 `result` 为 `null` 并附 `hint`；字符串字面量里的分号不受影响。
 
-#### `set_data` — 热更新页面 data
+`mode` 取值：`function`（fn_source）/ `expression`（单表达式）/ `statement`（退回语句模式）。
 
-```json
-{"action": "set_data", "data_json": "{\"list\": [], \"loading\": false, \"title\": \"测试\"}"}
-```
+### `mock_wx` 常用模板
 
-修改立即生效，无需重编译。适合快速验证 UI 状态切换。
-
-#### `call_method` — 调用页面方法
-
-```json
-{"action": "call_method", "method": "onRefresh", "args_json": "[]"}
-```
-
-返回 `data.path` 标识当前页面路径；失败时错误消息中包含页面路径，便于定位问题。
-
-#### `call_wx` — 调用 wx API
-
-```json
-{"action": "call_wx", "method": "getSystemInfo", "args_json": "[]"}
-```
-
-#### `mock_wx` — Mock wx API
-
-```json
-{
-  "action": "mock_wx",
-  "method": "requestPayment",
-  "result_json": "{\"errMsg\": \"requestPayment:ok\"}"
-}
-```
-
-常用 Mock 模板：
-
-| 场景 | method | result_json 示例 |
-|------|--------|-----------------|
-| 支付成功 | `requestPayment` | `{"errMsg": "requestPayment:ok"}` |
-| 弹窗确认 | `showModal` | `{"confirm": true, "cancel": false, "errMsg": "showModal:ok"}` |
-| 定位授权 | `chooseLocation` | `{"name": "腾讯大厦", "latitude": 22.54, "longitude": 113.93, "errMsg": "chooseLocation:ok"}` |
-| 获取用户信息 | `getUserProfile` | `{"userInfo": {"nickName": "测试用户", "avatarUrl": "..."}, "errMsg": "getUserProfile:ok"}` |
-| 选择图片 | `chooseImage` | `{"tempFilePaths": ["wxfile://tmp.jpg"], "errMsg": "chooseImage:ok"}` |
-
-#### `evaluate` — 执行 JS 代码
-
-```json
-{"action": "evaluate", "expression": "getApp().globalData.userInfo"}
-```
-
-支持表达式和声明语句（`const`/`let`/`var`）。表达式模式优先，失败后自动 fallback 到语句模式。
-
-> ⚠ **两个静默陷阱（实测）**
->
-> 1. **多语句只执行第一条**：`a(); b(); c()` 内部拼成 `return a(); b(); c()`，
->    语法合法所以不会 fallback，`return` 之后全是死代码，且**不报任何错**。
->    正确写法：`(function(){ a(); b(); return c() })()`
-> 2. **声明语句不写 `return` 就得到 `null`**：`const p=getCurrentPages(); p.length` → `null`；
->    `const p=getCurrentPages(); return p.length` → 正确值。
->
-> 一句话：**只要不是单个表达式，就用 IIFE 包起来并显式 `return`。**
-
-#### `page_stack` — 获取页面栈
-
-```json
-{"action": "page_stack"}
-```
-
-返回当前所有页面路径的有序列表，最后一个为当前活跃页。
-
-#### `page_data` — 获取当前页面 data
-
-```json
-{"action": "page_data"}
-{"action": "page_data", "expected_path": "pages/index/index"}
-```
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `expected_path` | string | null | 期望的页面路径，传入后轮询验证当前页面是否匹配 |
-
-返回当前页面实例的完整 `data` 对象。当传入 `expected_path` 且当前页面不匹配时，返回 `data.path_mismatch: true` 和 `data.warning` 提示信息。
-
-#### `system_info` — 获取系统信息
-
-返回设备信息、操作系统版本、微信版本、屏幕尺寸等。
-
-#### `storage` — 读取本地缓存
-
-```json
-{"action": "storage"}           // 列出所有 key
-{"action": "storage", "key": "userToken"}  // 读取指定 key 的值
-```
+| 场景 | method | result_json |
+|------|--------|-------------|
+| 支付成功 | `requestPayment` | `{"errMsg":"requestPayment:ok"}` |
+| 弹窗确认 | `showModal` | `{"confirm":true,"cancel":false,"errMsg":"showModal:ok"}` |
+| 定位 | `getLocation` | `{"latitude":23.1,"longitude":113.3,"errMsg":"getLocation:ok"}` |
+| 用户信息 | `getUserProfile` | `{"userInfo":{"nickName":"测试用户"},"errMsg":"getUserProfile:ok"}` |
+| 网络超时 | `request` | `{"errMsg":"request:fail timeout"}` |
 
 ---
 
 ## 4. wechat_inspector
 
-运行时日志采集。覆盖原 `wechat_get_console_logs`、`wechat_get_cdp_logs`。
+运行时日志采集。
 
 ### 参数
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `action` | string | **必填** | `console` 或 `cdp` |
-| `duration` | int | `10` | 采集持续时间（秒），范围 1~120 |
-| `detail_level` | string | `concise` | `cdp` 时：`concise`（仅 errors+warnings）或 `full`（全量） |
-| `max_logs` | int | `50` | `cdp` 时：最大返回条数，超出 `truncated=true` |
-| `cdp_port` | int | `9222` | CDP 调试端口 |
-| `auto_port` | int | `9420` | 自动化端口，`console` 时使用 |
-| `log_type` | string | `all` | `console` 时：`all` / `console` / `exception` |
-| `tap_selector` | string | null | 采集期间自动点击的元素（触发懒加载/交互日志） |
-| `tap_delay` | int | `500` | 点击延迟（毫秒） |
+| `action` | string | 必填 | `cdp` / `console` |
+| `duration` | int | `10` | 采集秒数，1~120 |
+| `cdp_port` | int | `9222` | `cdp` 用 |
+| `detail_level` | string | `concise` | `cdp` 用：`concise` 只回 errors + warnings，`full` 全量 |
+| `max_logs` | int | `50` | `cdp` 用，1~500，超出 `summary.truncated: true` |
+| `auto_port` | int | `9420` | `console` 用 |
+| `log_type` | string | `all` | `console` 用：`all` / `console` / `exception` |
+| `tap_selector` | string | null | `console` 采集期间自动点击的元素 |
+| `tap_delay` | int | `500` | 点击延迟毫秒 |
 
 ### action 说明
 
-#### `console` — automator 端口日志
+| action | 来源 | 特点 | 返回 `data` |
+|--------|------|------|-------------|
+| `cdp` | CDP 端口，连接 pageframe（渲染层）与 appservice（逻辑层）target | `Console.enable` 会回放缓冲区，采集开始前的消息也能拿到。已过滤 `[system]`、`WAService.js`、`WAWebview.js` 与 IDE 外壳页；同级别同文本去重 | `summary{total, errors, warnings, info, truncated}`、`logs[{level, message, source, timestamp, hint?}]` |
+| `console` | automator 端口事件监听 | 只收连接建立后的事件。`duration < 6` 且 `log_type` 含异常时返回 `duration_warning` | `summary{total, errors, warnings, exceptions}`、`console_logs`、`exceptions`、`port`、`duration` |
 
-- **采集来源**：9420 自动化端口
-- **捕获内容**：`console.log/warn/error` 输出 + JS 运行时异常（堆栈）
-- **前提**：先调用 `wechat_automator(action='start')`
-
-```json
-{
-  "action": "console",
-  "duration": 10,
-  "log_type": "exception"
-}
-```
-
-#### `cdp` — CDP 协议底层日志
-
-- **采集来源**：端口 9222（CDP 协议）
-- **捕获内容**：WXML 警告、废弃 API 提示、渲染层报错、Runtime 错误
-- **前提**：调用 `wechat_ide(action='open', cdp_enabled=True)` 确保端口 9222 已绑定
-
-```json
-{
-  "action": "cdp",
-  "duration": 10,
-  "detail_level": "concise",
-  "max_logs": 50
-}
-```
-
-### CDP 返回结构
+### `cdp` 返回示例
 
 ```json
 {
   "success": true,
   "data": {
-    "summary": {
-      "total": 15,
-      "errors": 2,
-      "warnings": 5,
-      "info": 8,
-      "truncated": false
-    },
+    "summary": {"total": 15, "errors": 2, "warnings": 5, "info": 8, "truncated": false},
     "logs": [
-      {
-        "level": "error",
-        "message": "Component is not found in path \"components/foo/foo\"",
-        "source": "index.wxml",
-        "timestamp": "2026-03-19T10:00:01.234Z"
-      },
-      {
-        "level": "warning",
-        "message": "wx.getSystemInfoSync 已弃用，请使用 wx.getSystemInfo",
-        "source": "app.js",
-        "timestamp": "2026-03-19T10:00:01.567Z",
-        "column": 12,
-        "line": 45
-      }
+      {"level": "error", "message": "Component is not found in path \"components/foo/foo\"", "source": "pages/index/index", "timestamp": "2026-09-03T10:00:01.234Z"},
+      {"level": "warning", "message": "无效的 app.json [\"sharePolicy\"]", "source": "ide:///extensions/inject/documentstart/index.js", "timestamp": "2026-09-03T10:00:01.567Z"}
     ]
   },
-  "message": "采集 10 秒，发现 2 个错误、5 个警告"
+  "message": "采集 10 秒，发现 2 个错误、5 个警告。"
 }
 ```
 
-
-**detail_level 对比：**
-
-| 模式 | 返回内容 | 适用场景 |
-|------|----------|----------|
-| `concise` | summary + errors + warnings | 快速诊断（节省 Token） |
-| `full` | summary + 所有级别日志 | 深度排查（需要完整上下文） |
+`source`：渲染层为页面路径，逻辑层统一为 `appservice`，其余为原始 URL。`message` 含 `[object Object]` 时附 `hint` 建议改用 `evaluate` 取完整返回值。
 
 ---
 
 ## 5. wechat_screenshot
 
-捕获当前小程序模拟器界面截图，默认自动滚动拼接长图，保存为 PNG。
+模拟器截图，默认滚动拼接长图，保存为 PNG。前提：已 `start`。
 
 ### 参数
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `output_path` | string | `null`（自动生成） | 截图保存路径。留空则自动保存到项目目录下 `screenshots/` 文件夹 |
-| `auto_port` | int | `9420` | 自动化监听端口 |
-| `overlap` | int | `50` | 分段重叠像素数，防止滚动拼接时内容截断 |
-| `full_page` | bool | `true` | 是否截取长图，设为 `false` 只截当前视口 |
-| `scroll_top` | int | null | 截图前滚动到的位置（逻辑像素） |
-| `page_path` | string | null | 确保截图前在指定页面上 |
-
-### 注意事项
-
-- `output_path` 可选：留空则自动保存到 `{WECHAT_PROJECT_PATH}/screenshots/screenshot_{timestamp}.png`
-- 如手动指定路径，父目录会自动创建，无需预先 mkdir
-- **前提**：已调用 `wechat_automator(action='start')`
-- **不要主动截图**：仅在用户明确要求或排查异常需要视觉确认时才调用
-- **限制**：截图可能无法捕获 fixed/absolute 定位的 overlay（弹窗、蒙层），以 `page_data` 为准
-- Windows 路径使用正斜杠 `/` 或双反斜杠 `\\` 均可
+| `output_path` | string | null | 留空存到 `<project_path>/screenshots/screenshot_<时间戳>.png`，父目录自动创建 |
+| `auto_port` | int | `9420` | 自动化端口 |
+| `overlap` | int | `50` | 分段重叠像素 |
+| `full_page` | bool | `true` | `false` 只截当前视口 |
+| `scroll_top` | int | null | 截图前滚动到的逻辑像素位置，配合 `full_page=false` |
+| `page_path` | string | null | 当前页不匹配时先跳转 |
 
 ### 返回示例
 
@@ -412,46 +279,44 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 {
   "success": true,
   "data": {
-    "path": "D:/YourProject/screenshots/screenshot_20260326_143000.png",
-    "width": 375,
-    "height": 1200,
+    "path": "/Users/me/Projects/mini-app/screenshots/screenshot_20260903_230000.png",
+    "width": 724,
+    "height": 3004,
     "segments": 3,
-    "isScrollViewPage": false
+    "file_size": 1271144,
+    "fixed_header": 12,
+    "fixed_footer": 155
   },
-  "message": "截图已保存，共拼接 3 段"
+  "message": "截图成功，共 3 段，已保存至 …。"
 }
 ```
+
+拼接质量诊断字段只在异常时出现，且 `message` 会带 ⚠：`is_scroll_view_page: true`（只截到视口）、`truncated: true`（底部没拍到）、`content_gaps: N`（N 处内容丢失，增大 `overlap`）、`detection_confident: false`（固定头尾识别不可靠）。`fixed_header` / `fixed_footer` 为识别到的固定区高度（物理像素）。
+
+跳转失败等 JS 侧错误会带 `hint`（如「末尾可能需要 /index」）。fixed / absolute 弹窗蒙层可能拍不到。
 
 ---
 
 ## 6. wechat_navigate
 
-跳转到指定页面，等待渲染完成，同步采集 CDP 高清日志。适合检查页面 `onLoad`/`onShow` 阶段的初始化错误。
+跳转到指定页面并同步采集 CDP 日志，适合查 `onLoad` / `onShow` 阶段错误。前提：已 `start`，且项目以 `cdp_enabled=true` 打开。
 
 ### 参数
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `page_path` | string | **必填** | 页面路径，例如 `pages/index/index`（无需前导 `/`） |
-| `wait_ms` | int | `2000` | 跳转后等待时间（毫秒），范围 100~30000 |
-| `timeout` | int | `30` | 总超时时间（秒），范围 10~120。实际生效值 = max(timeout, wait_ms/1000 + 10)，调大 `wait_ms` 不会撞到该超时 |
-| `auto_port` | int | `9420` | 自动化监听端口 |
-| `cdp_port` | int | `9222` | CDP 调试端口 |
-| `detail_level` | string | `concise` | `concise` 或 `full` |
-| `max_logs` | int | `50` | 最大返回 CDP 日志条数 |
-| `clear_logs` | bool | `true` | 是否过滤跳转前的 CDP 历史日志（基于时间戳）。设为 `false` 可获取完整累积日志 |
-| `check_data` | bool | `true` | 跳转后检查 page_data，如超过 70% 字段为空且 URL 含 query 参数，追加参数名错误警告 |
-| `project_path` | string | null | 项目路径（仅用于日志提示） |
+| `page_path` | string | 必填 | 如 `pages/index/index?id=1`，前导 `/` 可省 |
+| `wait_ms` | int | `2000` | 跳转后等待毫秒，100~30000 |
+| `timeout` | int | `30` | 总超时秒，10~120。实际取 `max(timeout, wait_ms/1000 + 10)` |
+| `auto_port` | int | `9420` | 自动化端口 |
+| `cdp_port` | int | `9222` | CDP 端口 |
+| `detail_level` | string | `concise` | `concise` / `full` |
+| `max_logs` | int | `50` | 最大日志条数 |
+| `clear_logs` | bool | `true` | 按时间戳过滤跳转前的历史日志 |
+| `check_data` | bool | `true` | 带 query 时检查 page_data，超过 70% 字段为空则给 `warning` |
+| `project_path` | string | `WECHAT_PROJECT_PATH` | 用于读 app.json 判断 tabBar 页 |
 
-### 等待时间建议
-
-| 页面复杂度 | 推荐 wait_ms |
-|-----------|-------------|
-| 简单静态页面 | 1000~2000 |
-| 含网络请求的页面 | 3000~5000 |
-| 含动画/懒加载的页面 | 5000+ |
-
-> **reLaunch 运行时限制**：`navigation_method: reLaunch` 进入的页面，云函数调用可能丢上下文（小程序运行时行为，非 MCP 可控）。非 tabBar 页面优先用 `evaluate` + `wx.navigateTo` 进入。
+等待时间建议：静态页 1000~2000，含网络请求 3000~5000，含动画或懒加载 5000+。
 
 ### 返回示例
 
@@ -459,94 +324,62 @@ IDE 生命周期管理。覆盖原 `wechat_open`、`wechat_login`、`wechat_is_l
 {
   "success": true,
   "data": {
-    "current_page": "pages/index/index",
+    "page": "/pages/detail/detail?id=1",
+    "wait_ms": 3000,
     "navigation_method": "reLaunch",
-    "logs_since": "2026-03-25T10:30:00.000Z",
-    "filtered_before_navigation": 5,
-    "warning": "页面数据大部分为空，可能是 query 参数名错误。",
-    "cdp_logs": {
-      "summary": {"total": 3, "errors": 0, "warnings": 2, "info": 1, "truncated": false},
-      "logs": [...]
-    }
+    "cdp_available": true,
+    "current_page": {"path": "pages/detail/detail", "query": {"id": "1"}},
+    "cdp_logs": {"summary": {"total": 3, "errors": 0, "warnings": 2, "info": 1, "truncated": false}, "logs": []},
+    "logs_since": "2026-09-03T10:30:00.000Z",
+    "filtered_before_navigation": 232
   },
-  "message": "已跳转到 pages/index/index，采集到 3 条日志"
+  "message": "已跳转至 /pages/detail/detail?id=1，发现 0 个错误、2 个警告。（已过滤 232 条历史日志）"
 }
 ```
+
+- `navigation_method`：tabBar 页为 `switchTab`，其余 `reLaunch`。reLaunch 进入的页面云函数调用可能丢上下文，非 tabBar 页优先 `evaluate` + `wx.navigateTo`。
+- 跳转后路径不匹配时加 `navigation_mismatch: true`，`message` 给出手动跳转建议。
+- 疑似 query 参数名错误时加 `warning`。
 
 ---
 
 ## 7. wechat_file
 
-项目文件读取。覆盖原 `wechat_project_info`、`wechat_list_pages`、`wechat_read_page`、`wechat_read_file`。
+项目文件读取。路径口径统一：先按 `project.config.json` 的 `miniprogramRoot` 解析，再回退项目根。
 
 ### 参数
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `action` | string | **必填** | `project_info` / `list_pages` / `read_page` / `read_file` |
-| `project_path` | string | 环境变量 | 小程序项目路径 |
-| `page_path` | string | null | 页面路径，`read_page` 时**必填**，例如 `pages/index/index` |
-| `file_path` | string | null | 相对文件路径，`read_file` 时**必填**，例如 `app.json` |
+| `action` | string | 必填 | `project_info` / `list_pages` / `read_page` / `read_file` |
+| `project_path` | string | `WECHAT_PROJECT_PATH` | 项目根目录 |
+| `page_path` | string | null | `read_page` 必填，如 `pages/index/index` |
+| `file_path` | string | null | `read_file` 必填，相对路径，如 `app.json` |
 
 ### action 说明
 
-#### `project_info` — 项目完整信息
+| action | 行为 | 返回 `data` |
+|--------|------|-------------|
+| `project_info` | 读 project.config.json、app.json、app.wxss（前 100 行）、app.js（前 50 行）与项目根一层目录 | `project_path`、`project_config`、`app_config`、`app.wxss`、`app.js`、`directory[{name, type, size 或 children}]`；解析失败给 `project_config_error` / `app_config_error` |
+| `list_pages` | app.json 全部页面并检查四件套是否齐全 | `pages[{path, complete, files[{ext, size}], missing}]`、`total` |
+| `read_page` | 读页面 wxml / wxss / js / json | `page_path`、`files{文件名: 内容}`、`resolved_base`（云开发项目为 `<proj>/miniprogram`） |
+| `read_file` | 读任意文件，最多 800 行 | `file_path`、`resolved_path`、`total_lines`、`content`、`truncated`、`also_found_at`（同名文件在多个根下都有时列出未采用的） |
 
-返回：
-- `project.config.json` 解析结果（AppID、名称、编译条件等）
-- `app.json` 解析结果（页面列表、tabBar、全局配置）
-- 项目根目录结构（一层）
-
-#### `list_pages` — 页面列表
-
-返回 `app.json` 中注册的所有页面路径，并检查每个页面的 `.wxml`/`.js`/`.wxss`/`.json` 文件是否存在。
-
-#### `read_page` — 读取页面完整源码
-
-```json
-{"action": "read_page", "page_path": "pages/index/index"}
-```
-
-返回：
-- `index.wxml` — 模板结构
-- `index.wxss` — 样式
-- `index.js` — 逻辑（含 Page/Component 定义）
-- `index.json` — 页面配置
-- `resolved_base` — 实际命中的根目录（云开发项目会是 `<proj>/miniprogram`）
-
-> 路径口径与 `list_pages` 一致：先按 `project.config.json` 的 `miniprogramRoot` 解析，再回退项目根。
-> 因此 `list_pages` 返回的路径可直接喂给 `read_page`（云开发项目也适用）。
-
-#### `read_file` — 读取任意文件
-
-```json
-{"action": "read_file", "file_path": "components/header/header.js"}
-```
-
-最多返回 800 行，超出时附注截断说明。返回额外字段：
-
-- `resolved_path` — 实际读取到的绝对路径
-- `also_found_at` — 仅当同名文件在多个根下都存在时出现，列出未被采用的那些路径
-
-> 解析顺序：`miniprogramRoot` → 项目根（普通项目两者相同）。
-> 例外：`project.config.json` / `project.private.config.json` 按定义属于项目根产物，**优先取项目根那份**——
-> 云开发项目的 `miniprogram/` 下可能另有一份内容不同的非权威副本，此时 `also_found_at` 会列出它。
+`project.config.json` / `project.private.config.json` 固定优先取项目根那份。`list_pages` 返回的 `path` 可直接喂给 `read_page`。
 
 ---
 
 ## 8. 错误码速查表
 
-| error_code | 含义 | 常见原因 | 处理方式 |
-|------------|------|----------|----------|
-| `PARAM_MISSING` | 必填参数未提供 | 漏传 `selector`、`version` 等 | 查看 `hint` 字段，补充参数 |
-| `CLI_NOT_FOUND` | 微信开发者工具 CLI 不存在 | `WECHAT_DEVTOOLS_CLI` 路径错误 | 确认安装路径并更新环境变量 |
-| `PROJECT_PATH_MISSING` | 项目路径未配置 | `WECHAT_PROJECT_PATH` 未设置 | 配置环境变量或传入 `project_path` |
-| `NODE_NOT_FOUND` | Node.js 未安装或不在 PATH | Node 未安装/`NODE_PATH` 错误 | 安装 Node.js ≥ 8.0 |
-| `CLI_TIMEOUT` | CLI 命令执行超时 | IDE 未运行/端口未开启 | 调用 `wechat_ide(action='open')` 后重试 |
-| `CDP_CONNECTION_ERROR` | CDP 端口 9222 连接失败 | 未以 `cdp_enabled=True` 启动 | 调用 `wechat_ide(action='open', cdp_enabled=True)` |
-| `AUTOMATION_PORT_ERROR` | 自动化端口 9420 连接失败 | 未调用 `start` action | 先调用 `wechat_automator(action='start')` |
-| `FILE_NOT_FOUND` | 文件或页面路径不存在 | `page_path`/`file_path` 拼写错误 | 先调用 `list_pages` 确认路径 |
+`error_code` 只有以下 6 种。连接失败、跳转失败、CLI 非零退出等一律 `UNKNOWN_ERROR`，具体原因看 `message` 与 `hint`。
 
----
+| error_code | 含义 | 处理 |
+|------------|------|------|
+| `PARAM_MISSING` | 必填参数缺失（如 `selector`、`version`、`evaluate` 缺 `fn_source` / `expression`） | 按 `hint` 补参数 |
+| `CLI_NOT_FOUND` | 找不到开发者工具 CLI 或 IDE 主程序 | 检查 `WECHAT_DEVTOOLS_CLI` |
+| `PROJECT_PATH_MISSING` | 项目路径未配置 | 配置 `WECHAT_PROJECT_PATH` 或传 `project_path` |
+| `NODE_NOT_FOUND` | Node.js 不可用 | 安装 Node.js 并加入 PATH |
+| `CLI_TIMEOUT` | CLI 超时（默认 30 秒） | 开启服务端口；`wechat_ide(action='open')` |
+| `UNKNOWN_ERROR` | 其余全部 | 看 `message` / `hint`，参考 `SKILL.md` 故障速查 |
 
 *返回 [SKILL.md](../SKILL.md)*

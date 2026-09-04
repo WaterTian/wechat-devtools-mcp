@@ -4,6 +4,7 @@ wechat_automator 工具：自动化交互聚合。
 合并所有自动化 + 运行时查询工具（13 个 action）。
 含内部必填参数校验，缺失时返回结构化错误指导。
 """
+import json
 import asyncio
 import os
 import socket
@@ -29,7 +30,7 @@ REQUIRED_PARAMS: dict[str, list[str]] = {
     "call_method":  ["method"],
     "call_wx":      ["method"],
     "mock_wx":      ["method", "result_json"],
-    "evaluate":     ["expression"],
+    # evaluate 的必填是 expression / fn_source 二选一，单独校验见 wechat_automator
 }
 
 
@@ -45,6 +46,31 @@ def register_automator(mcp: "FastMCP") -> None:
             "openWorldHint": False,
         },
     )(wechat_automator)
+
+
+_WS_UNREACHABLE_MARK = "Failed connecting to ws://"
+
+
+def _annotate_ws_failure(raw: str) -> str:
+    """automator 连不上 9420 时统一附恢复提示。
+
+    真机（2026-09-03）：项目窗口自己关掉后，所有 automator 动作只剩一句
+    「Failed connecting to ws://localhost:9420 …」，agent 拿不到下一步该做什么。
+    """
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return raw
+    if payload.get("success") or payload.get("hint"):
+        return raw
+    if _WS_UNREACHABLE_MARK not in str(payload.get("message", "")):
+        return raw
+    payload["hint"] = (
+        "automator 端口未监听：项目窗口可能已关闭，或自动化未开启。"
+        "先 wechat_automator(action='start')；仍失败用 wechat_ide(action='open', cdp_enabled=True) "
+        "重开项目后再 start。"
+    )
+    return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
 async def wechat_automator(params: WechatAutomatorInput) -> str:
@@ -67,35 +93,46 @@ async def wechat_automator(params: WechatAutomatorInput) -> str:
             f"action='{params.action}' 缺少必填参数: {', '.join(missing)}",
             hint=f"请提供以下参数：{', '.join(missing)}",
         )
+    if params.action == "evaluate" and params.expression is None and params.fn_source is None:
+        return _fail(
+            ErrorCode.PARAM_MISSING,
+            "action='evaluate' 缺少必填参数: expression 或 fn_source（二选一）",
+            hint=(
+                "推荐 fn_source：完整函数源码（如 'function(){ a(); b(); return c(); }'），"
+                "支持多语句，需显式 return，入参走 args_json；单个表达式可直接用 expression。"
+            ),
+        )
 
     try:
         if params.action == "start":
-            return await _action_start(params)
+            raw = await _action_start(params)
         elif params.action == "tap":
-            return await _action_tap(params)
+            raw = await _action_tap(params)
         elif params.action == "input":
-            return await _action_input(params)
+            raw = await _action_input(params)
         elif params.action == "element_info":
-            return await _action_element_info(params)
+            raw = await _action_element_info(params)
         elif params.action == "set_data":
-            return await _action_set_data(params)
+            raw = await _action_set_data(params)
         elif params.action == "call_method":
-            return await _action_call_method(params)
+            raw = await _action_call_method(params)
         elif params.action == "call_wx":
-            return await _action_call_wx(params)
+            raw = await _action_call_wx(params)
         elif params.action == "mock_wx":
-            return await _action_mock_wx(params)
+            raw = await _action_mock_wx(params)
         elif params.action == "evaluate":
-            return await _action_evaluate(params)
+            raw = await _action_evaluate(params)
         elif params.action == "page_stack":
-            return await _action_page_stack(params)
+            raw = await _action_page_stack(params)
         elif params.action == "page_data":
-            return await _action_page_data(params)
+            raw = await _action_page_data(params)
         elif params.action == "system_info":
-            return await _action_system_info(params)
+            raw = await _action_system_info(params)
         elif params.action == "storage":
-            return await _action_storage(params)
-        return _fail(ErrorCode.UNKNOWN_ERROR, f"未知 action: {params.action}")
+            raw = await _action_storage(params)
+        else:
+            return _fail(ErrorCode.UNKNOWN_ERROR, f"未知 action: {params.action}")
+        return _annotate_ws_failure(raw)
     except Exception as e:
         return _fail(ErrorCode.UNKNOWN_ERROR, f"执行失败：{type(e).__name__}: {e}")
 
@@ -149,21 +186,33 @@ async def _action_start(params: WechatAutomatorInput) -> str:
         if params.auto_account:
             cli_args.extend(["--auto-account", params.auto_account])
 
-        cli_result = await _run_cli(*cli_args, timeout=30)
-        if not cli_result["success"]:
-            return _fail(
-                ErrorCode.UNKNOWN_ERROR,
-                f"CLI auto 执行失败 (rc={cli_result['return_code']})",
-                hint=cli_result.get("stderr", "")[:200] or "请确认 IDE 已打开项目且服务端口已开启。",
-            )
-
-        # Step 2: TCP 端口就绪验证（CLI 成功但端口可能稍有延迟）
-        tcp_ready = await _verify_port_ready(params.auto_port, max_attempts=5)
+        # Step 1+2: cli auto → TCP 就绪。项目窗口还没加载完时 cli auto 会假成功
+        # （打印 ✔ auto、退出码 0，但端口不监听）。真机（2.02.2608060）实测纯 CLI open
+        # 后 3s 调 start 必失败、18s 后必成功。最多重试 3 轮，每轮间隔 3s。
+        max_cli_attempts = 3
+        tcp_ready = False
+        cli_attempts = 0
+        for cli_attempts in range(1, max_cli_attempts + 1):
+            cli_result = await _run_cli(*cli_args, timeout=30)
+            if not cli_result["success"]:
+                return _fail(
+                    ErrorCode.UNKNOWN_ERROR,
+                    f"CLI auto 执行失败 (rc={cli_result['return_code']})",
+                    hint=cli_result.get("stderr", "")[:200] or "请确认 IDE 已打开项目且服务端口已开启。",
+                )
+            tcp_ready = await _verify_port_ready(params.auto_port, max_attempts=5)
+            if tcp_ready:
+                break
+            if cli_attempts < max_cli_attempts:
+                await asyncio.sleep(3)
         if not tcp_ready:
             return _fail(
                 ErrorCode.UNKNOWN_ERROR,
-                f"CLI auto 返回成功但端口 {params.auto_port} 未监听，IDE 内部可能异常。",
-                hint="请尝试重新打开项目后重试。",
+                f"CLI auto 连续 {max_cli_attempts} 次返回成功但端口 {params.auto_port} 未监听。",
+                hint=(
+                    "项目窗口可能尚未加载完或已关闭：稍后重试 start；"
+                    "仍失败用 wechat_ide(action='open', cdp_enabled=True) 重开项目后再 start。"
+                ),
             )
 
         # Step 3: WS 级握手验证。首次失败 → invalidate 缓存 + 2s 退避 + 再试一次。
@@ -186,6 +235,7 @@ async def _action_start(params: WechatAutomatorInput) -> str:
                     "tcp_ready": True,
                     "ws_ready": True,
                     "verify_attempts": verify_attempts,
+                    "cli_attempts": cli_attempts,
                 },
                 message=f"自动化端口 {params.auto_port} 已就绪（CLI + TCP + WS 三重验证通过）。",
             )
@@ -196,6 +246,7 @@ async def _action_start(params: WechatAutomatorInput) -> str:
                 "tcp_ready": True,
                 "ws_ready": False,
                 "verify_attempts": verify_attempts,
+                "cli_attempts": cli_attempts,
                 "retry_after_ms": 3000,
                 "hint": "TCP 已监听但 WebSocket 握手未完成，可能自动化组件仍在初始化。建议等待 3 秒后重试。",
             },
@@ -271,9 +322,30 @@ async def _action_mock_wx(params: WechatAutomatorInput) -> str:
 
 
 async def _action_evaluate(params: WechatAutomatorInput) -> str:
-    result = await _run_node_script("ui_debug.js", "--port", str(params.auto_port), "--action", "evaluate", "--code", params.expression)
+    """执行 JS：优先 fn_source（完整函数源码 + args_json），否则 expression 单表达式。
+
+    daemon 回传 mode：function / expression / statement。expression 走语句模式且没有
+    return 时结果必然为 null，此处附 hint 指引改用 fn_source，避免静默返回空。
+    """
+    args = ["--port", str(params.auto_port), "--action", "evaluate"]
+    if params.fn_source is not None:
+        args.extend(["--fn-source", params.fn_source])
+        if params.args_json:
+            args.extend(["--args", params.args_json])
+    else:
+        args.extend(["--code", params.expression])
+    result = await _run_node_script("ui_debug.js", *args)
     if result.get("success"):
-        return _ok({"result": result.get("result")}, message="表达式执行成功。")
+        data: dict = {"result": result.get("result")}
+        mode = result.get("mode")
+        if mode:
+            data["mode"] = mode
+        if mode == "statement" and result.get("result") is None:
+            data["hint"] = (
+                "表达式已按语句模式执行但未 return，结果为 null；"
+                "多语句请用 fn_source 并显式 return。"
+            )
+        return _ok(data, message="表达式执行成功。")
     return _fail(ErrorCode.UNKNOWN_ERROR, result.get("error", "执行失败"))
 
 

@@ -69,10 +69,15 @@ async function handle(miniProgram, args) {
             if (!args.method) throw new Error('缺失 --method 参数');
             const page = await miniProgram.currentPage();
             const methodArgs = safeParseJson(args.args, []);
-            const callResult = await page.callMethod(args.method, ...methodArgs);
             result.path = page.path;
             result.method = args.method;
-            result.returnValue = callResult;
+            // 先取 path 再调用：方法不存在等错误要把页面路径带进 message，
+            // 否则 daemon 的 respondError 只回错误串、丢掉 path，排障时不知在哪个页。
+            try {
+                result.returnValue = await page.callMethod(args.method, ...methodArgs);
+            } catch (e) {
+                throw new Error(`${e.message} (当前页面: ${page.path})`);
+            }
             break;
         }
 

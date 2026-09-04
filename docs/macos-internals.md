@@ -8,15 +8,34 @@
 
 ## 版本格局（决定「必须双轨」）
 
-| 渠道 | 版本 | 运行时 |
-|------|------|--------|
-| Stable 稳定版 | 1.06.x | **NW.js**（Chromium 91） |
-| RC 预发布 | 1.06.x | NW.js |
-| Nightly 开发版 | 1.06.x | NW.js 0.54.1 |
-| **Nightly Electron Build** | **2.02.x** | **Electron 36.6.0 / Chromium 136** |
+> **2026-09-03 更新**：2.x 已于 **2026-08-18 转为官方 Stable**（首个 2.02.2608040，
+> 日志明写「新增 Electron 版本工具 / 开发者工具 Skill 能力」），**1.06 已从下载页下架**。
+> 下表为当前官方下载页三渠道（数据源：`devtools.wxqcloud.qq.com.cn/WechatWebDev/nightly/versions/history_*.json`）。
 
-2.x 是官方「全新改版」的开发者预览版，明确改用 Electron 实现跨平台；1.06.x 仍是 Stable。
-**因此启动路径必须同时支持两代，不能替换。**
+| 渠道 | 版本 | 日期 | 运行时 |
+|------|------|------|--------|
+| Stable 稳定版 | 2.02.2608060 | 2026-08-25 | **Electron 36.6 / Chromium 136** |
+| RC 预发布 | 2.02.2608031 | 2026-08-03 | Electron 36.6 |
+| Nightly Electron Build | 2.02.2609032 | 2026-09-03 | Electron 36.6 |
+| Nightly Build（旧版，NW.js） | 2.01.2602282 | 2026-02-28 | NW.js 0.54.1（Chromium 93） |
+| ~~1.06.x Stable~~ | 1.06.2504060 | 2025-04-06 | **NW.js**（Chromium 91），已不提供下载 |
+
+2.x 改用 Electron 实现跨平台，现已是唯一在维护的主线；1.06.x 只剩存量安装。
+**启动路径仍须同时支持两代**——存量 1.06 用户短期内不会消失，且判定成本极低。
+
+**Stable 2.02.2608060 静态核对**（2026-09-03，解包官方 pkg 未安装）：`Contents/MacOS/` 下
+`cli` / `cli.js` 与 2.02.2607271 RC **逐字节相同**（本项目依赖的旧 CLI 未变），新增
+`wechatide`（官方 skill / MCP bridge 入口）与 `wechatidecli`（旧 CLI 别名）两个 bash 包装，
+pkg 的 postinstall 把二者软链到 `/usr/local/bin/`。自带 `wechatide-skill` 升到 0.3.9，
+工具 46 → 47（新增 `automation_game_action` 小游戏画布触摸）。
+
+**Stable 2.02.2608060 真机回归**（2026-09-03，本机升级后）：`open`（两步式，CDP 9223）→
+`cdp_ready` / `project_opened` 均 true；`start` 首次即三重验证通过（RC 时需等 10~15s）；
+`compile` 无错；CDP 5 秒采集 27 条（8 条 `ide:///extensions/inject` 真实告警）；
+长图 3 段 3004px、固定头 12 / 底 155 识别正常；`navigate` 走 switchTab；
+`evaluate` 四种模式（fn_source+args / function / 单表达式 / 多语句）行为符合预期。
+两处新发现已修：① `open` 不传 `project_path` 时不回退 `WECHAT_PROJECT_PATH`（项目此前全靠
+IDE 会话恢复顺手打开）；② 新版 `cli` 每次输出 Node `punycode` 弃用提示，会被计成 compile warning。
 
 ---
 

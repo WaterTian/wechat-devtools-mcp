@@ -24,10 +24,17 @@ if TYPE_CHECKING:
     from .._compat import FastMCP
 
 
-# 编译 stderr 行跳过模式（进度指示器）
+# 编译 stderr 行跳过模式（进度指示器 + 运行时噪音）
 _COMPILE_SKIP_PREFIXES = (
     "- initialize", "✔", "- preparing", "- Fetching", "- Preview",
     "- compile", "- pack",
+    # Node/Electron 运行时的弃用提示：IDE 2.02.2608060 Stable 的 cli 每次都打
+    # `(node:PID) [DEP0040] DeprecationWarning: The punycode module is deprecated`
+    # 与 `(Use \`Electron --trace-deprecation ...\`)`，与小程序代码无关，
+    # 混进 warnings 会让 agent 误以为项目有告警（真机 2026-09-03 发现）。
+    "(node:",
+    "(Use `Electron --trace-deprecation",
+    "(Use `node --trace-deprecation",
 )
 
 # 行分类关键词
@@ -276,18 +283,21 @@ async def _action_compile(params: WechatBuildInput) -> str:
         try:
             # 先清除 daemon 中可能缓存的旧连接
             await invalidate_connection(auto_port)
-            # 等待 automator WebSocket 服务在 compile 后重新稳定
-            await asyncio.sleep(3)
-            # 通过 daemon 做 WebSocket 级别的健康检查（而非仅 TCP）
-            # 调用 automation.js 的 pageStack（驼峰）。注：ui_debug.js 无此 action，
-            # 历史 bug（v0.9.0~v0.9.4）导致 automator_verified 必然 false，v0.9.5 修复。
-            health_result = await _run_node_script(
-                "automation.js",
-                "--port", str(auto_port),
-                "--action", "pageStack",
-                timeout=10,
-            )
-            ws_ready = health_result.get("success", False)
+            # WS 级健康检查（automation.js 的 pageStack，ui_debug.js 无此 action）。
+            # 此前固定 sleep(3) 再查一次；实测 compile 后 automator 多数情况下立即可用，
+            # 改为立刻查、不通再每 0.5s 重试，上限约 4s，把等待时间还给快路径。
+            ws_ready = False
+            for attempt in range(8):
+                health_result = await _run_node_script(
+                    "automation.js",
+                    "--port", str(auto_port),
+                    "--action", "pageStack",
+                    timeout=10,
+                )
+                ws_ready = bool(health_result.get("success", False))
+                if ws_ready:
+                    break
+                await asyncio.sleep(0.5)
             data["automator_reconnected"] = True
             data["automator_verified"] = ws_ready
         except Exception as e:

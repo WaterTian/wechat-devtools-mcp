@@ -1036,7 +1036,7 @@ wheels = [
 
 [[package]]
 name = "wechat-devtools-mcp"
-version = "0.9.15"
+version = "0.9.17"
 source = { editable = "." }
 dependencies = [
     { name = "mcp", extra = ["cli"] },

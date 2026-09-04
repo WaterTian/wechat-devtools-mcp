@@ -65,8 +65,16 @@ class WechatAutomatorInput(BaseModel):
     style_prop: Optional[str] = Field(default=None, description="CSS 属性名，element_info 时可选。")
     data_json: Optional[str] = Field(default=None, description="JSON 数据，set_data 时必填。")
     method: Optional[str] = Field(default=None, description="方法名，call_method/call_wx/mock_wx 时必填。")
-    args_json: Optional[str] = Field(default=None, description="方法参数 JSON 数组，call_method/call_wx 时可选。")
-    expression: Optional[str] = Field(default=None, description="JS 表达式，evaluate 时必填。")
+    args_json: Optional[str] = Field(default=None, description="JSON 数组，call_method/call_wx 的方法参数，或 evaluate(fn_source) 的函数入参；可选。")
+    expression: Optional[str] = Field(default=None, description="单个 JS 表达式，evaluate 时使用；多语句请改用 fn_source。")
+    fn_source: Optional[str] = Field(
+        default=None,
+        description=(
+            "evaluate 时可用：完整函数源码字符串，例如 'function(){ return wx.getSystemInfoSync(); }' "
+            "或 '(a,b)=>a+b'，在小程序 AppService 内以 page.evaluate(fn, ...args) 方式执行，"
+            "入参来自 args_json。函数体可含任意多条语句，需显式 return。与 expression 二选一，同时给则以 fn_source 为准。"
+        ),
+    )
     result_json: Optional[str] = Field(default=None, description="Mock 返回值 JSON，mock_wx 时必填。")
     key: Optional[str] = Field(default=None, description="Storage key，storage 时可选。")
     auto_account: Optional[str] = Field(default=None, description="指定 openid，start 时可选。")

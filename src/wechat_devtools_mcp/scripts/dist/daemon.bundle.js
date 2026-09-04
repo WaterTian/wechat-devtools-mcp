@@ -76,10 +76,15 @@ async function handle(miniProgram, args) {
             if (!args.method) throw new Error('缺失 --method 参数');
             const page = await miniProgram.currentPage();
             const methodArgs = safeParseJson(args.args, []);
-            const callResult = await page.callMethod(args.method, ...methodArgs);
             result.path = page.path;
             result.method = args.method;
-            result.returnValue = callResult;
+            // 先取 path 再调用：方法不存在等错误要把页面路径带进 message，
+            // 否则 daemon 的 respondError 只回错误串、丢掉 path，排障时不知在哪个页。
+            try {
+                result.returnValue = await page.callMethod(args.method, ...methodArgs);
+            } catch (e) {
+                throw new Error(`${e.message} (当前页面: ${page.path})`);
+            }
             break;
         }
 
@@ -59986,14 +59991,16 @@ const path = __nccwpck_require__(16928);
 const fs = __nccwpck_require__(79896);
 
 function parseArgs(argv) {
-    const args = { port: 9420, action: '', path: '', key: '', code: '', segmentsDir: '', overlap: 50, expectedPath: '' };
+    const args = { port: 9420, action: '', path: '', key: '', code: '', fnSource: '', args: '', segmentsDir: '', overlap: 50, expectedPath: '' };
     for (let i = 2; i < argv.length; i++) {
         switch (argv[i]) {
             case '--port': args.port = parseInt(argv[++i], 10); break;
             case '--action': args.action = argv[++i]; break; // screenshot, data, storage, evaluate, full_screenshot
             case '--path': args.path = argv[++i]; break; // screenshot path
             case '--key': args.key = argv[++i]; break; // storage key
-            case '--code': args.code = argv[++i]; break; // evaluate code
+            case '--code': args.code = argv[++i]; break; // evaluate 单表达式
+            case '--fn-source': args.fnSource = argv[++i]; break; // evaluate 完整函数源码
+            case '--args': args.args = argv[++i]; break; // evaluate 函数入参（JSON 数组）
             case '--segments-dir': args.segmentsDir = argv[++i]; break;
             case '--overlap': args.overlap = parseInt(argv[++i], 10); break;
             case '--expected-path': args.expectedPath = argv[++i]; break;
@@ -60117,21 +60124,59 @@ async function handle(miniProgram, args) {
             }
             break;
 
-        case 'evaluate':
-            if (!args.code) {
-                throw new Error('缺失 --code 参数');
-            }
-            // 先尝试表达式模式（return + code），失败后 fallback 到语句模式
-            try {
-                result.result = await miniProgram.evaluate(new Function('return ' + args.code));
-            } catch (evalErr) {
-                if (evalErr.message && evalErr.message.includes('Unexpected token')) {
-                    result.result = await miniProgram.evaluate(new Function(args.code));
-                } else {
-                    throw evalErr;
+        case 'evaluate': {
+            // ── 函数式路径：--fn-source 是一个完整函数的源码，入参来自 --args（JSON 数组）──
+            // 与官方 automation_evaluate(fnSource, args) 同构：函数体写多少条语句、要不要
+            // return 都是调用方的事，这里不再区分「表达式」还是「语句序列」。
+            if (args.fnSource) {
+                let fn;
+                try {
+                    fn = new Function('return (' + args.fnSource + ')')();
+                } catch (e) {
+                    throw new Error(`fn_source 必须是一个函数的源码（编译失败：${e.message}）`);
                 }
+                if (typeof fn !== 'function') {
+                    throw new Error(`fn_source 必须是一个函数的源码，实际得到 ${typeof fn}`);
+                }
+                let fnArgs = [];
+                if (args.args) {
+                    try {
+                        fnArgs = JSON.parse(args.args);
+                    } catch (e) {
+                        throw new Error(`args 不是合法 JSON：${e.message}`);
+                    }
+                    if (!Array.isArray(fnArgs)) {
+                        throw new Error('args 必须是 JSON 数组（作为函数入参依次展开）');
+                    }
+                }
+                result.result = await miniProgram.evaluate(fn, ...fnArgs);
+                result.mode = 'function';
+                break;
+            }
+
+            if (!args.code) {
+                throw new Error('缺失 --code 或 --fn-source 参数');
+            }
+            // ── 表达式路径：先在本地把 code 当「单个表达式」编译 ──
+            // 加括号是根因修复：旧写法 'return ' + code 遇到 a(); b(); c() 会拼成
+            // 合法的 `return a(); b(); c()`，静默只执行第一条。'return (a(); b(); c())'
+            // 必然 SyntaxError，从而正确退回语句模式，三条都执行。
+            // 只有 SyntaxError 才退回；运行期错误（ReferenceError 等）原样抛出。
+            let exprFn = null;
+            try {
+                exprFn = new Function('return (' + args.code + '\n)');
+            } catch (compileErr) {
+                if (!(compileErr instanceof SyntaxError)) throw compileErr;
+            }
+            if (exprFn) {
+                result.result = await miniProgram.evaluate(exprFn);
+                result.mode = 'expression';
+            } else {
+                result.result = await miniProgram.evaluate(new Function(args.code));
+                result.mode = 'statement';
             }
             break;
+        }
 
         default:
             throw new Error(`未知 action: ${action}`);

@@ -69,13 +69,16 @@ async def test_start_tcp_fail_returns_error():
     params = WechatAutomatorInput(action="start", project_path="D:/fake/project")
 
     with patch("wechat_devtools_mcp.tools.automator._run_cli",
-               new_callable=AsyncMock, return_value=_mock_cli_success()), \
+               new_callable=AsyncMock, return_value=_mock_cli_success()) as cli, \
          patch("wechat_devtools_mcp.tools.automator._verify_port_ready",
-               new_callable=AsyncMock, return_value=False):
+               new_callable=AsyncMock, return_value=False), \
+         patch("wechat_devtools_mcp.tools.automator.asyncio.sleep", new_callable=AsyncMock):
         response = await _action_start(params)
         data = json.loads(response)
         assert data["success"] is False
-        assert "CLI auto 返回成功但端口" in data["message"]
+        # 2026-09-03 起 cli auto 最多重试 3 轮再放弃
+        assert cli.await_count == 3
+        assert "未监听" in data["message"]
 
 
 @pytest.mark.asyncio

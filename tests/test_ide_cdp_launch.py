@@ -110,17 +110,20 @@ class TestKillExistingIde:
 
     async def test_macos_uses_pkill(self, monkeypatch):
         monkeypatch.setattr(sys, "platform", "darwin")
-        called = {}
+        calls = []
 
         def fake_run(args, **kwargs):
-            called["args"] = args
+            calls.append(args)
+            # 桩返回 None：kill 后的 pgrep 轮询把它视为「进程已消失」立即返回
 
         with patch("subprocess.run", side_effect=fake_run):
             await ide._kill_existing_ide("wechatdevtools")
 
-        assert called["args"][0] == "pkill"
-        assert "wechatdevtools" in called["args"]
-        assert "-f" in called["args"]
+        # 第一条必须是 pkill；之后是 pgrep 轮询确认进程消失（2026-09-03 提效）
+        assert calls[0][0] == "pkill"
+        assert "wechatdevtools" in calls[0]
+        assert "-f" in calls[0]
+        assert all(c[0] == "pgrep" for c in calls[1:])
 
 
 class TestCdpLaunchProjectArgFormat:

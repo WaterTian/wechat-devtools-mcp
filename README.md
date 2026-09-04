@@ -1,98 +1,72 @@
-# 微信开发者工具 MCP Server (v0.9.16)
+# 微信开发者工具 MCP Server (v0.9.17)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](./README_EN.md)
 
-> 将微信开发者工具 CLI 封装为 [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) 服务，使编辑器中的 AI 能够直接调用微信 CLI 命令，实现小程序**开发、测试、调试、自动化**全流程闭环。
+> 把微信开发者工具封装为 [MCP](https://modelcontextprotocol.io/) 服务，让编辑器里的 AI 直接完成小程序的**编译、预览、调试、自动化测试**闭环。Windows / macOS，已上架官方 MCP Registry。
 
 <!-- mcp-name: io.github.WaterTian/wechat-devtools-mcp -->
 
 > [!IMPORTANT]
-> 本项目采用「**瘦 MCP + 胖 Skill**」架构：**MCP Server 提供 7 个聚合 API，配套的 [wechat-devtools Skill](#-安装-skill必须) 提供 SOP 流程、参数速查和最佳实践。两者必须配合使用**，缺少 Skill 时 AI 将无法按正确流程操作小程序。
-
-**已发布至官方 [MCP Registry](https://modelcontextprotocol.io/)**，支持跨平台（Windows / macOS）一键安装。
+> 「瘦 MCP + 胖 Skill」：MCP Server 只提供 7 个聚合工具，操作流程与最佳实践都在配套的 [wechat-devtools Skill](#step-5--安装-skill必须) 里。**两者必须一起装**。
 
 ---
 
-> **🌐 [English Documentation →](./README_EN.md)**
+## 🤝 与官方能力的关系
+
+微信开发者工具 **2.x 自 2026-08-18 起为官方 Stable**（1.06 已下架），IDE 内建 MCP Server（47 个原子工具）。两者互补，不是替代：
+
+| 场景 | 用谁 |
+|------|------|
+| 打开项目 / 编译 / 预览 / 上传 / 点击输入 / 云开发 | 2.x 优先官方内建 MCP（`wechat_ide(action='status')` 的 `official_mcp.available` 为 `true` 即可用） |
+| **长图拼接截图**（固定头尾识别，拍不全如实上报） | 本项目。官方只截视口并压到长边 1280 JPEG |
+| **CDP 结构化日志**（回放采集前的历史、按页面归类、去噪） | 本项目。官方只读缓存 |
+| **任务级 SOP**（一句话跑完巡检 / 异常排查 / 跨页面校验） | 本项目 Skill |
+| 存量 1.06.x（NW.js） | 本项目继续兼容；官方内建 MCP 仅 2.x 有 |
+
+> ⚠ 官方 IDE 把自家 bridge 注册为 `wechat-devtools`。本文示例统一用 **`wechat-devtools-mcp`** 避免撞名；旧名配置仍可用，只在同一 agent 同时接入两者时才需区分。
 
 ---
 
-## 🚀 安装与快速开始
+## 🚀 快速开始
 
 ### Step 1 — 安装 MCP Server
 
-推荐使用 [uv](https://github.com/astral-sh/uv)，它能自动处理 Python 依赖并提供隔离的执行环境。
-
 ```bash
-pip install uv                                  # 安装 uv（如已安装可跳过）
-uv tool install wechat-devtools-mcp --force     # 一键安装到全局隔离环境
+pip install uv                                  # 如已装可跳过
+uv tool install wechat-devtools-mcp --force
+wechat-devtools-mcp --version                   # 确认实际运行版本
 ```
 
 > [!WARNING]
-> 如果之前通过 `pip install` 安装过旧版本，请先卸载以避免版本冲突：
-> ```bash
-> pip uninstall wechat-devtools-mcp
-> ```
-> `pip install` 的路径（如 `Python313/Scripts/`）可能优先于 `uv tool install` 的路径（`~/.local/bin/`），导致实际运行旧版本。可通过 `wechat_ide(action='status')` 返回的 `mcp_version` 字段确认当前版本。
+> 曾用 `pip install` 装过旧版的，先 `pip uninstall wechat-devtools-mcp`，否则旧路径优先于 uv。
+> ≤0.9.10 与 mcp SDK ≥2.0 不兼容（报 `ModuleNotFoundError: mcp.server.fastmcp`），请升到 ≥0.9.11。
 
-> [!WARNING]
-> **版本兼容性**：≥0.9.11 支持 mcp 1.x 与 2.x 双版本（依赖声明 `mcp[cli]>=1.9,<3`）。**≤0.9.10 与 mcp ≥2.0 不兼容**（新装会报 `ModuleNotFoundError: mcp.server.fastmcp`，见 [#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9)）--钉版用户请升级到 ≥0.9.11，或安装时追加 `--with "mcp<2"`。
-
-> [!TIP]
-> - 查看实际运行版本（≥0.9.13）：
->   ```bash
->   wechat-devtools-mcp --version    # 零依赖打印实际安装版本；uvx 复用已装环境不自拉最新，此命令可直接确认
->   uv tool list | grep wechat       # 离线确认已安装版本
->   ```
-> - 升级工具：如果编辑器正在运行 MCP 服务，需先终止进程再升级：
->   ```bash
->   # Bash / CMD
->   taskkill /F /IM "wechat-devtools-mcp*" 2>/dev/null; uv tool upgrade wechat-devtools-mcp
->   ```
->   ```powershell
->   # Windows PowerShell
->   Get-Process | Where-Object { $_.ProcessName -like "*wechat-devtools*" } | Stop-Process -Force
->   uv tool upgrade wechat-devtools-mcp
->   ```
-> - Agent 一键升级：
->   ```bash
->   taskkill /F /IM "wechat-devtools-mcp*" 2>/dev/null; uv tool upgrade wechat-devtools-mcp && npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
->   ```
+升级前先停掉编辑器里正在跑的 MCP 进程，再 `uv tool upgrade wechat-devtools-mcp`。
 
 ### Step 2 — 开启开发者工具服务端口
 
-> [!WARNING]
-> 必须手动开启，否则 AI 将无法下发任何指令。
+`开发者工具` → `设置` → `安全设置` → `服务端口` → `开启`。不开则所有操作报 `CLI_TIMEOUT`。
 
-**操作路径**：`开发者工具` → `设置` → `安全设置` → `服务端口` → `开启`
+### Step 3 — 准备两个绝对路径
 
-> 💡 可通过 `wechat_ide(action='status')` 验证端口是否已开启——如果返回连接失败，说明服务端口尚未启用。
-
-### Step 3 — 确认必要路径
-
-请提前获取以下两个绝对路径，稍后需填入编辑器配置：
-
-| 路径 | Windows 示例 | macOS 示例 |
-|------|-------------|-----------|
-| 微信开发者工具 CLI | `C:\Program Files (x86)\Tencent\微信web开发者工具\cli.bat` | `/Applications/wechatwebdevtools.app/Contents/MacOS/cli` |
+| 路径 | Windows | macOS |
+|------|---------|-------|
+| 开发者工具 CLI | `C:\Program Files (x86)\Tencent\微信web开发者工具\cli.bat` | `/Applications/wechatwebdevtools.app/Contents/MacOS/cli` |
 | 小程序项目根目录 | `D:\MyProjects\mini-app` | `/Users/<you>/Projects/mini-app` |
 
-> macOS 用户：JSON 配置中无需转义斜杠（`/` 直接写）；Windows 用户需把 `\` 写成 `\\`。
+JSON 里 Windows 路径的 `\` 要写成 `\\`；macOS 的 `/` 不用转义。
 
 ### Step 4 — 编辑器配置
 
-<details>
-<summary><b>Claude Desktop / Antigravity</b></summary>
-
-修改 `claude_desktop_config.json` 或 `mcp_config.json`（Antigravity）：
+标准配置（Claude Desktop / Antigravity / Kiro / Trae / Claude Code `.mcp.json` 通用）：
 
 ```json
 {
   "mcpServers": {
-    "wechat-devtools": {
+    "wechat-devtools-mcp": {
       "command": "uvx",
       "args": ["wechat-devtools-mcp"],
       "env": {
@@ -103,372 +77,91 @@ uv tool install wechat-devtools-mcp --force     # 一键安装到全局隔离环
   }
 }
 ```
-</details>
 
-<details>
-<summary><b>Kiro</b></summary>
-
-编辑 `~/.kiro/settings/mcp.json`：
-
-```json
-{
-  "mcpServers": {
-    "wechat-devtools": {
-      "command": "uvx",
-      "args": ["wechat-devtools-mcp"],
-      "env": {
-        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
-        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path",
-        "PYTHONIOENCODING": "utf-8"
-      },
-      "autoApprove": [
-        "wechat_ide", "wechat_build", "wechat_automator", "wechat_inspector",
-        "wechat_screenshot", "wechat_navigate", "wechat_file"
-      ]
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><b>OpenAI Codex</b></summary>
-
-编辑 `~/.codex/config.toml`（全局）或 `.codex/config.toml`（项目级）：
+| 编辑器 | 配置位置 | 差异 |
+|--------|----------|------|
+| Claude Desktop / Antigravity | `claude_desktop_config.json` / `mcp_config.json` | 无 |
+| Claude Code（项目级） | 仓库根目录 `.mcp.json` | macOS 下 `command` 用绝对路径 `/opt/homebrew/bin/uvx`，并在 `env` 加 `"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"` 与 `"NODE_PATH": "/opt/homebrew/bin/node"`（GUI 子进程不带 Homebrew PATH） |
+| Kiro | `~/.kiro/settings/mcp.json` | 可加 `"autoApprove": ["wechat_ide","wechat_build","wechat_automator","wechat_inspector","wechat_screenshot","wechat_navigate","wechat_file"]` |
+| Trae ≥1.3 | AI 面板 → 设置 → MCP → 手动配置；或 `%APPDATA%\Trae\User\globalStorage\mcp.json` / `~/Library/Application Support/Trae/User/globalStorage/mcp.json` | 聊天须选 **Builder with MCP** 智能体；macOS 同 Claude Code 的绝对路径写法 |
+| Cursor / VS Code | MCP 面板新增 server | Name `wechat-devtools-mcp`，Command `uvx wechat-devtools-mcp`，环境变量同上 |
+| OpenAI Codex | `~/.codex/config.toml` | TOML，见下 |
 
 ```toml
-[mcp_servers.wechat-devtools]
+[mcp_servers.wechat-devtools-mcp]
 command = "uvx"
 args = ["wechat-devtools-mcp"]
 
-[mcp_servers.wechat-devtools.env]
+[mcp_servers.wechat-devtools-mcp.env]
 WECHAT_DEVTOOLS_CLI = "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat"
 WECHAT_PROJECT_PATH = "D:\\Your\\Project\\Path"
 ```
 
-也可以通过 CLI 快速添加：
-
-```bash
-codex mcp add wechat-devtools \
-  --env WECHAT_DEVTOOLS_CLI="C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat" \
-  --env WECHAT_PROJECT_PATH="D:\\Your\\Project\\Path" \
-  -- uvx wechat-devtools-mcp
-```
-</details>
-
-<details>
-<summary><b>Cursor / VS Code (MCP Plugin)</b></summary>
-
-在 MCP 控制台中添加新 Server：
-
-- **Name**: `wechat-devtools`
-- **Type**: `command`
-- **Command**: `uvx wechat-devtools-mcp`
-- **Environment Variables**: 同上添加 `WECHAT_DEVTOOLS_CLI` 和 `WECHAT_PROJECT_PATH`
-
-> Windows 下路径中的反斜杠需要转义（`\\`）。
-</details>
-
-<details>
-<summary><b>Claude Code 项目级 <code>.mcp.json</code>（仓库内开发推荐）</b></summary>
-
-如果你用 Claude Code 在小程序仓库里开发，可以建项目级 `.mcp.json`（自动跟随仓库、对协作者生效）。
-
-**Windows** — 仓库根目录 `.mcp.json`：
-
-```json
-{
-  "mcpServers": {
-    "wechat-devtools": {
-      "command": "uvx",
-      "args": ["wechat-devtools-mcp"],
-      "env": {
-        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
-        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path"
-      }
-    }
-  }
-}
-```
-
-**macOS** — 仓库根目录 `.mcp.json`：
-
-```json
-{
-  "mcpServers": {
-    "wechat-devtools": {
-      "command": "/opt/homebrew/bin/uvx",
-      "args": ["wechat-devtools-mcp"],
-      "env": {
-        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
-        "WECHAT_DEVTOOLS_CLI": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
-        "WECHAT_PROJECT_PATH": "/Users/<you>/WeChatProjects/<project>",
-        "NODE_PATH": "/opt/homebrew/bin/node"
-      }
-    }
-  }
-}
-```
-
-> macOS 三个关键差异：
-> - `command` 必须用绝对路径 `/opt/homebrew/bin/uvx`（Claude Code spawn 子进程时 `PATH` 不含 Homebrew）
-> - `env.PATH` 必须显式注入（同时配 `npx`-based MCP 如 cloudbase / chrome-devtools 时尤其需要，否则 `npx` 的 `#!/usr/bin/env node` 找不到 Node）
-> - `NODE_PATH` 推荐显式指定，作为 daemon 启动时的双保险
-
-> 同时配置多个 MCP（cloudbase / chrome-devtools 等）时，每个 server 都按相同模式处理 `command` 绝对路径与 `env.PATH`。
-</details>
-
-<details>
-<summary><b>Trae IDE（全局 <code>mcp.json</code>）</b></summary>
-
-Trae v1.3.0+ 支持 MCP。**AI 面板 → 右上角设置 → MCP → 添加 → 手动配置**，粘贴下方 JSON 后保存。
-
-**Windows**：
-
-```json
-{
-  "mcpServers": {
-    "wechat-devtools": {
-      "command": "uvx",
-      "args": ["wechat-devtools-mcp"],
-      "env": {
-        "WECHAT_DEVTOOLS_CLI": "C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat",
-        "WECHAT_PROJECT_PATH": "D:\\Your\\Project\\Path"
-      }
-    }
-  }
-}
-```
-
-**macOS**：
-
-```json
-{
-  "mcpServers": {
-    "wechat-devtools": {
-      "command": "/opt/homebrew/bin/uvx",
-      "args": ["wechat-devtools-mcp"],
-      "env": {
-        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
-        "WECHAT_DEVTOOLS_CLI": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
-        "WECHAT_PROJECT_PATH": "/Users/<you>/WeChatProjects/<project>",
-        "NODE_PATH": "/opt/homebrew/bin/node"
-      }
-    }
-  }
-}
-```
-
-直接编辑配置文件也可：
-- Windows: `%APPDATA%\Trae\User\globalStorage\mcp.json`
-- macOS: `~/Library/Application Support/Trae/User/globalStorage/mcp.json`
-
-> [!IMPORTANT]
-> 聊天框必须选 **「Builder with MCP」** 智能体，普通智能体不调 MCP 工具。建议同时安装 wechat-devtools Skill（Step 5），让 AI 按 SOP 顺序调用。
-</details>
-
 ### Step 5 — 安装 Skill（必须）
-
-> [!IMPORTANT]
-> **本 MCP 必须配合 wechat-devtools Skill 使用。** Skill 包含 AI 操作小程序所需的全部 SOP 流程、参数速查和故障排查指南。未安装 Skill 时，AI 只能调用裸 API，无法自动执行标准化测试和调试流程。
-
-**方式一：`npx skills add`（Claude Code 用户）**
 
 ```bash
 npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 ```
 
-会拉到 `~/.claude/skills/`，Claude Code 自动加载。
-
-**方式二：手动放到 `.agents/skills/`（Trae 等基于 `.agents/skills/` 加载的客户端）**
-
-在小程序项目根目录执行：
-
-```bash
-git clone --depth 1 https://github.com/WaterTian/wechat-devtools-mcp.git .wdm-tmp
-mkdir -p .agents/skills
-cp -r .wdm-tmp/.agents/skills/wechat-devtools .agents/skills/
-rm -rf .wdm-tmp
-```
-
-完成后的目录结构：
-
-```
-your-project/
-└── .agents/skills/
-    └── wechat-devtools/
-        ├── SKILL.md                # 主指令文件（SOP + 能力映射 + 红线规则）
-        └── references/
-            └── tool_reference.md   # 7 个聚合 API 完整参数参考
-```
-
-> [!TIP]
-> **Trae 用户**：确认 **设置 → 技能与命令 → 启用 .agents 技能目录** 开关已开启（默认开），保存后刷新即可在「技能 → 项目」tab 看到 `wechat-devtools`。
+不走 `npx skills` 的客户端（如 Trae）：把仓库的 `.agents/skills/wechat-devtools/` 整个复制到小程序项目的 `.agents/skills/` 下即可。Skill 含 9 条 SOP、7 工具全 action 速查、CDP 渐进排查策略与故障手册，详见 [SKILL.md](./.agents/skills/wechat-devtools/SKILL.md)。
 
 ---
 
-## 🛠️ 工具箱概要
+## 🛠️ 工具箱
 
-MCP Server 提供 **7 个聚合工具**，覆盖小程序全生命周期：
-
-| 工具 | 功能 | 支持的 action |
-|------|------|--------------|
-| `wechat_ide` | IDE 生命周期管理 | `open` `login` `is_login` `close` `quit` `status` |
+| 工具 | 用途 | action / 关键参数 |
+|------|------|------------------|
+| `wechat_ide` | IDE 生命周期与环境诊断 | `open` `login` `is_login` `close` `quit` `status` |
 | `wechat_build` | 构建与发布 | `compile` `preview` `upload` `build_npm` `cache_clean` |
-| `wechat_automator` | 自动化交互 | `start` `tap` `input` `element_info` `set_data` `call_method` `call_wx` `mock_wx` `evaluate` `page_stack` `page_data` `system_info` `storage` |
+| `wechat_automator` | 自动化交互与运行时查询 | `start` `tap` `input` `element_info` `set_data` `call_method` `call_wx` `mock_wx` `evaluate` `page_stack` `page_data` `system_info` `storage` |
 | `wechat_inspector` | 运行时日志采集 | `console` `cdp` |
-| `wechat_screenshot` | 界面截图（长图拼接） | — |
-| `wechat_navigate` | 跳转页面并采集 CDP 日志 | — |
+| `wechat_screenshot` | 长图拼接截图 | `full_page` `page_path` `scroll_top` |
+| `wechat_navigate` | 跳转并采集 CDP 日志 | `page_path` |
 | `wechat_file` | 项目文件读取 | `project_info` `list_pages` `read_page` `read_file` |
 
-> 云函数与云数据库管理请使用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)（`manageFunctions` / `readNoSqlDatabaseContent` 等），功能更完整且无 IDE 依赖。`wechat_cloud` 自 v0.9.5 起已禁用。
->
-> 完整工具参数说明请参阅 **[MCP_DOC.md](./MCP_DOC.md)**
-
----
-
-## 🧠 Skill 内容详情
-
-Skill 让 AI 在收到自然语言指令后，自动匹配并执行标准化操作流程：
-
-| 你说的话 | AI 执行的流程 |
-|---------|--------------|
-| "帮我检查所有页面有没有报错" | SOP D — 全页面巡检 |
-| "点击登录按钮，截图看看效果" | SOP B — UI 调试 |
-| "页面白屏了，帮我排查" | SOP C — 异常排查 |
-| "Mock 支付接口，测试支付流程" | SOP E — Mock 集成测试 |
-| "测试详情页，参数名是什么" | SOP G — 子页面测试 |
-| "对比各页面积分是否一致" | SOP I — 跨页面数据校验 |
-
-### Skill 包含
-
-- **9 个 SOP 流程** — 初始化、UI 调试、异常排查、全页面巡检、Mock 集成测试、网络调试与 UI 适配、子页面测试、跨页面数据校验、并行数据比对
-- **能力映射字典** — 7 个聚合工具 × 全部 action 的快速索引
-- **CDP 渐进排查策略** — concise → full 两阶段，控制 Token 消耗
-- **完整参数参考** — 每个 action 的必填/可选参数、返回示例、常用模板
-- **故障排查手册** — 常见错误码与修复方式
-
-> 安装方式见 [Step 5 — 安装 Skill](#step-5--安装-skill必须)
+完整参数见 [MCP_DOC.md](./MCP_DOC.md)。云函数与云数据库请用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)。
 
 ---
 
 ## 💡 环境变量
 
-| 变量名 | 说明 | 默认值 | 必填 |
-|--------|------|--------|------|
-| `WECHAT_DEVTOOLS_CLI` | 微信开发者工具 CLI 路径 | — | **是** |
-| `WECHAT_PROJECT_PATH` | 默认小程序项目绝对路径 | — | **是** |
-| `WECHAT_CLI_TIMEOUT` | CLI 命令超时时间（秒） | `30` | 否 |
-| `NODE_PATH` | Node.js 执行文件路径 | `node` | 否 |
+| 变量 | 说明 | 默认 |
+|------|------|------|
+| `WECHAT_DEVTOOLS_CLI` | 开发者工具 CLI 路径（**必填**） | — |
+| `WECHAT_PROJECT_PATH` | 默认项目根目录（**必填**） | — |
+| `WECHAT_CLI_TIMEOUT` | CLI 超时秒数 | `30` |
+| `NODE_PATH` | Node.js 可执行文件 | `node` |
 
 ---
 
 ## ❓ 常见问题
 
-<details>
-<summary><b>为什么 AI 总是报 <code>CLI_TIMEOUT</code> 错误？</b></summary>
-
-**最常见原因**：微信开发者工具的"服务端口"未开启。
-进入 `设置` → `安全` → `服务端口`，将其打开。开启后无需重启 IDE，AI 即可恢复连接。
-</details>
-
-<details>
-<summary><b><code>wechat_inspector</code> 返回"CDP 采集失败"</b></summary>
-
-如果手动打开了开发者工具，它可能未监听调试端口。**请关闭开发者工具**，让 AI 执行 `wechat_ide(action='open', cdp_enabled=True)` 以调试模式启动。
-</details>
-
-<details>
-<summary><b><code>uv tool upgrade</code> 提示文件被占用？</b></summary>
-
-编辑器中的 MCP 服务仍在运行。参见 [Step 1](#step-1--安装-mcp-server) 下方的升级提示——需先终止进程再升级。
-</details>
-
-<details>
-<summary><b><code>uv tool install</code> 后仍运行旧版本？</b></summary>
-
-可能是 `pip install` 安装的旧版本优先级更高。运行 `pip uninstall wechat-devtools-mcp` 移除旧版本，然后通过 `wechat_ide(action='status')` 确认 `mcp_version` 字段为最新版本。
-</details>
-
-<details>
-<summary><b>AI 无法找到微信 CLI 路径？</b></summary>
-
-在编辑器配置的 `env` 中确保 `WECHAT_DEVTOOLS_CLI` 填入了绝对路径：
-- **Windows**: 使用双反斜杠（如 `C:\\...\\cli.bat`）
-- **macOS**: 标准路径 `/Applications/wechatwebdevtools.app/Contents/MacOS/cli`，斜杠无需转义
-</details>
-
-<details>
-<summary><b>macOS 上 Node.js 检测失败？</b></summary>
-
-GUI 客户端（如 Claude Desktop）启动 MCP 时 `PATH` 可能不包含 `/opt/homebrew/bin`。MCP v0.9.6 起会自动尝试 Homebrew 标准路径；若仍失败，可在 `env` 中显式设置：
-```json
-"NODE_PATH": "/opt/homebrew/bin/node"
-```
-</details>
+| 症状 | 处理 |
+|------|------|
+| 一直报 `CLI_TIMEOUT` | 服务端口没开，见 Step 2；`wechat_ide(action='status')` 的 `service_port_enabled` 可自查 |
+| CDP 采集失败 / 采到的全是 Chrome | 9222 被占用。`open(cdp_port=9223)`，且 `inspector` / `navigate` / `build` 用同一个 `cdp_port` |
+| Windows 中文乱码或 `UnicodeDecodeError` | `env` 加 `"PYTHONIOENCODING": "utf-8"` |
+| 装了新版仍跑旧版 | `pip uninstall wechat-devtools-mcp`，再用 `wechat-devtools-mcp --version` 确认 |
+| IDE 2.x 下工具行为异常 | 注册名与官方 `wechat-devtools` 撞车，改用 `wechat-devtools-mcp` |
 
 ---
 
 ## 📋 版本历史
 
-| 版本 | 说明 |
-|------|------|
-| **0.9.16** | **长页面截图全面修复 + 源码开源**：固定区域识别由「找没变的」改为「找会动的」——旧判据逐行比对两张截图、「没变」即判为固定区，这要求固定元素**像素级稳定**，而半透明/毛玻璃导航栏会透出下方滚动内容、滚动时加阴影、状态栏还带跳变的时钟，任一情况都从第 0 行判负并返回 0，导航栏被当作内容拼进每一段。新判据利用两张图之间**已知的滚动距离**：能按 delta 找到对应行的即滚动内容，这是滚动内容的定义性特征、与它长什么样无关，因此不再依赖固定元素稳定，旧版为兼容而堆的 `MAX_GAP`、`SAFE_AREA_SKIP` 两个补丁一并删除（各自绑死了一种设备/设计假设）。合成用例对比（期望/旧/新）：半透明头 130/**0**/130、跳变时钟 140/**20**/140、纯色内容 100/**200**/100 —— 末项是此前未知的丢数据缺陷，纯色内容逐行「没变」被误判为固定区而整块吞掉。**修复长图停在前两屏**：`waitForScrollComplete` 旧实现连续两次读数相同即返回，`pageScrollTo` 尚未生效时两次读到的都是滚动前的位置，调用方据此判定「已到底部」直接停止（实测某列表页只拍到实际内容的一半）。**消除首屏与第二屏之间的缺口**：改为首步用保守步长起步、测出固定区域后再放宽。**修正懒加载列表的截断误报**：分段上限改按实际步长计算，并每段重读页面高度跟随增长。**拍不全/测不准不再静默**：`is_scroll_view_page` / `truncated` / `content_gaps` / `detection_confident` 此前要么被 `Math.max(0,...)` 夹掉、要么在 Python 侧 `_ok()` 中被丢弃（与 v0.9.15 那个「CDP 恒返回 0 条」同一类缺陷），现全部透传并在 message 中以 ⚠ 明示；`node_bridge` 失败分支同时保留 handler 给的 `hint`。真机验证（开发者工具 2.x）：帮助页 `fixed_header` 0 → 166、接缝导航栏重复消失，且旧版在接缝丢了一条内容；某列表页 3 段 3184px → 7 段 6815px；6 个页面用整条带匹配验证顶栏/底栏各只出现 1 次。**同时本项目源码已开源**（[#11](https://github.com/WaterTian/wechat-devtools-mcp/issues/11)），`src/` 与 214 项测试并入公开仓，新增 CONTRIBUTING.md；移除自 v0.9.5 起就未注册的 `wechat_cloud` 死代码 |
-| **0.9.15** | **适配开发者工具 2.x(Electron) + 修复 CDP 采集长期失效**：开发者工具 2.x 改用 Electron（1.06.x Stable 仍是 NW.js，双轨兼容不替换）。macOS 启动路径按 `Resources/package.nw` 有无自动判定运行时、入口读 Info.plist 的 `CFBundleExecutable`，kill 模式改用 `.app` 包路径——旧模式匹配不到 Electron 进程，导致 macOS 上默认参数的 `wechat_ide(action='open')` 完全不可用；2.x 不再识别命令行 `--project`，改为先带 CDP 起进程再由 CLI 打开项目，并等 CDP 与 IDE 服务端口双双就绪才继续（否则 CLI 会另起一个不带 CDP 的实例，出现「项目开了但 CDP 连不上」的假成功）。**修复 `wechat_inspector(action='cdp')` 自 v0.9.0 起恒返回 0 条**——daemon 把结果放在 `data`，而 inspector 读的是并不存在的 `logs`，最常用的查错工具静默失灵了 8 个小版本。daemon 流上限由 asyncio 默认 64 KiB 提到 16 MiB（2.x 下 6 秒采集实测 634 KiB，超限会静默丢弃全部结果）。CDP 噪音过滤适配 2.x target 结构，剔除新增的 IDE 外壳页与因 `type=webview` 漏网的 `devtools://`（实测 734 条 → 206 条）。IDE 端口探测改读 IDE 落盘的 `.ide` 文件（硬编码候选端口在 2.x 下完全猜不中）；`status` 新增 `service_port_enabled`（`CLI_TIMEOUT` 的头号原因，现可自诊断）与 `ide_port`；`wechat_ide` / `wechat_build` 新增 `cdp_port` 参数（9222 常被 Chrome 占用） |
-| **0.9.14** | **文件读取路径修复 + 参数失效修复**：`wechat_file` 的 `read_page`/`read_file` 改为与 `list_pages` 同口径（先按 `project.config.json` 的 `miniprogramRoot` 解析，再回退项目根）——此前云开发项目里 `list_pages` 返回的 `pages/xxx/index` 喂给 `read_page` 必然报「未找到页面文件」，SOP G 第一步即受影响；同名文件在两个根下都存在时新增 `also_found_at` 如实提示，`project.config.json` 固定取项目根那份权威副本；`read_page` 返回 `resolved_base`、`read_file` 返回 `resolved_path`。`wechat_inspector(action='cdp')` 补上 `cdp_port` 透传（此前该参数形同虚设，永远连 9222）。`subprocess.CREATE_NO_WINDOW` 全部改用 `getattr` 兜底，消除非 Windows 平台的 `AttributeError` 隐患 |
-| **0.9.13** | **`--version` 早退 + 文档核对修复**：`wechat-devtools-mcp --version` / `-V` 零依赖打印安装版本后直接退出（uvx 复用已装环境不自拉最新，一行命令即可确认实际版本）；文档修复：navigate 参数表 5 列错位、`设置 -> 安全设置` 菜单名、`mcp_version` 示例去版本化；补记 `wechat_ide` `result_output` 与 `wechat_navigate` `timeout`（此前自 v0.6.0 起未进文档）；SKILL.md Step 1 新增 skill/MCP 版本一致性自检行 |
-| **0.9.12** | **握手返回包版本 + 依赖上界**：mcp 2.x 下 `initialize` 的 `serverInfo.version` 由空串改为本包版本（1.x 下仍报 SDK 版本，SDK 无参数可覆盖）；依赖补上界 `mcp[cli]>=1.9,<3` 防范 mcp 未来大版本破坏；双版本导入统一收敛至 `_compat.py`（[#9](https://github.com/WaterTian/wechat-devtools-mcp/issues/9) [#10](https://github.com/WaterTian/wechat-devtools-mcp/issues/10)）|
-| **0.9.11** | **兼容 mcp 2.0.0**：官方 MCP Python SDK 2.0（2026-07-28 发布）移除 `mcp.server.fastmcp`（改名 `MCPServer`）导致新装用户启动即崩，全部导入改为 1.x/2.x 双版本兼容；依赖明确为 `mcp[cli]>=1.9`（[#8](https://github.com/WaterTian/wechat-devtools-mcp/issues/8)）|
-| **0.9.10** | **修复 page_path 静默失败**：screenshot.js 导航后验证页面路径是否匹配，缺少 `/index` 后缀或页面不存在时返回明确错误而非静默拍下旧页面；node_bridge.py 修复 daemon handler 错误信息丢失（[#5](https://github.com/WaterTian/wechat-devtools-mcp/issues/5)）|
-| **0.9.9** | **修复截图导致小程序重启**：screenshot.js 对非 TabBar 页面的导航方式从 `reLaunch`（销毁全部页面栈）改为 `navigateTo`（非破坏性压栈），修复 macOS 环境下截图后模拟器重置问题（[#4](https://github.com/WaterTian/wechat-devtools-mcp/issues/4)）|
-| **0.9.8** | **修复 automator 连接稳定性**：daemon.js `currentPage()` 健康检查改为轮询重试（新连接 5 次 × 3s+1.5s），不再因页面加载慢丢弃已建立的 WebSocket 连接；`_action_start` 改用 `_run_cli` 同步检测 CLI 返回码，CLI 失败立即感知（[#3](https://github.com/WaterTian/wechat-devtools-mcp/issues/3)）|
-| **0.9.7** | **修复 daemon 孤儿进程残留**：daemon.js 增加父进程 watchdog，每 5 秒 `process.kill(ppid, 0)` 检测存活，父进程被杀后自动清理 WS 连接并退出（[#2](https://github.com/WaterTian/wechat-devtools-mcp/issues/2)）|
-| **0.9.6** | **macOS 适配**：`cdp_enabled=true` 模式跨平台启动（NW.js 主程序 `wechatdevtools` + `package.nw` 入口 + `pkill` 清理）；默认 CLI 路径按平台返回；Node.js 检测补 Homebrew/nvm 候选路径；README 增加 macOS 路径示例 |
-| **0.9.5** | **修复 compile 健康检查永久失败的潜伏 bug**（ui_debug.js 无 `page_stack` action，v0.9.0 以来 `automator_verified` 一直误报 false）；compile 对 `EACCES`/`EADDRINUSE`/`#initialize-error` 等致命 pattern 降级为 fail，杜绝「假成功发布旧 bundle」；preview 自动 resolve 相对路径 + mtime 新鲜度检测；`wechat_automator(action='start')` 升级为 TCP+WS 双重验证 + `retry_after_ms` 精确等待；compile 前检测 `miniprogram_npm` 过期发 warning；inspector 短 duration 捕获异常时发 warning；`wechat_cloud` 工具已禁用（改用 CloudBase MCP） |
-| **0.9.4** | 修复 switchTab 跳转不生效（改用 `miniProgram.switchTab()` 替代 `callWxMethod`）；compile 后重连稳定性（去冗余进程 + 3s 延迟 + WS 健康检查）；README 5 项 agent 友好性改进 |
+| 版本 | 日期 | 摘要 |
+|------|------|------|
+| 0.9.17 | 2026-09-03 | 适配开发者工具 2.x Stable；evaluate 新增 `fn_source`；`open` 提速约 4 倍；Windows 1.x/2.x 双轨判定 |
+| 0.9.16 | 2026-08-27 | 长页面截图全面修复；源码开源 |
+| 0.9.15 | 2026-08-20 | 适配开发者工具 2.x（Electron）；修复 CDP 采集自 0.9.0 起恒为 0 条 |
+| 0.9.14 | 2026-08-20 | `wechat_file` 路径口径统一；`cdp_port` 透传修复 |
+| 0.9.13 | 2026-08-18 | `--version` 早退；文档核对修复 |
+| 0.9.12 | 2026-08-18 | 握手返回包版本；依赖上界 `mcp<3` |
 
-<details>
-<summary>展开 v0.9.3 及更早版本</summary>
-
-| 版本 | 说明 |
-|------|------|
-| 0.9.3 | status 新增 `mcp_version` 字段用于版本确认；启动时打印版本号到 stderr；README 增加 pip/uv 版本冲突排查指引 |
-| 0.9.2 | **修复 compile 后 navigate 超时**：daemon 连接健康检查增加 3s 超时保护；compile 后自动 invalidate 旧缓存连接再重连；navigate currentPage 轮询每次调用增加 2s 独立超时；区分 HEALTH\_CHECK\_TIMEOUT 和 CONNECTION\_ERROR 错误码 |
-| 0.9.1 | 修复 cdp\_enabled=true 时 AttributeError 崩溃；新增 WXML 运行时错误采集（compile 后 CDP 自动捕获 template not found 等警告） |
-| 0.9.0 | **持久化 Node daemon 架构**：单 daemon 进程常驻，NDJSON 协议通信，WS 连接按端口复用；单个 daemon.bundle.js 替代 8 个独立 bundle；工具调用延迟从 500ms+ 降至 ~3ms；compile 后 daemon 自动重建连接零断连 |
-| 0.8.0 | compile 后自动重连 automator；navigate 自动识别 TabBar 页面走 switchTab；screenshot 新增 full\_page/scroll\_top/page\_path 参数及视口截图模式；page\_data 新增 expected\_path 轮询防旧数据；长图拼接动态步长修复内容缺口；node\_bridge 统一连接断开重试 + 500ms 调用间隔；start 端口验证增至 20 次 |
-| 0.7.0 | navigate 变量作用域修复（currentPageTimeout）；evaluate 支持声明语句（const/let/var fallback）；call_method 返回当前页面路径；automator start 端口轮询验证替代盲等；SKILL.md 新增效率原则、恢复分级、页面跳转方法、6 条故障条目 |
-| 0.6.0 | navigate 支持 query 参数（reLaunch 超时 fallback）；CDP 启动噪音过滤（console.assert/\_\_route\_\_/ide:// 降噪 + WXML 错误保护）；compile 返回值三分类 + automator 失效提示；navigate currentPage 轮询重试；超时可配置 |
-| 0.5.1 | `wechat_ide(action='open')` 新增 CDP 启动健康检查：自动采集 5 秒 CDP 日志检测启动阶段致命错误，有错误直接返回失败阻止后续操作 |
-| 0.5.0 | Skill SOP 全面优化：新增 SOP I/J；增加 AppID 检查与 path 校验；CDP 噪音过滤；截图拼接模糊匹配修复 |
-| 0.4.1 | 截图长页面拼接重写：固定区域检测、DPR 自适应、动态重叠计算 |
-| 0.4.0 | CDP 日志增强、云函数部署自动验证、navigate 智能诊断、新增 SOP G/H |
-| 0.3.0 | **重大重构**：44 个工具聚合为 8 个 API；CDP 日志 v2；新增 SKILL.md 知识库 |
-| 0.2.6 | README 新增 OpenAI Codex 配置说明 |
-| 0.2.5 | 新增 Kiro 编辑器配置说明 |
-| 0.2.4 | 截图滚动拼接修复：`sharp` → `jimp` |
-| 0.2.3 | 发布包优化：排除 `scripts/` 源码，仅保留 `dist/` 构建产物 |
-| 0.2.2 | Node.js 脚本改为 bundle-only 模式 |
-| 0.2.1 | 版本更新与文档完善 |
-| 0.2.0 | navigate 改用 CDP 高清日志采集 |
-| 0.1.9 | 修复 UTF-8 编码乱码 |
-| 0.1.8 | 修复 Windows 中文路径 UnicodeDecodeError |
-| 0.1.7 | 新增 core/full 工具集预设；新增 MCP_DOC.md |
-| 0.1.6 | `wechat_open(cdp_enabled=true)` 自动 kill 已有进程 |
-| 0.1.5 | 修复 Windows stdio 阻塞问题 |
-| 0.1.4 | 添加 CDP 日志、截图、自动化等功能 |
-| 0.1.3 | 初始版本 |
-</details>
+完整逐版本说明见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ---
 
-## 参考文档
+## 参考
 
-- [微信开发者工具 CLI 官方文档](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html)
-- [小程序自动化 SDK](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/quick-start.html)
-
----
-
-## 许可证
-
-MIT
+- [微信开发者工具 CLI](https://developers.weixin.qq.com/miniprogram/dev/devtools/cli.html) · [小程序自动化 SDK](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/quick-start.html)
+- 许可证：MIT

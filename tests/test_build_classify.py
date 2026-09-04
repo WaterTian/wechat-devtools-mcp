@@ -48,3 +48,19 @@ class TestClassifyCompileLine:
         assert _classify_compile_line("") is None
         assert _classify_compile_line("- compile wxml and wxss") is None
         assert _classify_compile_line("- pack files") is None
+
+
+class TestRuntimeDeprecationNoise:
+    """Node/Electron 弃用提示不是小程序告警（真机 2026-09-03，IDE 2.02.2608060 Stable）。"""
+
+    def test_node_deprecation_line_skipped(self):
+        line = "(node:35858) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead."
+        assert _classify_compile_line(line) is None
+
+    def test_trace_deprecation_hint_skipped(self):
+        assert _classify_compile_line("(Use `Electron --trace-deprecation ...` to show where the warning was created)") is None
+        assert _classify_compile_line("(Use `node --trace-deprecation ...` to show where the warning was created)") is None
+
+    def test_real_deprecated_api_warning_still_counted(self):
+        """项目代码里的 deprecated 告警不能被误杀。"""
+        assert _classify_compile_line("[warning] wx.getSystemInfo is deprecated") == "warning"
