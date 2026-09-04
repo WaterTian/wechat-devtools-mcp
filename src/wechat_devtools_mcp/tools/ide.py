@@ -83,7 +83,9 @@ def _read_bundle_executable(contents: str) -> str:
 # Windows 2.x(Electron) 主程序候选文件名。照抄官方 wechatide-skill 的
 # skills/installer/scripts/install-root.mjs 里 App Paths 注册表键名顺序
 # （IDE 2.02.2607271 与 2.02.2608060 自带的脚本内容一致）。
-# 2026-09-03：Windows 真机未验证，按存在性择一；kill 直接用选中的镜像名。
+# 2026-09-04 静态解包 Stable 2.02.2608060 win32 安装包核对：主程序确认为 微信开发者工具.exe
+# （根目录唯一 > 50 MB 的 exe，官方 cli.bat 也按此规则找它），保留备选以防改名；
+# kill 直接用选中的镜像名。运行时（两步式 open 时序）未真机验证，见 docs/windows-internals.md。
 _WIN_ELECTRON_EXE_CANDIDATES: tuple[str, ...] = (
     "微信开发者工具.exe",
     "wechatwebdevtools.exe",
@@ -187,7 +189,15 @@ def _port_listening(port: int) -> bool:
         return False
 
 
-async def _wait_ide_ready(cdp_port: int, timeout: int = 60) -> tuple[bool, bool]:
+def _cdp_shell_ready(cdp_port: int) -> bool:
+    """CDP /json/list 里已出现任何 target（IDE 外壳窗口起来了）。"""
+    targets = _http_get_json(cdp_port, "/json/list", 1.0)
+    return isinstance(targets, list) and len(targets) > 0
+
+
+async def _wait_ide_ready(
+    cdp_port: int, timeout: int = 60, require_service: bool = True,
+) -> tuple[bool, bool]:
     """等待刚启动的 IDE 就绪，返回 (cdp_ready, service_ready)。
 
     为什么必须等：IDE 有单实例锁。若在自己起的实例尚未就绪时就调 `cli open`，
@@ -197,6 +207,11 @@ async def _wait_ide_ready(cdp_port: int, timeout: int = 60) -> tuple[bool, bool]
     就绪判据两条：
       1. CDP 端口开始监听 —— 说明 Electron 的 DevTools server 起来了
       2. `.ide` 记录的 IDE 服务端口开始监听 —— 说明 CLI 能连上这个实例
+
+    require_service=False（Windows 2.x）：`.ide` 记录的端口在实例重启后不更新
+    （真机 2026-09-04），判据 2 永远不成立、会白等满 timeout。改用「CDP /json/list
+    已出现 IDE 外壳 target」作为第二条判据——窗口起来即视为服务就绪，
+    真实连通性由随后的 `cli open` 兜底（CLI 自带服务发现）。
     """
     deadline = asyncio.get_running_loop().time() + timeout
     cdp_ready = False
@@ -205,8 +220,11 @@ async def _wait_ide_ready(cdp_port: int, timeout: int = 60) -> tuple[bool, bool]
         if not cdp_ready:
             cdp_ready = _port_listening(cdp_port)
         if not service_ready:
-            svc = ide_state.read_ide_port()
-            service_ready = bool(svc and _port_listening(svc))
+            if require_service:
+                svc = ide_state.read_ide_port()
+                service_ready = bool(svc and _port_listening(svc))
+            elif cdp_ready:
+                service_ready = await asyncio.to_thread(_cdp_shell_ready, cdp_port)
         if cdp_ready and service_ready:
             return True, True
         await asyncio.sleep(0.5)
@@ -239,10 +257,30 @@ async def _wait_miniprogram_targets(
         await asyncio.sleep(interval)
 
 
+def _windows_image_running(image_name: str) -> bool:
+    """tasklist 里是否还有该镜像名的进程（Windows）。探测失败按「还在」处理，宁可多等。
+
+    用 /FO CSV：命中行以双引号开头（"微信开发者工具.exe","1234",...），
+    「没有运行的任务」提示行不以引号开头。这样不依赖控制台码页
+    （中文 Windows 是 GBK，按 UTF-8 解码中文镜像名永远匹配不上，会误判为已退出——
+    真机 2026-09-04 quit 353ms 就报 exited 即此问题），也不依赖系统语言。
+    """
+    try:
+        out = subprocess.run(
+            ["tasklist", "/FI", f"IMAGENAME eq {image_name}", "/NH", "/FO", "CSV"],
+            capture_output=True, text=True, errors="replace",
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        ).stdout or ""
+    except Exception:
+        return True
+    return any(line.lstrip().startswith('"') for line in out.splitlines())
+
+
 async def _kill_existing_ide(kill_pattern: str) -> None:
     """跨平台 kill 已运行的 IDE 主程序，等到进程消失（上限 2s）再返回。
 
-    macOS 用 pgrep 轮询，通常 0.2s 内就干净；Windows 无等价廉价探测，沿用固定 2s。
+    macOS 用 pgrep 轮询；Windows 用 tasklist 按镜像名轮询（真机 2026-09-04 验证）。
+    通常 0.2s 内就干净。
     """
     if sys.platform == "win32":
         subprocess.run(
@@ -250,7 +288,10 @@ async def _kill_existing_ide(kill_pattern: str) -> None:
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
-        await asyncio.sleep(2)
+        for _ in range(10):
+            if not _windows_image_running(kill_pattern):
+                return
+            await asyncio.sleep(0.2)
         return
 
     if sys.platform == "darwin":
@@ -353,7 +394,12 @@ async def _action_open(params: WechatIdeInput) -> str:
         project_opened = None
         cdp_ready = None
         if params.cdp_enabled and runtime == "electron":
-            cdp_ready, service_ready = await _wait_ide_ready(params.cdp_port, timeout=60)
+            # Windows 2.x 的 .ide 端口是 stale 的（0c492ec 真机发现），等它会白等满 60s；
+            # 改以 CDP 外壳 target 作第二判据，见 _wait_ide_ready 的 require_service。
+            win_electron = sys.platform == "win32" and runtime == "electron"
+            cdp_ready, service_ready = await _wait_ide_ready(
+                params.cdp_port, timeout=60, require_service=not win_electron,
+            )
             if not cdp_ready:
                 return _fail(
                     ErrorCode.UNKNOWN_ERROR,
@@ -364,13 +410,15 @@ async def _action_open(params: WechatIdeInput) -> str:
                     ),
                     extra={"cdp_port": params.cdp_port, "runtime": runtime},
                 )
-            if not service_ready:
+            if not service_ready and not win_electron:
                 return _fail(
                     ErrorCode.UNKNOWN_ERROR,
                     "IDE 服务端口在 60 秒内未就绪，无法继续打开项目。",
                     hint="确认开发者工具的服务端口已开启（设置 → 安全设置 → 服务端口）。",
                     extra={"cdp_port": params.cdp_port, "runtime": runtime},
                 )
+            # Windows 2.x：即便外壳 target 在 60s 内也没出现，仍放行——CLI 自带服务发现，
+            # 以下方 _run_cli 的实际连通结果为准（0c492ec 的兜底逻辑保留）。
 
         if params.cdp_enabled and runtime == "electron" and project_path:
             open_result = await _run_cli(
@@ -388,8 +436,12 @@ async def _action_open(params: WechatIdeInput) -> str:
 
         # CDP 启动健康检查：等小程序 target 出现后采集 3 秒，检测启动阶段致命错误。
         # Console.enable 会回放缓冲区，加载阶段已发生的错误也能拿到，不必长采。
+        targets_ready = None
         if params.cdp_enabled:
-            await _wait_miniprogram_targets(params.cdp_port, timeout=8.0)
+            # 等不到小程序 target 是「项目没在我们这个带 CDP 的实例里打开」的最强信号
+            # （典型是单实例锁竞态：cli open 另起了一个不带 CDP 的实例）。不据此判失败
+            # ——慢机器上可能只是没加载完——但要在返回里明示，别让调用方以为一切正常。
+            targets_ready = await _wait_miniprogram_targets(params.cdp_port, timeout=8.0)
             cdp_result = await _run_node_script(
                 "cdp_listener.js", "3", str(params.cdp_port), timeout=20,
             )
@@ -419,7 +471,16 @@ async def _action_open(params: WechatIdeInput) -> str:
             data["project_opened"] = project_opened
         if cdp_ready is not None:
             data["cdp_ready"] = cdp_ready
-        return _ok(data, message=f"IDE 已在后台启动。{cdp_note}")
+        message = f"IDE 已在后台启动。{cdp_note}"
+        if targets_ready is not None:
+            data["miniprogram_targets_ready"] = targets_ready
+            if not targets_ready:
+                message += (
+                    "。⚠ 8 秒内未在该 CDP 端口看到小程序 target（__pageframe__ / appservice）："
+                    "项目可能没在这个实例里打开（单实例锁竞态）或仍在加载。"
+                    "先 wechat_automator(action='start') 试探；不行则重试 wechat_ide(action='open')"
+                )
+        return _ok(data, message=message)
     except FileNotFoundError:
         return _fail(
             ErrorCode.CLI_NOT_FOUND,
@@ -475,21 +536,32 @@ async def _action_close(params: WechatIdeInput) -> str:
 
 
 async def _wait_ide_exit(timeout: float = 10.0) -> bool | None:
-    """等 IDE 进程真正退出。macOS 用 pgrep 轮询 .app 路径；其它平台返回 None（无法判断）。
+    """等 IDE 进程真正退出。macOS 用 pgrep 轮询 .app 路径，Windows 用 tasklist 轮询主程序镜像名；
+    判断不了（布局未知等）返回 None。
 
     真机（2.02.2608060）：`cli quit` 0.3s 就返回，Electron 各子进程要 ~10s 才退干净。
     不等的话紧接着的 open / 手动启动会撞上单实例锁。
     """
-    if sys.platform != "darwin" or "/Contents/" not in CLI_PATH:
+    if sys.platform == "win32":
+        try:
+            _, image_name, _ = _resolve_ide_executable_for_cdp()
+        except Exception:
+            return None
+        is_alive = lambda: _windows_image_running(image_name)  # noqa: E731
+    elif sys.platform == "darwin" and "/Contents/" in CLI_PATH:
+        app_path = CLI_PATH.split("/Contents/", 1)[0]
+
+        def is_alive() -> bool:
+            probe = subprocess.run(
+                ["pgrep", "-f", app_path],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            return getattr(probe, "returncode", 1) == 0
+    else:
         return None
-    app_path = CLI_PATH.split("/Contents/", 1)[0]
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
-        probe = subprocess.run(
-            ["pgrep", "-f", app_path],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
-        if getattr(probe, "returncode", 1) != 0:
+        if not is_alive():
             return True
         if asyncio.get_running_loop().time() >= deadline:
             return False

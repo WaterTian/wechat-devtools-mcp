@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.9.17)
+# 微信开发者工具 MCP Server (v0.9.18)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -150,12 +150,12 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 
 | 版本 | 日期 | 摘要 |
 |------|------|------|
+| 0.9.18 | 2026-09-04 | Windows 2.x 真机闭环：状态目录 `User Data` 层、就绪判据、`quit` 等退出、噪音过滤；新增真机冒烟脚本 |
 | 0.9.17 | 2026-09-03 | 适配开发者工具 2.x Stable；evaluate 新增 `fn_source`；`open` 提速约 4 倍；Windows 1.x/2.x 双轨判定 |
 | 0.9.16 | 2026-08-27 | 长页面截图全面修复；源码开源 |
 | 0.9.15 | 2026-08-20 | 适配开发者工具 2.x（Electron）；修复 CDP 采集自 0.9.0 起恒为 0 条 |
 | 0.9.14 | 2026-08-20 | `wechat_file` 路径口径统一；`cdp_port` 透传修复 |
 | 0.9.13 | 2026-08-18 | `--version` 早退；文档核对修复 |
-| 0.9.12 | 2026-08-18 | 握手返回包版本；依赖上界 `mcp<3` |
 
 完整逐版本说明见 [CHANGELOG.md](./CHANGELOG.md)。
 

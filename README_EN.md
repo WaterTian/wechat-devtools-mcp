@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.17)
+# WeChat DevTools MCP Server (v0.9.18)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -150,12 +150,12 @@ Full parameters: [MCP_DOC.md](./MCP_DOC.md). Cloud functions and databases: use 
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.9.18 | 2026-09-04 | Windows 2.x verified on a real machine: `User Data` state dir, readiness, `quit` waits for exit, noise filters; new smoke script |
 | 0.9.17 | 2026-09-03 | DevTools 2.x Stable support; `fn_source` for evaluate; ~4x faster `open`; Windows dual-runtime detection |
 | 0.9.16 | 2026-08-27 | Long-page screenshot overhaul; source code opened |
 | 0.9.15 | 2026-08-20 | DevTools 2.x (Electron) support; CDP capture returning 0 entries since 0.9.0 fixed |
 | 0.9.14 | 2026-08-20 | Unified `wechat_file` path resolution; `cdp_port` forwarding fix |
 | 0.9.13 | 2026-08-18 | `--version` early exit; documentation fixes |
-| 0.9.12 | 2026-08-18 | Package version in handshake; dependency upper bound `mcp<3` |
 
 Full per-version notes: [CHANGELOG_EN.md](./CHANGELOG_EN.md).
 

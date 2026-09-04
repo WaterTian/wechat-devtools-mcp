@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.17)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.18)
 
 > `SKILL.md` 的扩展参考：7 个聚合工具的全部参数、action 与返回字段，均对照源码核对。SOP 流程见 `SKILL.md`。
 
@@ -51,11 +51,11 @@ IDE 生命周期管理。
 
 | action | 行为 | 返回 `data` |
 |--------|------|-------------|
-| `open` | `cdp_enabled=true`：kill 已运行的 IDE，带 `--remote-debugging-port` 重启。IDE 2.x 为两步式：等 CDP 端口与 IDE 服务端口都监听后再由 CLI 打开项目（1.x 直接透传 `--project`）。随后等小程序 target 出现，采集 3 秒 CDP 日志做启动健康检查，有 error 即返回 `success:false` + `startup_errors` + `cdp_summary`。`cdp_enabled=false`：只执行 `cli open`，不重启 IDE | `cdp_enabled`、`cdp_port`、`ide_runtime`（`nwjs` / `electron` / `win32`，`win32` 表示 Windows 两个布局探测点都不存在、沿用旧推导）、`cdp_ready`、`project_opened`（后两者仅 2.x） |
+| `open` | `cdp_enabled=true`：kill 已运行的 IDE，带 `--remote-debugging-port` 重启。IDE 2.x 为两步式：等 CDP 端口与 IDE 服务端口都监听后再由 CLI 打开项目（1.x 直接透传 `--project`）。随后等小程序 target 出现，采集 3 秒 CDP 日志做启动健康检查，有 error 即返回 `success:false` + `startup_errors` + `cdp_summary`。`cdp_enabled=false`：只执行 `cli open`，不重启 IDE | `cdp_enabled`、`cdp_port`、`ide_runtime`（`nwjs` / `electron` / `win32`，`win32` 表示 Windows 两个布局探测点都不存在、沿用旧推导）、`cdp_ready`、`project_opened`（后两者仅 2.x）、`miniprogram_targets_ready`（`false` 时 message 带 ⚠：项目可能没在带 CDP 的实例里打开，先 `start` 试探、不行重试 `open`） |
 | `login` | 生成登录二维码，需手机扫码 | `stdout` |
 | `is_login` | 查登录态 | `logged_in`、`stdout` |
 | `close` | 关闭项目窗口，不退出 IDE | `{}` |
-| `quit` | 退出 IDE 进程，并等进程真正消失（macOS，上限 10s） | `exited: true/false`（非 macOS 为 `null`） |
+| `quit` | 退出 IDE 进程，并等进程真正消失（macOS pgrep / Windows tasklist 轮询，上限 10s） | `exited: true/false`（判断不了时为 `null`） |
 | `status` | 环境诊断，只读 | 见下例 |
 
 ### `status` 返回示例
@@ -64,7 +64,7 @@ IDE 生命周期管理。
 {
   "success": true,
   "data": {
-    "mcp_version": "0.9.17",
+    "mcp_version": "0.9.18",
     "cli_path": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
     "cli_exists": true,
     "project_path": "/Users/me/Projects/mini-app",

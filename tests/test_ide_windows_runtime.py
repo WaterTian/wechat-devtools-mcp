@@ -87,18 +87,21 @@ class TestWindowsRuntimeDetection:
         assert kill_pattern == "wechatdevtools.exe"
 
     def test_unknown_layout_falls_back_to_string_replacement(self, monkeypatch):
-        """两个探测点都不存在（路径根本不在本机）→ 保持旧行为，不抛错。"""
+        """两个探测点都不存在（路径根本不在本机）→ 保持旧行为，不抛错。
+
+        必须用绝不存在的根目录：装了 IDE 的 Windows 机上默认安装目录真实存在，会判成 electron。
+        """
         monkeypatch.setattr(sys, "platform", "win32")
         monkeypatch.setattr(
             ide, "CLI_PATH",
-            r"C:\Program Files (x86)\Tencent\微信web开发者工具\cli.bat",
+            r"C:\__nonexistent_wechat_devtools_test__\微信web开发者工具\cli.bat",
         )
 
         cmd_prefix, kill_pattern, runtime = ide._resolve_ide_executable_for_cdp()
 
         assert runtime == "win32"
         assert cmd_prefix == [
-            r"C:\Program Files (x86)\Tencent\微信web开发者工具\微信开发者工具.exe"
+            r"C:\__nonexistent_wechat_devtools_test__\微信web开发者工具\微信开发者工具.exe"
         ]
         assert kill_pattern == "wechatdevtools.exe"
 
@@ -134,7 +137,7 @@ class TestWindowsElectronOpenIsTwoStep:
             cli_calls.append(args)
             return {"success": True, "stdout": "", "stderr": ""}
 
-        async def fake_wait_ready(port, timeout=60):
+        async def fake_wait_ready(port, timeout=60, **kw):
             return True, True
 
         async def fake_kill(pattern):
@@ -168,6 +171,100 @@ class TestWindowsElectronOpenIsTwoStep:
         assert result["data"]["project_opened"] is True
 
 
+class TestWindowsElectronOpenServiceReadyRelaxed:
+    """Windows 2.x 真机实测（2026-09-04）：.ide 记录的服务端口在实例重启后不更新
+    （stale），_wait_ide_ready 的 service 判据必然失败。此时不应阻塞 open ——
+    CLI 自带服务发现（能找到真实端口），以 _run_cli 的实际结果为准。
+    """
+
+    @pytest.mark.asyncio
+    async def test_open_proceeds_when_service_ready_false(self, monkeypatch, tmp_path):
+        import asyncio
+        import subprocess
+
+        root = _make_root(tmp_path, "electron")
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(ide, "CLI_PATH", os.path.join(root, "cli.bat"))
+
+        class _FakeProc:
+            returncode = None
+
+            def poll(self):
+                return None
+
+        cli_calls = []
+
+        async def fake_run_cli(*args, **kwargs):
+            cli_calls.append(args)
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        async def _cdp_ok_service_no(port, timeout=60, **kw):
+            return True, False  # Windows 2.x 真机现象：CDP 就绪但 .ide stale
+
+        async def _noop(*a, **k):
+            return None
+
+        async def fake_node(*a, **k):
+            return {"success": True, "data": []}
+
+        monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: _FakeProc())
+        monkeypatch.setattr(ide, "_run_cli", fake_run_cli)
+        monkeypatch.setattr(ide, "_wait_ide_ready", _cdp_ok_service_no)
+        monkeypatch.setattr(ide, "_kill_existing_ide", _noop)
+        monkeypatch.setattr(ide, "_run_node_script", fake_node)
+        monkeypatch.setattr(asyncio, "sleep", _noop)
+
+        import json
+        from wechat_devtools_mcp.models.schemas import WechatIdeInput
+        result = json.loads(await ide._action_open(
+            WechatIdeInput(action="open", cdp_port=9223, project_path=r"D:\proj")))
+
+        assert result["success"] is True, result
+        assert cli_calls and cli_calls[0][:3] == ("open", "--project", r"D:\proj")
+        assert result["data"]["project_opened"] is True
+
+    @pytest.mark.asyncio
+    async def test_service_not_ready_still_fails_on_macos_electron(self, monkeypatch, tmp_path):
+        """macOS 保持原语义：service 判据不过时继续阻塞（CLI 会另起不带 CDP 的实例）。"""
+        import asyncio
+        import subprocess
+
+        # 构造 darwin 布局：cli 在 Contents/MacOS 下，无 package.nw → electron
+        app = tmp_path / "wechatwebdevtools.app"
+        macos = app / "Contents" / "MacOS"
+        macos.mkdir(parents=True)
+        (macos / "Electron").write_bytes(b"MZ")
+        cli = macos / "cli"
+        monkeypatch.setattr(sys, "platform", "darwin")
+        # darwin 分支用 "/" 做字符串分割，Windows 上跑测试要显式正斜杠
+        monkeypatch.setattr(ide, "CLI_PATH", str(cli).replace("\\", "/"))
+
+        class _FakeProc:
+            returncode = None
+
+            def poll(self):
+                return None
+
+        async def _cdp_ok_service_no(port, timeout=60, **kw):
+            return True, False
+
+        async def _noop(*a, **k):
+            return None
+
+        monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: _FakeProc())
+        monkeypatch.setattr(ide, "_wait_ide_ready", _cdp_ok_service_no)
+        monkeypatch.setattr(ide, "_kill_existing_ide", _noop)
+        monkeypatch.setattr(asyncio, "sleep", _noop)
+
+        import json
+        from wechat_devtools_mcp.models.schemas import WechatIdeInput
+        result = json.loads(await ide._action_open(
+            WechatIdeInput(action="open", cdp_port=9223, project_path="/tmp/proj")))
+
+        assert result["success"] is False
+        assert "服务端口" in result.get("message", "")
+
+
 class TestOpenFallsBackToDefaultProjectPath:
     """`open` 未显式传 project_path 时必须回退到 WECHAT_PROJECT_PATH。
 
@@ -199,7 +296,7 @@ class TestOpenFallsBackToDefaultProjectPath:
             cli_calls.append(args)
             return {"success": True, "stdout": "", "stderr": ""}
 
-        async def _ok_ready(port, timeout=60):
+        async def _ok_ready(port, timeout=60, **kw):
             return True, True
 
         async def _noop(*a, **k):
@@ -222,3 +319,86 @@ class TestOpenFallsBackToDefaultProjectPath:
         assert result["success"] is True, result
         assert cli_calls and cli_calls[0][:3] == ("open", "--project", r"D:\default-proj")
         assert result["data"]["project_opened"] is True
+
+
+class TestWindowsElectronReadyWithoutStalePort:
+    """Windows 2.x 的 .ide 端口 stale（0c492ec 真机发现）：不能拿它当就绪判据，否则每次 open 白等 60s。
+
+    改用「CDP 已监听 + /json/list 出现 IDE 外壳 target」，等到即返回。
+    """
+
+    @pytest.mark.asyncio
+    async def test_wait_ide_ready_returns_fast_via_shell_target(self, monkeypatch):
+        import http.server
+        import json as _json
+        import threading
+
+        class _H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                body = _json.dumps([{"type": "page", "url": "file:///.../electron-entrance.html"}]).encode()
+                self.send_response(200); self.send_header("Content-Length", str(len(body))); self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+
+        srv = http.server.HTTPServer(("127.0.0.1", 0), _H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            monkeypatch.setattr(ide, "_port_listening", lambda p: True)
+            # .ide 记录的是 stale 端口：read_ide_port 给一个根本没人监听的值也不该被用到
+            monkeypatch.setattr(ide.ide_state, "read_ide_port", lambda: 1)
+            import time
+            t0 = time.time()
+            cdp_ready, service_ready = await ide._wait_ide_ready(srv.server_port, timeout=30, require_service=False)
+            assert (cdp_ready, service_ready) == (True, True)
+            assert time.time() - t0 < 5, "不应等到超时"
+        finally:
+            srv.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_wait_ide_ready_default_still_requires_service_port(self, monkeypatch):
+        """默认（macOS / 1.x）行为不变：服务端口不监听就一直等到超时。"""
+        monkeypatch.setattr(ide, "_port_listening", lambda p: p == 9223)
+        monkeypatch.setattr(ide.ide_state, "read_ide_port", lambda: 11071)
+        cdp_ready, service_ready = await ide._wait_ide_ready(9223, timeout=1)
+        assert (cdp_ready, service_ready) == (True, False)
+
+    @pytest.mark.asyncio
+    async def test_open_on_windows_electron_passes_require_service_false(self, monkeypatch, tmp_path):
+        import asyncio
+        import json as _json
+        import subprocess
+
+        root = _make_root(tmp_path, "electron")
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(ide, "CLI_PATH", os.path.join(root, "cli.bat"))
+        monkeypatch.setattr(ide, "DEFAULT_PROJECT_PATH", r"D:\proj")
+
+        class _P:
+            returncode = None
+            def poll(self): return None
+
+        seen = {}
+
+        async def fake_wait(port, timeout=60, require_service=True):
+            seen["require_service"] = require_service
+            return True, True
+
+        async def _noop(*a, **k): return None
+        async def fake_cli(*a, **k): return {"success": True, "stdout": "", "stderr": ""}
+        async def fake_node(*a, **k): return {"success": True, "data": []}
+        async def fake_targets(*a, **k): return True
+
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: _P())
+        monkeypatch.setattr(ide, "_wait_ide_ready", fake_wait)
+        monkeypatch.setattr(ide, "_kill_existing_ide", _noop)
+        monkeypatch.setattr(ide, "_run_cli", fake_cli)
+        monkeypatch.setattr(ide, "_run_node_script", fake_node)
+        monkeypatch.setattr(ide, "_wait_miniprogram_targets", fake_targets)
+        monkeypatch.setattr(asyncio, "sleep", _noop)
+
+        from wechat_devtools_mcp.models.schemas import WechatIdeInput
+        result = _json.loads(await ide._action_open(WechatIdeInput(action="open", cdp_port=9223)))
+        assert result["success"] is True, result
+        assert seen["require_service"] is False

@@ -256,6 +256,22 @@ class TestIdeStateFiles:
         assert ide_state.read_ide_port() is None
         assert ide_state.read_service_port_enabled() is None
 
+    def test_windows_2x_nested_user_data_layout(self, tmp_path, monkeypatch):
+        """Windows 2.x 实测（2026-09-04，2.02.2608060）：状态文件在
+        <base>\\微信开发者工具\\User Data\\<hash>\\Default\\ 下，比 1.x 多一层 User Data。"""
+        import sys
+        from wechat_devtools_mcp.core import ide_state
+        profile = tmp_path / "微信开发者工具" / "User Data" / "8bd760e6" / "Default"
+        profile.mkdir(parents=True)
+        (profile / ".ide").write_text("14320", encoding="utf-8")
+        (profile / ".ide-status").write_text("On", encoding="utf-8")
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setenv("APPDATA", str(tmp_path / "roaming"))
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path / "home"))
+        assert ide_state.read_ide_port() == 14320
+        assert ide_state.read_service_port_enabled() is True
+
     def test_detect_ide_port_prefers_state_file(self, tmp_path, monkeypatch):
         """build._detect_ide_port 应优先采信 .ide，而不是硬编码候选列表。"""
         from wechat_devtools_mcp.core import ide_state

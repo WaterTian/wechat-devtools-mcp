@@ -1,4 +1,4 @@
-# MCP 工具箱完整文档 (v0.9.17)
+# MCP 工具箱完整文档 (v0.9.18)
 
 v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **7 个聚合工具**（v0.9.5 起 `wechat_cloud` 已禁用）。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
@@ -43,7 +43,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `login` | 登录，生成二维码供扫码 | — |
 | `is_login` | 检查是否已登录 | — |
 | `close` | 关闭指定项目窗口 | — |
-| `quit` | 退出整个 IDE，等进程真正消失后返回 `exited`（macOS） | — |
+| `quit` | 退出整个 IDE，等进程真正消失后返回 `exited`（macOS 用 pgrep、Windows 用 tasklist 轮询，上限 10s） | — |
 | `status` | 环境诊断（mcp_version/CLI/项目路径/Node.js/项目信息） | — |
 
 **可选参数**
@@ -79,6 +79,8 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 - `cdp_ready` — 仅 IDE 2.x 出现。CDP 端口是否确认在监听。为避免「项目打开了但 CDP 没起来」的假成功，
   2.x 会先等 CDP 端口与 IDE 服务端口双双就绪才继续；任一未就绪直接返回失败
 - `project_opened` — 仅 IDE 2.x 出现。2.x 不再识别命令行 `--project`，需先带 CDP 起进程再由 CLI 打开项目，此字段表示第二步是否成功
+- `miniprogram_targets_ready` — cdp_enabled 时出现。启动健康检查前 8 秒内是否在该 CDP 端口看到小程序 target
+  （`__pageframe__` / `appservice`）。为 `false` 时 message 带 ⚠：项目可能没在这个实例里打开（单实例锁竞态）或仍在加载，不判失败
 
 ---
 

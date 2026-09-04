@@ -1,5 +1,7 @@
 # macOS 适配实现说明（真机实测）
 
+> Windows 2.x 布局见 [windows-internals.md](./windows-internals.md)（2026-09-04 静态解包核对）。
+
 > 本文记录 MCP 在 macOS 上启动 IDE、连接 CDP 所依赖的开发者工具内部结构，
 > 供调试本项目与后续 Linux 适配参考。用户侧配置见 README「macOS」示例。
 >

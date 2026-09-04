@@ -60,6 +60,12 @@ class TestRuntimeDeprecationNoise:
     def test_trace_deprecation_hint_skipped(self):
         assert _classify_compile_line("(Use `Electron --trace-deprecation ...` to show where the warning was created)") is None
         assert _classify_compile_line("(Use `node --trace-deprecation ...` to show where the warning was created)") is None
+        # Windows 上可执行名是中文主程序名（真机 2026-09-04，2.02.2608060）
+        assert _classify_compile_line("(Use `微信开发者工具 --trace-deprecation ...` to show where the warning was created)") is None
+
+    def test_use_prefix_without_trace_flag_not_skipped(self):
+        """只有 --trace-deprecation 提示才跳过，别把以 (Use ` 开头的其它告警吞掉。"""
+        assert _classify_compile_line("(Use `foo` warning: something deprecated)") == "warning"
 
     def test_real_deprecated_api_warning_still_counted(self):
         """项目代码里的 deprecated 告警不能被误杀。"""

@@ -22,6 +22,13 @@ STARTUP_NOISE_PATTERNS: list[str] = [
     r"__route__",
     r"ide:///extensions/",
     r"devtools://",
+    # IDE 2.x 扩展注入的 inspectee 命令错误（真机 2026-09-04：RUNTIME_CONSOLE 的
+    # 原始日志外层 url 是 appservice，ide:///extensions/ 只在 CONSOLE 类型的
+    # content.url 里，只能靠 message 特征过滤）
+    r"inspectee MPPage",
+    # 登录过期属环境状态而非启动致命错误；open 的启动健康检查不应因此报
+    # 「页面可能无法正常显示」（真机 2026-09-04，2.02.2608060）
+    r"access_token expired",
 ]
 
 # WXML 错误保护模式（匹配时不被噪音过滤吞掉）

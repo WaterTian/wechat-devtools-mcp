@@ -1,12 +1,20 @@
 """读取微信开发者工具写在用户目录下的运行时状态文件。
 
 IDE 每次启动都会把自己的端口和开关状态落盘，比在候选端口列表里瞎猜可靠得多。
-实测（macOS，IDE 2.02.2607271）目录结构：
+实测目录结构：
 
+    macOS（IDE 2.02.2607271）：
     ~/Library/Application Support/微信开发者工具/<32位hash>/Default/
         .ide         → "11071"   IDE 服务端口（CLI 就是靠它找到 IDE）
         .cli         → "3799"    CLI 端口
         .ide-status  → "On"      服务端口开关状态
+
+    Windows 2.x（Electron，2.02.2608060，2026-09-04 真机）：
+    %LOCALAPPDATA%/微信开发者工具/User Data/<32位hash>/Default/
+        .ide / .cli / .ide-status   （比 1.x 多一层 User Data）
+
+    Windows 2.x 已知限制：.ide 记录的端口在实例重启后不更新（stale），
+    只反映最近一次「服务端口开启」动作的端口；调用方不能把它当硬依赖。
 
 多个 <hash> 目录会共存（不同版本/渠道各一份），取最近写入的那个。
 读不到时一律返回 None，由调用方回退到原有探测方式——这些是内部实现细节，
@@ -33,7 +41,12 @@ def _user_data_dirs() -> list[str]:
         for env in ("APPDATA", "LOCALAPPDATA", "USERPROFILE"):
             base = os.environ.get(env)
             if base:
-                candidates.append(os.path.join(base, _APP_DIR_NAME))
+                app = os.path.join(base, _APP_DIR_NAME)
+                # 1.x(NW.js) 布局：<base>\微信开发者工具\<hash>\Default\
+                candidates.append(app)
+                # 2.x(Electron) 实测布局（2026-09-04，2.02.2608060）：
+                # <base>\微信开发者工具\User Data\<hash>\Default\，多一层 User Data
+                candidates.append(os.path.join(app, "User Data"))
         return candidates
     return [os.path.join(home, ".config", _APP_DIR_NAME)]
 

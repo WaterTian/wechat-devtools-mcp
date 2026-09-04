@@ -170,6 +170,32 @@ class TestStartupNoiseFiltering:
         result = _format_cdp_logs_v2(logs, "full", 50, filter_startup_noise=True)
         assert result["summary"]["errors"] == 0
 
+    def test_inspectee_noise_filtered(self):
+        """IDE 2.x 扩展注入的 inspectee 错误（真机 2026-09-04：外层 url 是
+        appservice mainframe，ide:///extensions/ 只在 CONSOLE 类型的 content.url 里，
+        RUNTIME_CONSOLE 的原始日志不含该字符串，只能靠 message 特征过滤）。"""
+        logs = [
+            {"type": "RUNTIME_CONSOLE",
+             "url": "http://127.0.0.1:32965/appservice/s0/_sessionId/x/mainframe?load",
+             "content": {"args": [
+                 {"value": "inspectee MPPage.getCurrent error:"},
+                 {"value": "TypeError: Cannot destructure property 'rawPath' of 't.getPageMetaByWebviewId(...)' as it is null."},
+             ], "type": "error"}},
+        ]
+        result = _format_cdp_logs_v2(logs, "full", 50, filter_startup_noise=True)
+        assert result["summary"]["errors"] == 0
+
+    def test_access_token_expired_noise_filtered(self):
+        """登录过期（access_token expired）是环境状态而非启动致命错误
+        （真机 2026-09-04），不应让 open 的启动健康检查误报页面异常。"""
+        logs = [
+            {"type": "RUNTIME_CONSOLE",
+             "url": "http://127.0.0.1:32965/appservice/s0/_sessionId/x/mainframe?load",
+             "content": {"args": [{"value": "loadUserData error: <Error: cloud.callFunction:fail Error: access_token expired (trace: ...)"}], "type": "error"}},
+        ]
+        result = _format_cdp_logs_v2(logs, "full", 50, filter_startup_noise=True)
+        assert result["summary"]["errors"] == 0
+
     def test_wxml_error_preserved_despite_noise_filter(self):
         """WXML 编译错误即使在噪音过滤模式下也必须保留。"""
         logs = [

@@ -21,14 +21,16 @@ class TestResolveIdeExecutableForCdp:
     """_resolve_ide_executable_for_cdp 跨平台路径推导。"""
 
     def test_windows_returns_exe_replacement(self, monkeypatch):
+        # 用绝不存在的根目录：在装了 IDE 的 Windows 机上，默认安装目录的探测点真实存在，
+        # 会被正确判成 electron 而不是这里要测的「未知布局回退」
         monkeypatch.setattr(
             ide, "CLI_PATH",
-            r"C:\Program Files (x86)\Tencent\微信web开发者工具\cli.bat",
+            r"C:\__nonexistent_wechat_devtools_test__\微信web开发者工具\cli.bat",
         )
         monkeypatch.setattr(sys, "platform", "win32")
         cmd_prefix, kill_pattern, runtime = ide._resolve_ide_executable_for_cdp()
         assert cmd_prefix == [
-            r"C:\Program Files (x86)\Tencent\微信web开发者工具\微信开发者工具.exe"
+            r"C:\__nonexistent_wechat_devtools_test__\微信web开发者工具\微信开发者工具.exe"
         ]
         assert kill_pattern == "wechatdevtools.exe"
         assert runtime == "win32"
@@ -97,16 +99,23 @@ class TestKillExistingIde:
 
     async def test_windows_uses_taskkill(self, monkeypatch):
         monkeypatch.setattr(sys, "platform", "win32")
-        called = {}
+        calls = []
+
+        class _R:
+            stdout = "信息: 没有运行的任务匹配指定标准。"
+            returncode = 0
 
         def fake_run(args, **kwargs):
-            called["args"] = args
+            calls.append(args)
+            return _R()  # taskkill 之后的 tasklist 轮询：已无进程，立即返回
 
         with patch("subprocess.run", side_effect=fake_run):
             await ide._kill_existing_ide("wechatdevtools.exe")
 
-        assert called["args"][0] == "taskkill"
-        assert "wechatdevtools.exe" in called["args"]
+        # 第一条必须是 taskkill；之后是 tasklist 轮询确认镜像消失（2026-09-04）
+        assert calls[0][0] == "taskkill"
+        assert "wechatdevtools.exe" in calls[0]
+        assert all(c[0] == "tasklist" for c in calls[1:])
 
     async def test_macos_uses_pkill(self, monkeypatch):
         monkeypatch.setattr(sys, "platform", "darwin")

@@ -92,12 +92,49 @@ class TestQuitWaitsForExit:
         assert "仍未" in data["message"]
 
     @pytest.mark.asyncio
-    async def test_non_macos_reports_unknown(self, monkeypatch):
+    async def test_windows_polls_tasklist_until_image_gone(self, monkeypatch, tmp_path):
+        """Windows：按主程序镜像名 tasklist 轮询（真机 2026-09-04 前 exited 恒为 null）。"""
         monkeypatch.setattr(sys, "platform", "win32")
+        root = tmp_path / "微信web开发者工具"
+        (root / "resources" / "app.asar.unpacked").mkdir(parents=True)
+        (root / "resources" / "app.asar.unpacked" / "package.json").write_text("{}", encoding="utf-8")
+        (root / "微信开发者工具.exe").write_bytes(b"MZ")
+        (root / "cli.bat").write_text("@echo off", encoding="utf-8")
+        monkeypatch.setattr(ide, "CLI_PATH", str(root / "cli.bat"))
+        calls = []
+
+        class _R:
+            def __init__(self, out): self.stdout = out; self.returncode = 0
+
+        def fake_run(args, **kw):
+            calls.append(args)
+            # 第一次 tasklist 还有进程，第二次没了
+            n = sum(1 for c in calls if c[0] == "tasklist")
+            # /FO CSV：命中行以引号开头；提示行（中文/英文均可能）不以引号开头
+            return _R('"微信开发者工具.exe","1234","Console","1","100 K"' if n == 1 else "信息: 没有运行的任务匹配指定标准。")
+
+        monkeypatch.setattr(ide.subprocess, "run", fake_run)
         with patch("wechat_devtools_mcp.tools.ide._run_cli", new_callable=AsyncMock,
-                   return_value={"success": True, "stdout": "", "stderr": ""}):
+                   return_value={"success": True, "stdout": "", "stderr": ""}), \
+             patch("wechat_devtools_mcp.tools.ide.asyncio.sleep", new_callable=AsyncMock):
             data = json.loads(await ide._action_quit(WechatIdeInput(action="quit")))
-        assert data["data"]["exited"] is None
+
+        assert data["data"]["exited"] is True
+        tl = [c for c in calls if c[0] == "tasklist"]
+        assert len(tl) == 2 and "IMAGENAME eq 微信开发者工具.exe" in tl[0] and "CSV" in tl[0]
+
+    @pytest.mark.asyncio
+    async def test_windows_unknown_layout_reports_unknown(self, monkeypatch):
+        """Windows 布局探测不到主程序时仍返回 None，不抛错。"""
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(ide, "CLI_PATH", r"C:\__nonexistent__\cli.bat")
+        monkeypatch.setattr(ide.subprocess, "run", lambda *a, **k: type("R", (), {"stdout": "", "returncode": 0})())
+        with patch("wechat_devtools_mcp.tools.ide._run_cli", new_callable=AsyncMock,
+                   return_value={"success": True, "stdout": "", "stderr": ""}), \
+             patch("wechat_devtools_mcp.tools.ide.asyncio.sleep", new_callable=AsyncMock):
+            data = json.loads(await ide._action_quit(WechatIdeInput(action="quit")))
+        # 未知布局回退到旧字符串替换，镜像名 wechatdevtools.exe，tasklist 查不到 → 视为已退出
+        assert data["data"]["exited"] is True
 
 
 class TestWsUnreachableHint:
@@ -118,3 +155,21 @@ class TestWsUnreachableHint:
         with patch("wechat_devtools_mcp.tools.automator._run_node_script", new_callable=AsyncMock, return_value=err):
             data = json.loads(await automator.wechat_automator(WechatAutomatorInput(action="page_stack")))
         assert data["success"] is False and "hint" not in data
+
+
+class TestWindowsImageRunningCodepageSafe:
+    """tasklist 输出按行首引号判定，中文/英文提示、GBK 乱码都不影响。"""
+
+    def test_csv_row_means_running(self, monkeypatch):
+        monkeypatch.setattr(ide.subprocess, "run", lambda *a, **k: type("R", (), {"stdout": '"��.exe","4321","Console","1","1,000 K"\r\n'})())
+        assert ide._windows_image_running("微信开发者工具.exe") is True
+
+    def test_info_line_means_gone(self, monkeypatch):
+        for msg in ("信息: 没有运行的任务匹配指定标准。", "INFO: No tasks are running which match the specified criteria.", "��: ��"):
+            monkeypatch.setattr(ide.subprocess, "run", lambda *a, **k: type("R", (), {"stdout": msg + "\r\n"})())
+            assert ide._windows_image_running("微信开发者工具.exe") is False
+
+    def test_probe_failure_counts_as_running(self, monkeypatch):
+        def boom(*a, **k): raise OSError("no tasklist")
+        monkeypatch.setattr(ide.subprocess, "run", boom)
+        assert ide._windows_image_running("x.exe") is True

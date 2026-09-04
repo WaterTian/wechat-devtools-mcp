@@ -33,9 +33,12 @@ _COMPILE_SKIP_PREFIXES = (
     # 与 `(Use \`Electron --trace-deprecation ...\`)`，与小程序代码无关，
     # 混进 warnings 会让 agent 误以为项目有告警（真机 2026-09-03 发现）。
     "(node:",
-    "(Use `Electron --trace-deprecation",
-    "(Use `node --trace-deprecation",
 )
+
+# 与 _COMPILE_SKIP_PREFIXES 配合：`(Use \`<可执行名> --trace-deprecation ...\`)` 这一行里的
+# 可执行名跟平台走——macOS 是 Electron，Windows 是 微信开发者工具（真机 2026-09-04），
+# 不能按前缀写死，按「(Use ` 开头且含 --trace-deprecation」判定。
+_TRACE_DEPRECATION_HINT = "--trace-deprecation"
 
 # 行分类关键词
 _ERROR_KEYWORDS = ["error", "错误", "fail", "异常", "[error]"]
@@ -100,6 +103,8 @@ def _classify_compile_line(line: str) -> str | None:
     """将 compile stderr 的单行分类为 error/warning/status，或 None（跳过行）。"""
     line = line.strip()
     if not line or line.startswith(_COMPILE_SKIP_PREFIXES):
+        return None
+    if line.startswith("(Use `") and _TRACE_DEPRECATION_HINT in line:
         return None
     lower = line.lower()
     if any(kw in lower for kw in _ERROR_KEYWORDS):
