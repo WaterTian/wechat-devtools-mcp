@@ -30,7 +30,7 @@ Python MCP Server (src/wechat_devtools_mcp/)
 
 ```bash
 pip install -e .                    # 开发安装
-python -m pytest tests/ -q          # 全量测试（313 项，无需启动 IDE）
+python -m pytest tests/ -q          # 全量测试（316 项，无需启动 IDE）
 ```
 
 测试通过 `tests/conftest.py` 把 `src/` 插入 `sys.path`，因此**不装包也能直接跑**。
