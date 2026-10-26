@@ -16,7 +16,7 @@
 
 ## 🤝 与官方能力的关系
 
-微信开发者工具 **2.x 自 2026-08-18 起为官方 Stable**（1.06 已下架），IDE 内建 MCP Server（47 个原子工具）。两者互补，不是替代：
+微信开发者工具 **2.x 自 2026-08-18 起为官方 Stable**（1.06 已下架），IDE 内建 MCP Server（47 个原子工具，其中 2 个已废弃）。两者互补，不是替代：
 
 | 场景 | 用谁 |
 |------|------|
@@ -32,23 +32,26 @@
 
 ## 🚀 快速开始
 
+**前置条件**：Python ≥ 3.10（`uv` 会自动准备）、Node.js ≥ 18（daemon 依赖 puppeteer-core / jimp）、微信开发者工具 2.x 或 1.06.x。
+
 ### Step 1 — 安装 MCP Server
 
 ```bash
-pip install uv                                  # 如已装可跳过
-uv tool install wechat-devtools-mcp --force
-wechat-devtools-mcp --version                   # 确认实际运行版本
+pip install uv                                           # 或 brew install uv；已装可跳过
+uv tool install wechat-devtools-mcp                      # 首次安装
+uv tool install wechat-devtools-mcp --force --refresh    # 升级：--refresh 刷新索引缓存，否则可能装回旧版
+wechat-devtools-mcp --version                            # 确认实际运行版本
 ```
 
 > [!WARNING]
 > 曾用 `pip install` 装过旧版的，先 `pip uninstall wechat-devtools-mcp`，否则旧路径优先于 uv。
 > ≤0.9.10 与 mcp SDK ≥2.0 不兼容（报 `ModuleNotFoundError: mcp.server.fastmcp`），请升到 ≥0.9.11。
 
-升级前先停掉编辑器里正在跑的 MCP 进程，再 `uv tool upgrade wechat-devtools-mcp`。
+升级前先停掉编辑器里正在跑的 MCP 进程（重启编辑器即可）。用 `uvx` 配置的客户端会复用已缓存的环境、**不会自动升级**：跑一次 `uvx --refresh wechat-devtools-mcp --version` 刷新，或在 `args` 里锁定版本 `wechat-devtools-mcp==X.Y.Z`。
 
 ### Step 2 — 开启开发者工具服务端口
 
-`开发者工具` → `设置` → `安全设置` → `服务端口` → `开启`。不开则所有操作报 `CLI_TIMEOUT`。
+`开发者工具` → `设置` → `安全设置` → `服务端口` → `开启`。不开则 `open` / `compile` / `preview` 等走 CLI 的操作全部报 `CLI_TIMEOUT`。
 
 ### Step 3 — 准备两个绝对路径
 
@@ -78,12 +81,14 @@ JSON 里 Windows 路径的 `\` 要写成 `\\`；macOS 的 `/` 不用转义。
 }
 ```
 
+9222 常年被 Chrome 等占用的机器，在 `env` 里再加一行 `"WECHAT_CDP_PORT": "9333"`。
+
 | 编辑器 | 配置位置 | 差异 |
 |--------|----------|------|
 | Claude Desktop / Antigravity | `claude_desktop_config.json` / `mcp_config.json` | 无 |
-| Claude Code（项目级） | 仓库根目录 `.mcp.json` | macOS 下 `command` 用绝对路径 `/opt/homebrew/bin/uvx`，并在 `env` 加 `"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"` 与 `"NODE_PATH": "/opt/homebrew/bin/node"`（GUI 子进程不带 Homebrew PATH） |
+| Claude Code（项目级） | 仓库根目录 `.mcp.json` | `uvx` 走终端 PATH 即可。若编辑器是 GUI 启动（桌面版）报找不到 `uvx` / `node`，`command` 改绝对路径 `/opt/homebrew/bin/uvx`，并在 `env` 加 `"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"` 与 `"NODE_PATH": "/opt/homebrew/bin/node"` |
 | Kiro | `~/.kiro/settings/mcp.json` | 可加 `"autoApprove": ["wechat_ide","wechat_build","wechat_automator","wechat_inspector","wechat_screenshot","wechat_navigate","wechat_file"]` |
-| Trae ≥1.3 | AI 面板 → 设置 → MCP → 手动配置；或 `%APPDATA%\Trae\User\globalStorage\mcp.json` / `~/Library/Application Support/Trae/User/globalStorage/mcp.json` | 聊天须选 **Builder with MCP** 智能体；macOS 同 Claude Code 的绝对路径写法 |
+| Trae ≥1.3 | AI 面板 → 设置 → MCP → 手动配置；或 `%APPDATA%\Trae\User\globalStorage\mcp.json` / `~/Library/Application Support/Trae/User/globalStorage/mcp.json` | 聊天须选 **Builder with MCP** 智能体；macOS 报找不到 `uvx` 时同上改绝对路径 |
 | Cursor / VS Code | MCP 面板新增 server | Name `wechat-devtools-mcp`，Command `uvx wechat-devtools-mcp`，环境变量同上 |
 | OpenAI Codex | `~/.codex/config.toml` | TOML，见下 |
 
@@ -105,6 +110,17 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 
 不走 `npx skills` 的客户端（如 Trae）：把仓库的 `.agents/skills/wechat-devtools/` 整个复制到小程序项目的 `.agents/skills/` 下即可。Skill 含 9 条 SOP、7 工具全 action 速查、CDP 渐进排查策略与故障手册，详见 [SKILL.md](./.agents/skills/wechat-devtools/SKILL.md)。
 
+### Step 6 — 自检
+
+在编辑器里调一次 `wechat_ide(action='status')`，下面几项都符合再开工：
+
+| 字段 | 期望 | 不符时 |
+|------|------|--------|
+| `cli_exists` / `project_exists` / `node_available` | `true` | 核对 Step 3 的两个路径；安装 Node.js ≥ 18 |
+| `service_port_enabled` | `true` | 见 Step 2 |
+| `cdp_port_occupant.kind` | `none` 或 `ide` | `foreign` 表示端口被别的浏览器占着，设 `WECHAT_CDP_PORT=9333` |
+| `skill_version` | 等于 `mcp_version` | 重跑 Step 5 更新 skill 副本 |
+
 ---
 
 ## 🛠️ 工具箱
@@ -119,7 +135,7 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 | `wechat_navigate` | 跳转并采集 CDP 日志 | `page_path` |
 | `wechat_file` | 项目文件读取 | `project_info` `list_pages` `read_page` `read_file` |
 
-完整参数见 [MCP_DOC.md](./MCP_DOC.md)。云函数与云数据库请用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)。
+动作遇到 automator 连接失败会自动 `start` 一次并重试（返回 `auto_recovered`）；`open` 成功后 `cdp_port` 在同一会话内自动沿用，其它工具不必再传。完整参数见 [MCP_DOC.md](./MCP_DOC.md)。云函数与云数据库请用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)。
 
 ---
 
@@ -141,9 +157,10 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 | 症状 | 处理 |
 |------|------|
 | 一直报 `CLI_TIMEOUT` | 服务端口没开，见 Step 2；`wechat_ide(action='status')` 的 `service_port_enabled` 可自查 |
-| CDP 采集失败 / 采到的全是 Chrome | 9222 被占用。`open(cdp_port=9223)`，且 `inspector` / `navigate` / `build` 用同一个 `cdp_port` |
+| CDP 采集失败 / 采到的全是别的网页 | `status` 的 `cdp_port_occupant.kind` 为 `foreign` 即端口被别的浏览器占着：`open(cdp_port=9333)` 或设 `WECHAT_CDP_PORT`，之后其它工具不传端口自动沿用。0.9.19 起 `open` 会直接报错，不再把别人的页面报错当启动错误 |
+| automator 9420 连不上 / `start` 返回 `verified=false` | 0.9.19 起动作失联会自动 `start` 一次并重试；`start` 自带最多 45 秒就绪等待（`ready_timeout` 可调）。仍失败看 `status` 的 `project_window_open`，窗口被关就再 `start`，不要先 `open` 重启 IDE |
 | Windows 中文乱码或 `UnicodeDecodeError` | `env` 加 `"PYTHONIOENCODING": "utf-8"` |
-| 装了新版仍跑旧版 | `pip uninstall wechat-devtools-mcp`，再用 `wechat-devtools-mcp --version` 确认 |
+| 装了新版仍跑旧版 | `pip uninstall wechat-devtools-mcp`；`uvx` 方式跑 `uvx --refresh wechat-devtools-mcp --version`；最后以 `status` 的 `mcp_version` 为准 |
 | IDE 2.x 下工具行为异常 | 注册名与官方 `wechat-devtools` 撞车，改用 `wechat-devtools-mcp` |
 
 ---

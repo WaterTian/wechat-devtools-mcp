@@ -16,7 +16,7 @@
 
 ## 🤝 Relationship to WeChat's Built-in Capabilities
 
-WeChat DevTools **2.x has been the official Stable channel since 2026-08-18** (1.06 is no longer offered). The IDE ships a built-in MCP server (47 atomic tools). The two are complementary, not substitutes:
+WeChat DevTools **2.x has been the official Stable channel since 2026-08-18** (1.06 is no longer offered). The IDE ships a built-in MCP server (47 atomic tools, 2 of them deprecated). The two are complementary, not substitutes:
 
 | Scenario | Use |
 |----------|-----|
@@ -32,23 +32,26 @@ WeChat DevTools **2.x has been the official Stable channel since 2026-08-18** (1
 
 ## 🚀 Quick Start
 
+**Prerequisites**: Python ≥ 3.10 (`uv` provisions it), Node.js ≥ 18 (the daemon depends on puppeteer-core / jimp), WeChat DevTools 2.x or 1.06.x.
+
 ### Step 1 — Install the MCP Server
 
 ```bash
-pip install uv                                  # skip if already installed
-uv tool install wechat-devtools-mcp --force
-wechat-devtools-mcp --version                   # confirm the running version
+pip install uv                                           # or brew install uv; skip if installed
+uv tool install wechat-devtools-mcp                      # first install
+uv tool install wechat-devtools-mcp --force --refresh    # upgrade: --refresh bypasses the index cache, otherwise an old version may come back
+wechat-devtools-mcp --version                            # confirm the running version
 ```
 
 > [!WARNING]
 > If an older version was installed with `pip install`, run `pip uninstall wechat-devtools-mcp` first; the pip path shadows uv's.
 > ≤0.9.10 is incompatible with mcp SDK ≥2.0 (`ModuleNotFoundError: mcp.server.fastmcp`); upgrade to ≥0.9.11.
 
-Stop the MCP process running inside your editor before `uv tool upgrade wechat-devtools-mcp`.
+Stop the MCP process running inside your editor before upgrading (restarting the editor is enough). Clients configured with `uvx` reuse the cached environment and **do not upgrade on their own**: run `uvx --refresh wechat-devtools-mcp --version` once, or pin `wechat-devtools-mcp==X.Y.Z` in `args`.
 
 ### Step 2 — Enable the DevTools Service Port
 
-`DevTools` → `Settings` → `Security` → `Service Port` → `Enable`. Without it every call fails with `CLI_TIMEOUT`.
+`DevTools` → `Settings` → `Security` → `Service Port` → `Enable`. Without it every CLI-backed call (`open`, `compile`, `preview`, ...) fails with `CLI_TIMEOUT`.
 
 ### Step 3 — Prepare Two Absolute Paths
 
@@ -78,12 +81,14 @@ Standard config (works for Claude Desktop / Antigravity / Kiro / Trae / Claude C
 }
 ```
 
+On machines where port 9222 is permanently held by Chrome, add `"WECHAT_CDP_PORT": "9333"` to `env`.
+
 | Editor | Where | Differences |
 |--------|-------|-------------|
 | Claude Desktop / Antigravity | `claude_desktop_config.json` / `mcp_config.json` | none |
-| Claude Code (per project) | `.mcp.json` in the repo root | On macOS use the absolute `command` `/opt/homebrew/bin/uvx` and add `"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"` plus `"NODE_PATH": "/opt/homebrew/bin/node"` to `env` (GUI child processes lack the Homebrew PATH) |
+| Claude Code (per project) | `.mcp.json` in the repo root | `uvx` from the terminal PATH is enough. Only if a GUI-launched editor (desktop app) cannot find `uvx` / `node`: use the absolute `command` `/opt/homebrew/bin/uvx` and add `"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"` plus `"NODE_PATH": "/opt/homebrew/bin/node"` to `env` |
 | Kiro | `~/.kiro/settings/mcp.json` | optional `"autoApprove": ["wechat_ide","wechat_build","wechat_automator","wechat_inspector","wechat_screenshot","wechat_navigate","wechat_file"]` |
-| Trae ≥1.3 | AI panel → Settings → MCP → Manual; or `%APPDATA%\Trae\User\globalStorage\mcp.json` / `~/Library/Application Support/Trae/User/globalStorage/mcp.json` | Chat must use the **Builder with MCP** agent; macOS uses the same absolute paths as Claude Code |
+| Trae ≥1.3 | AI panel → Settings → MCP → Manual; or `%APPDATA%\Trae\User\globalStorage\mcp.json` / `~/Library/Application Support/Trae/User/globalStorage/mcp.json` | Chat must use the **Builder with MCP** agent; on macOS use the same absolute paths if `uvx` is not found |
 | Cursor / VS Code | Add a server in the MCP panel | Name `wechat-devtools-mcp`, Command `uvx wechat-devtools-mcp`, same env vars |
 | OpenAI Codex | `~/.codex/config.toml` | TOML, see below |
 
@@ -105,6 +110,17 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 
 For clients without `npx skills` (e.g. Trae), copy the repo's `.agents/skills/wechat-devtools/` into your project's `.agents/skills/`. The Skill provides 9 SOPs, a full action reference for all 7 tools, a progressive CDP strategy and a troubleshooting table; see [SKILL.md](./.agents/skills/wechat-devtools/SKILL.md).
 
+### Step 6 — Self-check
+
+Call `wechat_ide(action='status')` once from your editor and make sure these match before starting:
+
+| Field | Expected | Otherwise |
+|-------|----------|-----------|
+| `cli_exists` / `project_exists` / `node_available` | `true` | Re-check the two paths from Step 3; install Node.js ≥ 18 |
+| `service_port_enabled` | `true` | See Step 2 |
+| `cdp_port_occupant.kind` | `none` or `ide` | `foreign` means another browser holds the port; set `WECHAT_CDP_PORT=9333` |
+| `skill_version` | equals `mcp_version` | Re-run Step 5 to refresh the skill copy |
+
 ---
 
 ## 🛠️ Toolbox
@@ -119,7 +135,7 @@ For clients without `npx skills` (e.g. Trae), copy the repo's `.agents/skills/we
 | `wechat_navigate` | Navigate and capture CDP logs | `page_path` |
 | `wechat_file` | Project file reading | `project_info` `list_pages` `read_page` `read_file` |
 
-Full parameters: [MCP_DOC.md](./MCP_DOC.md). Cloud functions and databases: use [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit).
+When an action hits an automator connection failure it runs `start` once and retries (reported as `auto_recovered`); after a successful `open` the `cdp_port` is reused for the session, so the other tools need not pass it. Full parameters: [MCP_DOC.md](./MCP_DOC.md). Cloud functions and databases: use [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit).
 
 ---
 
@@ -141,9 +157,10 @@ Full parameters: [MCP_DOC.md](./MCP_DOC.md). Cloud functions and databases: use 
 | Symptom | Fix |
 |---------|-----|
 | Constant `CLI_TIMEOUT` | Service port is off, see Step 2; `wechat_ide(action='status')` exposes `service_port_enabled` |
-| CDP capture fails / only Chrome shows up | Port 9222 is taken. Use `open(cdp_port=9223)` and pass the same `cdp_port` to `inspector` / `navigate` / `build` |
+| CDP capture fails / only other web pages show up | `status` reports `cdp_port_occupant.kind: foreign`, meaning another browser holds the port: use `open(cdp_port=9333)` or set `WECHAT_CDP_PORT`; the other tools then reuse the port automatically. Since 0.9.19 `open` fails fast instead of reporting that browser's errors as startup errors |
+| Automator port 9420 unreachable / `start` returns `verified=false` | Since 0.9.19 actions run `start` once and retry on their own; `start` waits up to 45s for readiness (`ready_timeout`). If it still fails, check `project_window_open` in `status`: if the window was closed, run `start` again rather than `open` (which restarts the IDE) |
 | Garbled Chinese or `UnicodeDecodeError` on Windows | Add `"PYTHONIOENCODING": "utf-8"` to `env` |
-| Old version still runs after installing | `pip uninstall wechat-devtools-mcp`, then check `wechat-devtools-mcp --version` |
+| Old version still runs after installing | `pip uninstall wechat-devtools-mcp`; for `uvx` setups run `uvx --refresh wechat-devtools-mcp --version`; `mcp_version` from `status` is the final word |
 | Odd tool behaviour on IDE 2.x | Registration name clashes with the official `wechat-devtools`; use `wechat-devtools-mcp` |
 
 ---

@@ -30,7 +30,7 @@ Python MCP Server (src/wechat_devtools_mcp/)
 
 ```bash
 pip install -e .                    # 开发安装
-python -m pytest tests/ -q          # 全量测试（233 项，无需启动 IDE）
+python -m pytest tests/ -q          # 全量测试（313 项，无需启动 IDE）
 ```
 
 测试通过 `tests/conftest.py` 把 `src/` 插入 `sys.path`，因此**不装包也能直接跑**。
@@ -94,22 +94,25 @@ daemon.js 通过 `require` 引入其余各 handler，因此**只需构建 daemon
 
 ## 想找事情做？
 
-以下两条缺的是**真机环境**而不是思路，如果你手上有对应平台的机器，最容易推进：
+以下几条缺的是**真机环境或一次设计决定**，不是思路：
 
-**① Windows 侧开发者工具 2.x 未验证**
+**① Linux 适配**
 
-`core/ide_state.py` 的 `_resolve_ide_executable_for_cdp()` 在 Windows 分支上
-仍把 `runtime` 硬编码为 `"win32"`，没有 1.x(NW.js) / 2.x(Electron) 的双轨判定，
-安装根也靠对 CLI 路径做字符串替换得来。macOS 上这两处在 2.x 下都已失效，
-Windows 大概率同样失效。需要一台装了 2.x 的 Windows 机器确认：
-Electron 分支的启动参数、以及 kill 进程时的命令行特征。
+`_resolve_ide_executable_for_cdp()` 对 linux 直接抛 `NotImplementedError`。官方开发者工具本身不发 Linux 版，
+所以这不算与官方的能力差距；但如果你在用第三方移植版（如 `msojocs/wechat-web-devtools-linux`），
+欢迎确认它是否保留了相同的目录结构，再照 [`docs/macos-internals.md`](docs/macos-internals.md) 的思路补上。
 
-**② Linux 适配**
+**② 网络请求采集**
 
-同一函数对 linux 直接抛 `NotImplementedError`。官方开发者工具本身不发 Linux 版，
-所以这不算与官方的能力差距；但如果你在用第三方移植版
-（如 `msojocs/wechat-web-devtools-linux`），欢迎确认它是否保留了相同的
-目录结构，再照 [`docs/macos-internals.md`](docs/macos-internals.md) 的思路补上。
+本项目目前没有网络请求采集。实测开发者工具 2.x 里 `wx.request` **不走** webview 的网络栈，
+CDP `Network.*` 只能看到 IDE 内部 `http://127.0.0.1:<port>/apihelper/assdk` 的 JSBridge 信封
+（真实 API 名与参数在 POST body 里），所以按 URL 过滤的实现拿不到有用结果（见 #12 的讨论）。
+可行方向是解开这个信封（`Network.getRequestPostData`），并单独确认 1.06.x 的行为。
+
+**③ 1.06.x（NW.js）回归**
+
+2.x 转 Stable 后本项目的真机回归都在 2.x 上做，1.06.x 分支只有历史验证。
+手上还有 1.06.x 的话，跑一遍 `tests/manual/smoke_ide.py` 并把结果贴到 Issue 就很有价值。
 
 除此之外，Issue 区里没有 `good first issue` 标签的问题也都欢迎认领——
 提 Issue 说一声你想做哪条即可，避免撞车。

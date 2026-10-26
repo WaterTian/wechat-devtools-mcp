@@ -246,7 +246,7 @@ async def _run_node_script(
         return json.loads(_make_error(
             ErrorCode.NODE_NOT_FOUND,
             "未检测到 Node.js，无法执行自动化脚本。",
-            hint="请安装 Node.js（>= 8.0）并配置 PATH 环境变量。",
+            hint="请安装 Node.js（>= 18，daemon 依赖 puppeteer-core / jimp）并配置 PATH，或用 NODE_PATH 指定可执行文件。",
         ))
 
     script = os.path.splitext(script_name)[0]
