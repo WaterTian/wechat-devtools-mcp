@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.9.18)
+# 微信开发者工具 MCP Server (v0.9.19)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -130,6 +130,8 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 | `WECHAT_DEVTOOLS_CLI` | 开发者工具 CLI 路径（**必填**） | — |
 | `WECHAT_PROJECT_PATH` | 默认项目根目录（**必填**） | — |
 | `WECHAT_CLI_TIMEOUT` | CLI 超时秒数 | `30` |
+| `WECHAT_CDP_PORT` | CDP 调试端口默认值。9222 常被 Chrome 占用时设成 `9333`；`open` 成功后同会话其它工具自动沿用 | `9222` |
+| `WECHAT_AUTOMATOR_READY_TIMEOUT` | `start` 等待 automator 首次应答的秒数，大项目冷启动可加大 | `45` |
 | `NODE_PATH` | Node.js 可执行文件 | `node` |
 
 ---
@@ -150,6 +152,7 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 
 | 版本 | 日期 | 摘要 |
 |------|------|------|
+| 0.9.19 | 2026-10-26 | automator `start` 按截止时间等就绪，根治「握手未完成」误报；CDP 端口占用检测与会话粘性（`WECHAT_CDP_PORT`）；automator 失联自动恢复；`status` 新增项目窗口 / skill 版本诊断 |
 | 0.9.18 | 2026-09-04 | Windows 2.x 真机闭环：状态目录 `User Data` 层、就绪判据、`quit` 等退出、噪音过滤；新增真机冒烟脚本 |
 | 0.9.17 | 2026-09-03 | 适配开发者工具 2.x Stable；evaluate 新增 `fn_source`；`open` 提速约 4 倍；Windows 1.x/2.x 双轨判定 |
 | 0.9.16 | 2026-08-27 | 长页面截图全面修复；源码开源 |

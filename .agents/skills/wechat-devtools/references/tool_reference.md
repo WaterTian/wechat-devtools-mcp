@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.18)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.19)
 
 > `SKILL.md` 的扩展参考：7 个聚合工具的全部参数、action 与返回字段，均对照源码核对。SOP 流程见 `SKILL.md`。
 
@@ -42,7 +42,7 @@ IDE 生命周期管理。
 | `port` | int | null | IDE HTTP 服务端口，多实例时使用 |
 | `lang` | string | null | 界面语言 `en` / `zh` |
 | `cdp_enabled` | bool | `true` | `open` 时是否带 CDP 调试端口启动 |
-| `cdp_port` | int | `9222` | CDP 端口。被 Chrome 等占用时换一个，须与 `wechat_inspector` / `wechat_navigate` / `wechat_build(compile)` 一致 |
+| `cdp_port` | int | `WECHAT_CDP_PORT` 或 `9222` | CDP 端口。`open` 前会检查端口上是谁：被别的浏览器占着直接报错（`cdp_port_occupant`），不杀 IDE。`open` 成功后记住该端口，同会话 `wechat_inspector` / `wechat_navigate` / `wechat_build(compile)` 不传即沿用 |
 | `qr_format` | string | `terminal` | `login` 二维码格式：`terminal` / `image` / `base64` |
 | `qr_output` | string | null | `login` 二维码输出文件 |
 | `result_output` | string | null | `login` 结果输出文件（透传 CLI `--result-output`） |
@@ -56,7 +56,7 @@ IDE 生命周期管理。
 | `is_login` | 查登录态 | `logged_in`、`stdout` |
 | `close` | 关闭项目窗口，不退出 IDE | `{}` |
 | `quit` | 退出 IDE 进程，并等进程真正消失（macOS pgrep / Windows tasklist 轮询，上限 10s） | `exited: true/false`（判断不了时为 `null`） |
-| `status` | 环境诊断，只读 | 见下例 |
+| `status` | 环境诊断，只读。另探测当前生效 CDP 端口上是谁、项目窗口是否活着、项目内 skill 副本版本 | 见下例；另有 `cdp_port`（生效值）、`cdp_port_default`、`cdp_port_session`、`cdp_port_occupant{listening, kind: ide/foreign/empty/none, browser, sample, miniprogram_targets}`、`project_window_open`（端口上是 IDE 时按小程序 target 数判断，否则 `null`）、`skill_version`（读不到为 `null`；与 `mcp_version` 不一致时 message 带提示） |
 
 ### `status` 返回示例
 
@@ -106,7 +106,7 @@ IDE 生命周期管理。
 | `compile_condition` | string | null | `preview` 自定义编译条件（JSON 字符串）。对 tabBar 页可能被路由守卫覆盖 |
 | `compile_type` | string | null | `miniprogram` / `plugin` |
 | `clean_type` | string | `compile` | `cache_clean` 类型：`storage` / `file` / `compile` / `auth` / `network` / `session` / `all` |
-| `cdp_port` | int | `9222` | `compile` 采集 WXML 运行时错误用。须与 `wechat_ide(open)` 一致，否则 `wxml_errors` 恒为空 |
+| `cdp_port` | int | 沿用 `open` 的端口 | `compile` 采集 WXML 运行时错误用。不传则沿用本会话 `open` 的端口（再退到 `WECHAT_CDP_PORT` / 9222） |
 | `port` | int | null | IDE HTTP 服务端口 |
 | `lang` | string | null | 界面语言 |
 
@@ -135,6 +135,7 @@ IDE 生命周期管理。
     "wxml_errors": [],
     "automator_reconnected": true,
     "automator_verified": true,
+    "reconnect_attempts": 1,
     "port_changed": false
   },
   "message": "编译成功。 automator 已自动重连并验证就绪。"
@@ -143,11 +144,15 @@ IDE 生命周期管理。
 
 自动重连只针对默认 9420。用了非默认 `auto_port` 的话 compile 后自行调一次 `start`。
 
+CDP 端口上若是别的浏览器（典型：常驻 Chrome 占着 9222），`compile` 跳过 WXML 运行时错误采集并返回 `cdp_skipped`（message 带 ⚠）；`wechat_navigate` 照常跳转但不采日志并返回 `cdp_warning`；`wechat_inspector(cdp)` 直接报错。三者都提示用 `open(cdp_port=9333)` 重开。
+
 ---
 
 ## 3. wechat_automator
 
 自动化交互与运行时查询，13 个 action。先调 `start` 开启自动化端口，整个会话一次。
+
+**失联自动恢复**：除 `start` 外的动作遇到连接类失败（`Failed connecting to ws://`、健康检查耗尽、`连接失败`）会自动跑一次 `start`（`cli auto` 会把被关掉的项目窗口重新打开），verified 后重试一次，成功时 `data.auto_recovered = {ready_after_ms, cli_attempts}`、message 前缀「automator 已自动恢复」。动作执行中断线（`Connection closed`）或 daemon 超时只对只读动作（`page_data` / `page_stack` / `element_info` / `system_info` / `storage`）重试，`tap` / `input` / `call_method` 等不重试以免重复触发。`wechat_navigate` / `wechat_screenshot` 同样自动恢复。
 
 ### 参数
 
@@ -157,6 +162,7 @@ IDE 生命周期管理。
 | `auto_port` | int | `9420` | 自动化端口 |
 | `project_path` | string | `WECHAT_PROJECT_PATH` | `start` 使用 |
 | `auto_account` | string | null | `start` 指定测试账号 openid |
+| `ready_timeout` | int | `45` | `start` 等待 automator 首次应答的总秒数（环境变量 `WECHAT_AUTOMATOR_READY_TIMEOUT` 可改默认），范围 5~180；大项目冷启动可加大 |
 | `selector` | string | null | CSS 选择器，`tap` / `input` / `element_info` 必填 |
 | `value` | string | null | `input` 必填 |
 | `style_prop` | string | null | `element_info` 可选，取指定 CSS 属性 |
@@ -173,7 +179,7 @@ IDE 生命周期管理。
 
 | action | 行为 | 返回 `data` |
 |--------|------|-------------|
-| `start` | 执行 `cli auto`，再做 TCP 与 WS 两级验证。端口不监听时重跑 `cli auto`（最多 3 轮，间隔 3s；纯 CLI open 后窗口未加载完会假成功）；WS 失败会清缓存退避 2 秒重试一次 | 就绪：`port`、`verified: true`、`tcp_ready`、`ws_ready`、`verify_attempts`、`cli_attempts`。未就绪：`verified: false`、`retry_after_ms: 3000`、`hint`。3 轮后端口仍不监听则失败并附恢复 hint |
+| `start` | 执行 `cli auto`，再做 TCP 与 WS 两级验证。端口不监听时重跑 `cli auto`（最多 3 轮，间隔 3s；纯 CLI open 后窗口未加载完会假成功）；WS 级按截止时间轮询（默认 45s，每次失败清掉缓存连接后 1s 再探；静默超过 15s 自动再跑一次 `cli auto`，真机上第二次 `cli auto` 7s 即活）——`cli auto` 后 WS 2.4s 即可连，但小程序要约 7~11s 才首次应答 | 就绪：`port`、`verified: true`、`tcp_ready`、`ws_ready`、`verify_attempts`、`ready_after_ms`、`cli_attempts`。未就绪：`verified: false`、`waited_ms`、`ready_timeout_s`、`retry_after_ms: 3000`、`hint`（先重试 `start`，`open` 是最后手段）。3 轮后端口仍不监听则失败并附恢复 hint |
 | `tap` | 点击元素 | `selector` |
 | `input` | 输入文本 | `selector`、`value` |
 | `element_info` | 元素信息 | `element{tagName, text, wxml, size, offset, style?}` |
@@ -223,7 +229,7 @@ IDE 生命周期管理。
 |------|------|--------|------|
 | `action` | string | 必填 | `cdp` / `console` |
 | `duration` | int | `10` | 采集秒数，1~120 |
-| `cdp_port` | int | `9222` | `cdp` 用 |
+| `cdp_port` | int | 沿用 `open` 的端口 | `cdp` 用；不传则沿用本会话 `open` 的端口 |
 | `detail_level` | string | `concise` | `cdp` 用：`concise` 只回 errors + warnings，`full` 全量 |
 | `max_logs` | int | `50` | `cdp` 用，1~500，超出 `summary.truncated: true` |
 | `auto_port` | int | `9420` | `console` 用 |
@@ -309,7 +315,7 @@ IDE 生命周期管理。
 | `wait_ms` | int | `2000` | 跳转后等待毫秒，100~30000 |
 | `timeout` | int | `30` | 总超时秒，10~120。实际取 `max(timeout, wait_ms/1000 + 10)` |
 | `auto_port` | int | `9420` | 自动化端口 |
-| `cdp_port` | int | `9222` | CDP 端口 |
+| `cdp_port` | int | 沿用 `open` 的端口 | 不传则沿用本会话 `open` 的端口 |
 | `detail_level` | string | `concise` | `concise` / `full` |
 | `max_logs` | int | `50` | 最大日志条数 |
 | `clear_logs` | bool | `true` | 按时间戳过滤跳转前的历史日志 |

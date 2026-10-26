@@ -7,6 +7,7 @@ wechat_close_project、wechat_quit_ide、wechat_get_status。
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -14,6 +15,10 @@ from typing import TYPE_CHECKING
 from ..core import ide_state
 from ..core.cli import _run_cli, _build_global_args, _resolve_project_path
 from ..core.config import CLI_PATH, DEFAULT_PROJECT_PATH
+from ..core.cdp_port import (
+    DEFAULT_CDP_PORT, classify_cdp_targets, describe_cdp_targets,
+    remember_cdp_port, resolve_cdp_port, session_cdp_port,
+)
 from .. import __version__
 from ..core.errors import ErrorCode
 from ..core.node_bridge import _check_node_available, _run_node_script
@@ -189,6 +194,49 @@ def _port_listening(port: int) -> bool:
         return False
 
 
+def _inspect_cdp_port(port: int) -> dict:
+    """看 CDP 端口上现在是谁。
+
+    返回 {listening, kind, browser, sample}，kind ∈ ide / foreign / empty / none。
+    `open` 用它拒绝「端口被别的浏览器占着」的启动（此前 Chrome 在听就当 IDE 就绪，
+    再把 Chrome 页面报错当小程序启动错误返回）；`status` 用它做诊断。
+    """
+    if not _port_listening(port):
+        return {"listening": False, "kind": "none", "browser": None, "sample": []}
+    version = _http_get_json(port, "/json/version", 1.0)
+    targets = _http_get_json(port, "/json/list", 1.0)
+    miniprogram_targets = 0
+    if isinstance(targets, list):
+        miniprogram_targets = sum(
+            1 for t in targets if isinstance(t, dict)
+            and ("/__pageframe__/" in str(t.get("url") or "") or "/appservice/" in str(t.get("url") or ""))
+        )
+    return {
+        "listening": True,
+        "kind": classify_cdp_targets(targets),
+        "browser": version.get("Browser") if isinstance(version, dict) else None,
+        "sample": describe_cdp_targets(targets),
+        # 小程序渲染层 / 逻辑层 target 数：0 表示 IDE 在但项目窗口没开（或已被关掉）
+        "miniprogram_targets": miniprogram_targets,
+    }
+
+
+def _read_project_skill_version(project_path: str) -> str | None:
+    """读项目内 skill 副本（.agents/skills/wechat-devtools/SKILL.md）frontmatter 的 version。
+
+    FanTown 实测副本停在 0.9.16 而 MCP 已是 0.9.18，SOP 口径早已漂移却没人发现；
+    status 自动对比，不一致给 hint。读不到返回 None。
+    """
+    path = os.path.join(project_path, ".agents", "skills", "wechat-devtools", "SKILL.md")
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            head = f.read(600)
+    except OSError:
+        return None
+    m = re.search(r"^version:\s*([0-9][^\s]*)", head, re.M)
+    return m.group(1) if m else None
+
+
 def _cdp_shell_ready(cdp_port: int) -> bool:
     """CDP /json/list 里已出现任何 target（IDE 外壳窗口起来了）。"""
     targets = _http_get_json(cdp_port, "/json/list", 1.0)
@@ -319,6 +367,8 @@ async def _action_open(params: WechatIdeInput) -> str:
     # 2.x 两步式的第二步（cli open --project）会被整个跳过，项目全靠 IDE 自己的会话恢复
     # 顺手打开（真机 2026-09-03 发现，返回 project_opened: null）。
     project_path = params.project_path or DEFAULT_PROJECT_PATH
+    # 显式 > 本会话 open 过的端口 > WECHAT_CDP_PORT / 9222
+    cdp_port = resolve_cdp_port(params)
 
     runtime = ""
     if params.cdp_enabled:
@@ -327,7 +377,7 @@ async def _action_open(params: WechatIdeInput) -> str:
         except (FileNotFoundError, NotImplementedError) as e:
             return _fail(ErrorCode.CLI_NOT_FOUND, str(e))
 
-        cmd_args = list(cmd_prefix) + [f"--remote-debugging-port={params.cdp_port}"]
+        cmd_args = list(cmd_prefix) + [f"--remote-debugging-port={cdp_port}"]
         # IDE 2.x(Electron) 不再识别 --project（实测 projectpath 为空），
         # 改为进程带 CDP 起来后再用 CLI open 打开项目，见下方两步式处理。
         if project_path and runtime != "electron":
@@ -335,6 +385,22 @@ async def _action_open(params: WechatIdeInput) -> str:
                 cmd_args.append(f"--project={project_path}")
             else:
                 cmd_args.extend(["--project", project_path])
+
+        # 端口上已经有别的浏览器（典型：常驻 Chrome 的 9222）就直接报错，不杀 IDE。
+        # 此前只看 TCP 是否监听，Chrome 在听就当 IDE 就绪，再把 Chrome 页面报错当启动错误返回。
+        occupant = await asyncio.to_thread(_inspect_cdp_port, cdp_port)
+        if occupant["listening"] and occupant["kind"] == "foreign":
+            sample = occupant["sample"][0] if occupant["sample"] else "无 target"
+            return _fail(
+                ErrorCode.UNKNOWN_ERROR,
+                f"CDP 端口 {cdp_port} 已被其它程序占用（{occupant.get('browser') or '未知'}；"
+                f"如 {sample}），IDE 无法在该端口开启 CDP。",
+                hint=(
+                    "换一个 cdp_port（如 9333）重试；之后 inspector / navigate / build 不传 cdp_port "
+                    "会自动沿用本次 open 的端口。长期方案：环境变量 WECHAT_CDP_PORT 设默认。"
+                ),
+                extra={"cdp_port": cdp_port, "cdp_port_occupant": occupant},
+            )
 
         await _kill_existing_ide(kill_pattern)
     else:
@@ -370,14 +436,14 @@ async def _action_open(params: WechatIdeInput) -> str:
                 await asyncio.sleep(0.5)
                 if proc.poll() is not None:
                     break
-                if _port_listening(params.cdp_port):
+                if _port_listening(cdp_port):
                     break  # CDP 已监听说明进程活着，不必再等
             if proc.returncode not in (None, 0):
                 return _fail(
                     ErrorCode.UNKNOWN_ERROR,
                     f"IDE 主程序启动后立即退出（返回码 {proc.returncode}）。",
                     hint="确认 IDE 未被其它实例占用，或 CDP 端口未被占用。",
-                    extra={"cdp_port": params.cdp_port, "runtime": runtime},
+                    extra={"cdp_port": cdp_port, "runtime": runtime},
                 )
         else:
             # CLI 路径的 cli open 会正常退出，等它拿到结果
@@ -386,7 +452,7 @@ async def _action_open(params: WechatIdeInput) -> str:
             except asyncio.TimeoutError:
                 pass
 
-        cdp_note = f"CDP 调试端口已开启（{params.cdp_port}）" if params.cdp_enabled else ""
+        cdp_note = f"CDP 调试端口已开启（{cdp_port}）" if params.cdp_enabled else ""
 
         # IDE 2.x(Electron) 两步式：进程已带 CDP 起来，再让 CLI 打开项目。
         # 必须等到 CDP 与 IDE 服务都监听后才能调 CLI，否则 CLI 会另起一个
@@ -398,24 +464,24 @@ async def _action_open(params: WechatIdeInput) -> str:
             # 改以 CDP 外壳 target 作第二判据，见 _wait_ide_ready 的 require_service。
             win_electron = sys.platform == "win32" and runtime == "electron"
             cdp_ready, service_ready = await _wait_ide_ready(
-                params.cdp_port, timeout=60, require_service=not win_electron,
+                cdp_port, timeout=60, require_service=not win_electron,
             )
             if not cdp_ready:
                 return _fail(
                     ErrorCode.UNKNOWN_ERROR,
-                    f"IDE 已启动但 CDP 端口 {params.cdp_port} 未监听。",
+                    f"IDE 已启动但 CDP 端口 {cdp_port} 未监听。",
                     hint=(
-                        f"该端口可能被占用（可用 curl 127.0.0.1:{params.cdp_port}/json/version "
+                        f"该端口可能被占用（可用 curl 127.0.0.1:{cdp_port}/json/version "
                         "确认端口上是谁），换一个 cdp_port 重试。"
                     ),
-                    extra={"cdp_port": params.cdp_port, "runtime": runtime},
+                    extra={"cdp_port": cdp_port, "runtime": runtime},
                 )
             if not service_ready and not win_electron:
                 return _fail(
                     ErrorCode.UNKNOWN_ERROR,
                     "IDE 服务端口在 60 秒内未就绪，无法继续打开项目。",
                     hint="确认开发者工具的服务端口已开启（设置 → 安全设置 → 服务端口）。",
-                    extra={"cdp_port": params.cdp_port, "runtime": runtime},
+                    extra={"cdp_port": cdp_port, "runtime": runtime},
                 )
             # Windows 2.x：即便外壳 target 在 60s 内也没出现，仍放行——CLI 自带服务发现，
             # 以下方 _run_cli 的实际连通结果为准（0c492ec 的兜底逻辑保留）。
@@ -431,8 +497,12 @@ async def _action_open(params: WechatIdeInput) -> str:
                     "IDE 已带 CDP 启动，但打开项目失败。",
                     hint=(open_result.get("stderr") or "")[:200]
                     or "IDE 可能仍在初始化，稍后重试 wechat_ide(action='open')。",
-                    extra={"cdp_port": params.cdp_port, "runtime": runtime},
+                    extra={"cdp_port": cdp_port, "runtime": runtime},
                 )
+
+        # 走到这里 CDP 已在该端口就绪：记住它，同会话其它工具不传 cdp_port 时沿用
+        if params.cdp_enabled:
+            remember_cdp_port(cdp_port)
 
         # CDP 启动健康检查：等小程序 target 出现后采集 3 秒，检测启动阶段致命错误。
         # Console.enable 会回放缓冲区，加载阶段已发生的错误也能拿到，不必长采。
@@ -441,9 +511,9 @@ async def _action_open(params: WechatIdeInput) -> str:
             # 等不到小程序 target 是「项目没在我们这个带 CDP 的实例里打开」的最强信号
             # （典型是单实例锁竞态：cli open 另起了一个不带 CDP 的实例）。不据此判失败
             # ——慢机器上可能只是没加载完——但要在返回里明示，别让调用方以为一切正常。
-            targets_ready = await _wait_miniprogram_targets(params.cdp_port, timeout=8.0)
+            targets_ready = await _wait_miniprogram_targets(cdp_port, timeout=8.0)
             cdp_result = await _run_node_script(
-                "cdp_listener.js", "3", str(params.cdp_port), timeout=20,
+                "cdp_listener.js", "3", str(cdp_port), timeout=20,
             )
             raw_logs = cdp_result.get("data", cdp_result.get("logs", []))
             if not isinstance(raw_logs, list):
@@ -463,7 +533,7 @@ async def _action_open(params: WechatIdeInput) -> str:
 
         data: dict = {
             "cdp_enabled": params.cdp_enabled,
-            "cdp_port": params.cdp_port if params.cdp_enabled else None,
+            "cdp_port": cdp_port if params.cdp_enabled else None,
         }
         if runtime:
             data["ide_runtime"] = runtime
@@ -662,6 +732,20 @@ async def _action_status() -> str:
             }
     data["official_mcp"] = official_mcp
 
+    # CDP 端口：生效值（本会话 open 过的 > WECHAT_CDP_PORT / 9222）与端口上现在是谁
+    effective_cdp_port = session_cdp_port() or DEFAULT_CDP_PORT
+    cdp_occupant = await asyncio.to_thread(_inspect_cdp_port, effective_cdp_port)
+    data["cdp_port"] = effective_cdp_port
+    data["cdp_port_default"] = DEFAULT_CDP_PORT
+    data["cdp_port_session"] = session_cdp_port()
+    data["cdp_port_occupant"] = cdp_occupant
+    # 项目窗口是否活着：端口上是 IDE 时看有没有小程序 target；不是 IDE 就不知道
+    data["project_window_open"] = (
+        cdp_occupant.get("miniprogram_targets", 0) > 0 if cdp_occupant["kind"] == "ide" else None
+    )
+    skill_version = _read_project_skill_version(project_path) if project_exists else None
+    data["skill_version"] = skill_version
+
     if project_exists:
         config_path = os.path.join(project_path, "project.config.json")
         if os.path.exists(config_path):
@@ -685,6 +769,17 @@ async def _action_status() -> str:
         hints.append(
             "开发者工具的服务端口未开启（设置 → 安全设置 → 服务端口），"
             "这是 CLI_TIMEOUT 的头号原因，所有 CLI 操作都会超时"
+        )
+    if skill_version and skill_version != __version__:
+        hints.append(
+            f"项目内 skill 副本 {skill_version} 与 MCP {__version__} 不一致，SOP 口径可能已漂移："
+            "npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools，"
+            "或把仓库的 .agents/skills/wechat-devtools 整个复制过去"
+        )
+    if cdp_occupant["kind"] == "foreign":
+        hints.append(
+            f"CDP 端口 {effective_cdp_port} 被其它程序占用（{cdp_occupant.get('browser') or '未知'}），"
+            "open 时请传 cdp_port=9333，或设置环境变量 WECHAT_CDP_PORT"
         )
 
     message = "状态正常" if not hints else "；".join(hints)

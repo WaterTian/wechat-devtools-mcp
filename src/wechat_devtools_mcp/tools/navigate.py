@@ -4,12 +4,16 @@ wechat_navigate 工具：跳转页面并采集 CDP 日志（独立工具，无 a
 保持独立是因为它横跨自动化（automator）和 CDP 两个领域，是高频跨领域操作。
 """
 import json
+import asyncio
 import os
 from typing import TYPE_CHECKING
 
 from ..core.errors import ErrorCode
 from ..core.config import DEFAULT_PROJECT_PATH
 from ..core.node_bridge import _run_node_script
+from ..core.cdp_port import resolve_cdp_port
+from .ide import _inspect_cdp_port
+from .automator import _automator_down, _try_recover_automator
 from ..models.schemas import WechatNavigateInput
 from ..utils.cdp_helpers import _format_cdp_logs_v2
 from ..utils.response import _ok, _fail
@@ -86,12 +90,24 @@ async def wechat_navigate(params: WechatNavigateInput) -> str:
         except Exception:
             pass
 
+        # 端口上是别的浏览器（常驻 Chrome 的 9222）就不连：传 0 让 JS 按「CDP 不可用」处理，
+        # 跳转照常，否则 Chrome 的页面日志会混进 cdp_logs
+        cdp_port = resolve_cdp_port(params)  # 不传则沿用本会话 open 的端口
+        cdp_warning = None
+        occupant = await asyncio.to_thread(_inspect_cdp_port, cdp_port)
+        if occupant["kind"] == "foreign":
+            cdp_warning = (
+                f"CDP 端口 {cdp_port} 上是 {occupant.get('browser') or '其它程序'}（非 IDE），"
+                "本次跳转未采集 CDP 日志；用 wechat_ide(open, cdp_port=9333) 重开"
+            )
+            cdp_port = 0
+
         js_args = [
             "navigate_capture.js",
             "--port", str(params.auto_port),
             "--page", page,
             "--wait", str(params.wait_ms),
-            "--cdp-port", str(params.cdp_port),
+            "--cdp-port", str(cdp_port),
             "--clear-logs", str(params.clear_logs).lower(),
         ]
         if is_tab_page:
@@ -101,6 +117,13 @@ async def wechat_navigate(params: WechatNavigateInput) -> str:
             *js_args,
             timeout=total_timeout,
         )
+
+        # automator 失联（窗口被关 / 闲置不应答）：start 一次再跳，跳转是幂等的
+        recovered = None
+        if not result.get("success") and _automator_down(str(result.get("error", ""))):
+            recovered = await _try_recover_automator(params.project_path, params.auto_port)
+            if recovered:
+                result = await _run_node_script(*js_args, timeout=total_timeout)
 
         if not result.get("success") and "error" in result and not result.get("cdp_logs"):
             return _fail(
@@ -127,6 +150,14 @@ async def wechat_navigate(params: WechatNavigateInput) -> str:
             "filtered_before_navigation": result.get("filtered_before_navigation", 0),
         }
 
+        if cdp_warning:
+            data["cdp_warning"] = cdp_warning
+        if recovered:
+            data["auto_recovered"] = {
+                "ready_after_ms": recovered.get("ready_after_ms"),
+                "cli_attempts": recovered.get("cli_attempts"),
+            }
+
         # 页面路径不匹配提示
         if result.get("navigation_mismatch"):
             data["navigation_mismatch"] = True
@@ -142,6 +173,11 @@ async def wechat_navigate(params: WechatNavigateInput) -> str:
                 "建议使用 wechat_automator(action='evaluate', "
                 f"expression=\"wx.switchTab({{url:'{page.split('?')[0]}'}});'ok'\") 手动跳转"
             )
+
+        if cdp_warning:
+            msg += f" ⚠ {cdp_warning}"
+        if recovered:
+            msg = "（automator 已自动恢复）" + msg
 
         # current_page 超时提示
         if result.get("current_page_timeout"):

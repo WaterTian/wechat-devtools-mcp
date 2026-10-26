@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from ..core.config import CLI_TIMEOUT, DEFAULT_PROJECT_PATH
 from ..core.errors import ErrorCode
 from ..core.node_bridge import _run_node_script
+from .automator import _automator_down, _try_recover_automator
 from ..models.schemas import WechatScreenshotInput
 from ..utils.response import _ok, _fail
 
@@ -66,6 +67,13 @@ async def wechat_screenshot(params: WechatScreenshotInput) -> str:
 
         result = await _run_node_script(*js_args, timeout=CLI_TIMEOUT + 60)
 
+        # automator 失联（窗口被关 / 闲置不应答）：start 一次再截，截图是幂等的
+        recovered = None
+        if not result.get("success") and _automator_down(str(result.get("error") or result.get("message") or "")):
+            recovered = await _try_recover_automator(None, params.auto_port)
+            if recovered:
+                result = await _run_node_script(*js_args, timeout=CLI_TIMEOUT + 60)
+
         if not result.get("success"):
             error_msg = result.get("error") or result.get("message") or "未知错误"
             # JS 侧对跳转失败等场景给了具体 hint（如「末尾可能需要 /index」），
@@ -91,6 +99,11 @@ async def wechat_screenshot(params: WechatScreenshotInput) -> str:
             "segments": segments,
             "file_size": file_size,
         }
+        if recovered:
+            data["auto_recovered"] = {
+                "ready_after_ms": recovered.get("ready_after_ms"),
+                "cli_attempts": recovered.get("cli_attempts"),
+            }
 
         # ── 拼接质量诊断 ──
         # 这些字段 JS 一直在算，但此前全被丢弃，调用方无从判断「拍全了没有」。

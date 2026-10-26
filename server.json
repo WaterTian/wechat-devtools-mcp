@@ -6,12 +6,12 @@
         "url": "https://github.com/WaterTian/wechat-devtools-mcp",
         "source": "github"
     },
-    "version": "0.9.18",
+    "version": "0.9.19",
     "packages": [
         {
             "registryType": "pypi",
             "identifier": "wechat-devtools-mcp",
-            "version": "0.9.18",
+            "version": "0.9.19",
             "runtimeHint": "uvx",
             "transport": {
                 "type": "stdio"
@@ -40,6 +40,18 @@
                     "description": "Node.js 可执行文件路径",
                     "isRequired": false,
                     "default": "node"
+                },
+                {
+                    "name": "WECHAT_CDP_PORT",
+                    "description": "CDP 调试端口默认值；9222 被 Chrome 占用时设为 9333",
+                    "isRequired": false,
+                    "default": "9222"
+                },
+                {
+                    "name": "WECHAT_AUTOMATOR_READY_TIMEOUT",
+                    "description": "automator start 等待首次应答的秒数",
+                    "isRequired": false,
+                    "default": "45"
                 }
             ]
         }

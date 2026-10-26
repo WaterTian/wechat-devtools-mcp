@@ -151,6 +151,11 @@ async def _response_reader() -> None:
                         hint = msg.get("hint") or data.get("hint")
                         if hint:
                             failure["hint"] = hint
+                        # handler 自定义的 code（如 CDP_UNAVAILABLE）同样要透传，
+                        # 此前被吞掉，Python 侧按 code 分流的逻辑永远走不到。
+                        code = msg.get("code") or data.get("code")
+                        if code and code != "HANDLER_ERROR":
+                            failure["code"] = code
                         future.set_result(failure)
                     else:
                         result = msg.get("data", {})

@@ -1,10 +1,10 @@
 ---
 name: wechat-devtools
-version: 0.9.18
+version: 0.9.19
 description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
-# Wechat DevTools MCP Skill (v0.9.18)
+# Wechat DevTools MCP Skill (v0.9.19)
 
 ## 前置条件
 
@@ -43,7 +43,7 @@ uv tool install wechat-devtools-mcp --force
 | 服务端口已开启 | `service_port_enabled: true` | `false` 必然 `CLI_TIMEOUT`，去设置里打开；`null` 是读不到，不等于关闭 |
 | 项目路径有效 | `project_exists: true` | 配置 `WECHAT_PROJECT_PATH`，须指向含 `project.config.json` 的根目录 |
 | Node.js 可用 | `node_available: true` | 安装 Node.js |
-| 版本一致 | `mcp_version` == 本文件 `version` | `uv tool upgrade wechat-devtools-mcp` 或同步 skill 副本 |
+| 版本一致 | `skill_version` == `mcp_version`（status 自动读项目内 skill 副本，不一致 message 会提示） | `uv tool upgrade wechat-devtools-mcp` 或同步 skill 副本 |
 | 已登录 | `is_login` → `logged_in: true` | `login(qr_format='terminal')` 扫码 |
 | 官方内建 MCP | `official_mcp.available` | 见下方分流规则 |
 
@@ -64,7 +64,7 @@ uv tool install wechat-devtools-mcp --force
 
 - IDE 只在会话开始 `open` 一次；改了代码只需 `compile` → `page_data`（自动重连 automator），不要重新 open。
 - 没改代码换页面用 `evaluate(fn_source="function(){ wx.reLaunch({url:'/pages/x/index'}); return 'ok' }")` → `page_data`。
-- 连接断开先 `start` → `page_data`，不要直接走完整恢复。
+- 连接断开时 automator 动作 / `navigate` / `screenshot` 会自动 `start` 一次并重试（返回 `auto_recovered`；有副作用的 `tap` / `input` / `call_method` 只在连接阶段失败时重试）。仍失败再手动 `start` → `page_data`，不要直接走完整恢复。
 
 ## API 速查表
 
@@ -74,10 +74,10 @@ uv tool install wechat-devtools-mcp --force
 
 | action | 功能 | 关键参数 / 返回 |
 |--------|------|----------------|
-| `open` | 启动 IDE 并打开项目。`cdp_enabled=true`（默认）会 kill 已运行的 IDE、带 CDP 端口重启，等小程序 target 就绪后做启动健康检查 | `cdp_port`（默认 9222，被占用时换，须与 inspector/navigate/compile 一致）；返回 `ide_runtime`、`cdp_ready`、`project_opened`；有 error 时 `success:false` + `startup_errors` |
+| `open` | 启动 IDE 并打开项目。`cdp_enabled=true`（默认）先检查 `cdp_port` 上是谁：被别的浏览器占着直接报错不杀 IDE；否则 kill 已运行的 IDE、带 CDP 端口重启，等小程序 target 就绪后做启动健康检查 | `cdp_port`（默认 `WECHAT_CDP_PORT` 或 9222；成功后同会话 inspector/navigate/compile 不传即沿用）；返回 `ide_runtime`、`cdp_ready`、`project_opened`；有 error 时 `success:false` + `startup_errors` |
 | `login` / `is_login` | 扫码登录 / 查登录态 | `qr_format`；`logged_in` |
 | `close` / `quit` | 关项目窗口 / 退出 IDE | 无 |
-| `status` | 环境诊断 | `service_port_enabled`、`ide_port`、`official_mcp`、`mcp_version` |
+| `status` | 环境诊断 | `service_port_enabled`、`ide_port`、`official_mcp`、`mcp_version`、`skill_version`（项目内副本，不一致给 hint）、`cdp_port` / `cdp_port_occupant`（端口上是 IDE 还是别的浏览器）、`project_window_open` |
 
 ### `wechat_build`
 
@@ -97,7 +97,7 @@ uv tool install wechat-devtools-mcp --force
 
 | action | 功能 | 必填 / 返回 |
 |--------|------|-------------|
-| `start` | 开自动化端口，CLI + TCP + WS 三重验证；窗口未加载完时自动重跑 `cli auto`（最多 3 轮） | 返回 `verified`；`false` 时按 `retry_after_ms` 重试 |
+| `start` | 开自动化端口，CLI + TCP + WS 三重验证；窗口未加载完时自动重跑 `cli auto`（最多 3 轮）；WS 级最多等 45s（`ready_timeout` 可调，真机约 7~11s 才首次应答） | 返回 `verified`、`ready_after_ms`；`false` 时先再 `start` 一次，不要先 `open` |
 | `tap` / `input` | 点击 / 输入 | `selector`（`input` 另需 `value`） |
 | `element_info` | 元素 `tagName/text/wxml/size/offset`，`style_prop` 时带 `style` | `selector` |
 | `set_data` | 热更新页面 data，无需重编译 | `data_json`；返回 `updated_keys` |
@@ -165,9 +165,9 @@ evaluate 用法：
 ```
 wechat_ide(action='status')                    # 环境诊断
 wechat_ide(action='is_login')                  # 未登录 → login(qr_format='terminal')
-wechat_ide(action='open', cdp_enabled=True)    # 9222 被占用时加 cdp_port=9223
+wechat_ide(action='open', cdp_enabled=True)    # 端口被别的浏览器占着会直接报错，换 cdp_port=9333（之后其它工具自动沿用）
   ↳ success=false + startup_errors → 先修复再继续
-wechat_automator(action='start')               # verified=false → 按 retry_after_ms 重试，期间可先 compile
+wechat_automator(action='start')               # 自带最多 45s 就绪等待；verified=false → 再 start 一次，不要先 open
 wechat_build(action='compile')                 # 建立干净基线，自动重连 automator
 wechat_automator(action='page_data')           # 验证连接；AppID undefined → project_path 指到子目录了
 ```
@@ -275,7 +275,8 @@ page_data 必须校验 `data.path` 等于导航目标；不一致的常见原因
 成功 `{"success": true, "data": {...}, "message": "..."}`，失败 `{"success": false, "error_code": "...", "message": "...", "hint": "..."}`。
 `error_code` 只有 6 种：`PARAM_MISSING`、`CLI_NOT_FOUND`、`PROJECT_PATH_MISSING`、`NODE_NOT_FOUND`、`CLI_TIMEOUT`、`UNKNOWN_ERROR`。连接失败、跳转失败等都归 `UNKNOWN_ERROR`，看 `message` 与 `hint`。
 
-连接断开恢复分两级：
+连接断开恢复分三级：
+0. 自动：动作本身会 `start` 一次再重试，成功时 `data.auto_recovered` 带 `ready_after_ms`。
 1. 快速：`start` → `page_data`。
 2. 完整：`open(cdp_enabled=True)` → `start` → `compile` → `page_data`。
 
@@ -285,11 +286,11 @@ page_data 必须校验 `data.path` 等于导航目标；不一致的常见原因
 |------|------|------|
 | `CLI_TIMEOUT` | 服务端口未开 / IDE 未运行 | `status` 看 `service_port_enabled`；开端口；`open` |
 | `open` 返回 `startup_errors` | 小程序启动阶段有致命错误 | 先修代码再 `open` |
-| `start` 连续 `verified=false` | 冷启动 automator WS 握手未就绪 | 按 `retry_after_ms` 重试；期间先 compile / build_npm |
+| `start` 返回 `verified=false`（端口在听、小程序未应答） | IDE 仍在编译/加载项目；或项目窗口刚被其它会话的 `cli close` 关掉又重开（SessionEnd 钩子、常驻 bot 等） | 直接再 `start`（可加大 `ready_timeout`）；连续 3 次失败才 `open(cdp_enabled=True)`。`open` 会杀 IDE、冷启动更慢，别把它当第一反应 |
 | `CLI auto 连续 3 次返回成功但端口未监听` | 项目窗口没加载完或已关闭（`cli auto` 会假成功；纯 CLI open 后约需 15s） | 稍等再 `start`；仍失败 `open(cdp_enabled=True)` 重启后再 `start` |
 | 任意 automator 动作报 `Failed connecting to ws://localhost:9420` | 项目窗口已关闭或自动化未开（IDE 2.x 偶发窗口自关） | 按返回的 `hint`：先 `start`，仍失败 `open(cdp_enabled=True)` 重开 |
 | `Failed connecting to ws://localhost:9420` / `Connection closed` | automator 未启动、断开，或项目窗口已关 | 快速恢复失败再完整恢复 |
-| CDP 采集失败 / 采到的全是别的东西 | 未以 `cdp_enabled` 打开，或 9222 被 Chrome 占用（`curl 127.0.0.1:9222/json/version` 可确认） | `open(cdp_port=9223)`，inspector / navigate / compile 用同一端口 |
+| CDP 采集失败 / 采到的全是别的东西 | 未以 `cdp_enabled` 打开，或 9222 被 Chrome 占用（`status` 的 `cdp_port_occupant.kind` 为 `foreign` 即是） | `open(cdp_port=9333)`，之后 inspector / navigate / compile 不传 `cdp_port` 自动沿用；长期设 `WECHAT_CDP_PORT` |
 | `Using AppID: undefined` / `appid missing` | project_path 指向子目录 / 未登录 | 改为含 `project.config.json` 的根目录；`is_login` |
 | navigate 后 `page_data.path` 与目标不一致 | page_path 拼错、被重定向（未登录 / 参数错 / 云函数失败）、switchTab 未完成 | `list_pages` 核对；查登录态与 onLoad 逻辑；增大 `wait_ms` |
 | evaluate 返回 `null` 且 `mode: "statement"` | `expression` 走了语句模式没 `return` | 改用 `fn_source` 并显式 `return` |
@@ -310,6 +311,7 @@ page_data 必须校验 `data.path` 等于导航目标；不一致的常见原因
 - ❌ 对生产项目 `cache_clean(clean_type='all')`
 - ❌ 脑补运行状态；同一失败操作重试超过 3 次（应转为诊断根因）
 - ❌ 硬 sleep 等待，用 `wait_ms` 或 `page_data(expected_path)` 轮询
+- ❌ `start` 返回 `verified=false` 就立刻 `open` 重启 IDE（先重试 `start`）
 - ❌ SOP 里主动截图，只在用户要求或需要视觉确认时截
 - ❌ 没改代码就 compile
 - ❌ navigate 后不校验 `page_data.path`

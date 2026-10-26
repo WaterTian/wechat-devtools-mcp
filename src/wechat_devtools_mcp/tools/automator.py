@@ -8,11 +8,13 @@ import json
 import asyncio
 import os
 import socket
+import time
 import tempfile
 from typing import TYPE_CHECKING
 
 from ..core.cli import _run_cli, _resolve_project_path
 from ..core.config import CLI_PATH, DEFAULT_PROJECT_PATH
+from ..core.config import AUTOMATOR_READY_TIMEOUT, WS_PROBE_TIMEOUT
 from ..core.errors import ErrorCode
 from ..core.node_bridge import _run_node_script, invalidate_connection
 from ..models.schemas import WechatAutomatorInput
@@ -49,6 +51,67 @@ def register_automator(mcp: "FastMCP") -> None:
 
 
 _WS_UNREACHABLE_MARK = "Failed connecting to ws://"
+
+# automator 失联的两类信号（2026-10-26 真机：窗口被关 / 闲置后 9420 在听却不应答，cli auto 一次即活）
+#   connect：连接阶段就失败，动作肯定没执行，任何动作都可以安全地 start 后重试
+#   mid：    动作执行中断线或超时，可能已执行一半，只有只读动作才重试（避免 tap / call_method 重复触发）
+_CONNECT_PHASE_MARKS = (
+    "Failed connecting to ws://", "Connection not ready", "health_check",
+    "连接失败", "ECONNREFUSED",
+)
+_MID_ACTION_MARKS = ("Connection closed", "daemon 响应超时")
+_READ_ONLY_ACTIONS = {"page_data", "page_stack", "element_info", "system_info", "storage"}
+
+
+def _automator_down(raw: str) -> str | None:
+    """判断一次调用结果是否属于 automator 失联。返回 'connect' / 'mid' / None。
+
+    raw 可以是工具返回的 JSON 字符串，也可以是裸错误文本。
+    """
+    text = str(raw or "")
+    try:
+        payload = json.loads(text)
+    except Exception:
+        payload = None
+    if isinstance(payload, dict):
+        if payload.get("success"):
+            return None
+        text = f"{payload.get('message', '')} {payload.get('error', '')}"
+    if any(m in text for m in _CONNECT_PHASE_MARKS):
+        return "connect"
+    if any(m in text for m in _MID_ACTION_MARKS):
+        return "mid"
+    return None
+
+
+async def _try_recover_automator(project_path: str | None, auto_port: int = 9420) -> dict | None:
+    """跑一次 start 试图救活 automator；verified 才算恢复，返回 start 的 data，否则 None。"""
+    try:
+        rec = json.loads(await _action_start(WechatAutomatorInput(
+            action="start", project_path=project_path, auto_port=auto_port,
+        )))
+    except Exception:
+        return None
+    data = rec.get("data") or {}
+    return data if rec.get("success") and data.get("verified") else None
+
+
+def _mark_recovered(raw: str, start_data: dict) -> str:
+    """在重试成功的返回里标注 auto_recovered，调用方知道中间经历过一次恢复。"""
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return raw
+    note = {
+        "ready_after_ms": start_data.get("ready_after_ms"),
+        "cli_attempts": start_data.get("cli_attempts"),
+    }
+    if isinstance(payload.get("data"), dict):
+        payload["data"]["auto_recovered"] = note
+    else:
+        payload["auto_recovered"] = note
+    payload["message"] = "（automator 已自动恢复）" + str(payload.get("message", ""))
+    return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
 def _annotate_ws_failure(raw: str) -> str:
@@ -104,6 +167,20 @@ async def wechat_automator(params: WechatAutomatorInput) -> str:
         )
 
     try:
+        raw = await _dispatch_action(params)
+        # 失联自动恢复：start 一次（cli auto 会把被关掉的项目窗口重新打开），verified 后重试一次
+        down = _automator_down(raw) if params.action != "start" else None
+        if down == "connect" or (down == "mid" and params.action in _READ_ONLY_ACTIONS):
+            rec = await _try_recover_automator(params.project_path, params.auto_port)
+            if rec:
+                raw = _mark_recovered(await _dispatch_action(params), rec)
+        return _annotate_ws_failure(raw)
+    except Exception as e:
+        return _fail(ErrorCode.UNKNOWN_ERROR, f"执行失败：{type(e).__name__}: {e}")
+
+
+async def _dispatch_action(params: WechatAutomatorInput) -> str:
+    try:
         if params.action == "start":
             raw = await _action_start(params)
         elif params.action == "tap":
@@ -132,9 +209,13 @@ async def wechat_automator(params: WechatAutomatorInput) -> str:
             raw = await _action_storage(params)
         else:
             return _fail(ErrorCode.UNKNOWN_ERROR, f"未知 action: {params.action}")
-        return _annotate_ws_failure(raw)
+        return raw
     except Exception as e:
         return _fail(ErrorCode.UNKNOWN_ERROR, f"执行失败：{type(e).__name__}: {e}")
+
+
+# 可被测试替换的单调时钟（截止时间循环靠它终止）
+_monotonic = time.monotonic
 
 
 async def _verify_port_ready(port: int, max_attempts: int = 20, interval: float = 1.0) -> bool:
@@ -161,11 +242,55 @@ async def _verify_ws_ready(port: int) -> bool:
     try:
         result = await _run_node_script(
             "automation.js", "--port", str(port), "--action", "pageStack",
-            timeout=10,
+            timeout=WS_PROBE_TIMEOUT,
         )
         return bool(result.get("success"))
     except Exception:
         return False
+
+
+# WS 静默多久后再跑一次 cli auto。真机（2026-10-26）：关窗后第一次 cli auto 起来的 automator
+# 偶尔 45s 内始终不应答，而再跑一次 cli auto 7s 就活——现场「再 start 一次就好」的经验由此而来。
+_CLI_RERUN_AFTER_S = 15.0
+
+
+async def _wait_ws_ready(port: int, deadline_s: float, rerun_cli=None) -> dict:
+    """在 deadline_s 内反复探测 automator 是否应答 pageStack。
+
+    真机（2026-10-26，2.02.2608060）：`cli auto` 后 2.4s WS 即可连，但 `currentPage`
+    要 ~9s（冷启动 ~11s）才首次应答。此前「10s 预算 × 2 次」卡在边缘，负载稍高就把
+    「还没准备好」报成「TCP 已监听但 WebSocket 握手未完成」，调用方据此去 `open` 重启 IDE，
+    冷启动更慢、再失败——FanTown 9 至 10 月会话里反复出现的循环。
+
+    返回 {"ready", "attempts", "elapsed_ms", "cli_reruns"}。每次失败先清掉 daemon 里可能半死的
+    缓存连接（否则下一次探测会先在死连接上白等），再等 1 秒；距上次 cli auto 超过
+    _CLI_RERUN_AFTER_S 仍无应答则再跑一次 rerun_cli（cli auto 幂等）。
+    """
+    t0 = _monotonic()
+    attempts = 0
+    cli_reruns = 0
+    last_cli = t0
+    while True:
+        attempts += 1
+        ok = await _verify_ws_ready(port)
+        now = _monotonic()
+        elapsed = now - t0
+        if ok:
+            return {"ready": True, "attempts": attempts, "elapsed_ms": int(elapsed * 1000), "cli_reruns": cli_reruns}
+        if elapsed >= deadline_s:
+            return {"ready": False, "attempts": attempts, "elapsed_ms": int(elapsed * 1000), "cli_reruns": cli_reruns}
+        try:
+            await invalidate_connection(port)
+        except Exception:
+            pass
+        if rerun_cli is not None and now - last_cli >= _CLI_RERUN_AFTER_S:
+            try:
+                await rerun_cli()
+            except Exception:
+                pass
+            cli_reruns += 1
+            last_cli = now
+        await asyncio.sleep(1)
 
 
 async def _action_start(params: WechatAutomatorInput) -> str:
@@ -215,29 +340,31 @@ async def _action_start(params: WechatAutomatorInput) -> str:
                 ),
             )
 
-        # Step 3: WS 级握手验证。首次失败 → invalidate 缓存 + 2s 退避 + 再试一次。
-        ws_ready = await _verify_ws_ready(params.auto_port)
-        verify_attempts = 1
-        if not ws_ready:
-            try:
-                await invalidate_connection(params.auto_port)
-            except Exception:
-                pass
-            await asyncio.sleep(2)
-            ws_ready = await _verify_ws_ready(params.auto_port)
-            verify_attempts = 2
+        # Step 3: WS 级验证，按截止时间轮询（默认 45s，见 _wait_ws_ready 的真机数据）。
+        # 静默超过 _CLI_RERUN_AFTER_S 自动再跑一次 cli auto。
+        deadline = params.ready_timeout or AUTOMATOR_READY_TIMEOUT
 
-        if ws_ready:
+        async def _rerun_cli_auto() -> None:
+            await _run_cli(*cli_args, timeout=30)
+
+        ws = await _wait_ws_ready(params.auto_port, deadline, rerun_cli=_rerun_cli_auto)
+        cli_attempts += ws.get("cli_reruns", 0)
+
+        if ws["ready"]:
             return _ok(
                 {
                     "port": params.auto_port,
                     "verified": True,
                     "tcp_ready": True,
                     "ws_ready": True,
-                    "verify_attempts": verify_attempts,
+                    "verify_attempts": ws["attempts"],
+                    "ready_after_ms": ws["elapsed_ms"],
                     "cli_attempts": cli_attempts,
                 },
-                message=f"自动化端口 {params.auto_port} 已就绪（CLI + TCP + WS 三重验证通过）。",
+                message=(
+                    f"自动化端口 {params.auto_port} 已就绪"
+                    f"（CLI + TCP + WS 三重验证通过，等待 {ws['elapsed_ms'] / 1000:.1f}s）。"
+                ),
             )
         return _ok(
             {
@@ -245,12 +372,22 @@ async def _action_start(params: WechatAutomatorInput) -> str:
                 "verified": False,
                 "tcp_ready": True,
                 "ws_ready": False,
-                "verify_attempts": verify_attempts,
+                "verify_attempts": ws["attempts"],
+                "waited_ms": ws["elapsed_ms"],
+                "ready_timeout_s": deadline,
                 "cli_attempts": cli_attempts,
                 "retry_after_ms": 3000,
-                "hint": "TCP 已监听但 WebSocket 握手未完成，可能自动化组件仍在初始化。建议等待 3 秒后重试。",
+                "hint": (
+                    "端口在监听但小程序尚未应答 currentPage：IDE 可能仍在编译/加载项目"
+                    f"（大项目冷启动可超过 {deadline}s），或项目窗口刚被其它会话的 cli close 关掉又重开。"
+                    "先直接重试 start（不会重启 IDE；可加大 ready_timeout），"
+                    "连续 3 次仍失败再 wechat_ide(action='open', cdp_enabled=True) 重开。"
+                ),
             },
-            message=f"自动化端口 {params.auto_port} 的 WS 层未就绪（已尝试 {verify_attempts} 次）。",
+            message=(
+                f"自动化端口 {params.auto_port} 在 {deadline}s 内未应答"
+                f"（已探测 {ws['attempts']} 次）。"
+            ),
         )
     except FileNotFoundError:
         return _fail(ErrorCode.CLI_NOT_FOUND, f"找不到微信开发者工具 CLI：{cli}")

@@ -8,17 +8,24 @@ import asyncio
 import json
 import os
 import socket
+import time
 import tempfile
 from typing import TYPE_CHECKING
 
 from ..core import ide_state
 from ..core.cli import _run_cli, _resolve_project_path
 from ..core.node_bridge import _run_node_script, invalidate_connection
+from ..core.config import COMPILE_RECONNECT_TIMEOUT, WS_PROBE_TIMEOUT
+from ..core.cdp_port import resolve_cdp_port
+from .ide import _inspect_cdp_port
 from ..core.errors import ErrorCode
 from ..models.schemas import WechatBuildInput
 from ..utils.cdp_helpers import _format_cdp_logs_v2, _is_wxml_error
 from ..utils.response import _ok, _fail
 from .file_reader import _get_miniprogram_root
+
+# 可被测试替换的单调时钟
+_monotonic = time.monotonic
 
 if TYPE_CHECKING:
     from .._compat import FastMCP
@@ -238,10 +245,20 @@ async def _action_compile(params: WechatBuildInput) -> str:
 
     # ── CDP 采集 WXML 编译错误 ──
     wxml_errors: list[str] = []
+    cdp_skipped: str | None = None
     if result["success"]:
         try:
+            cdp_port = resolve_cdp_port(params)
+            # 端口上是别的浏览器（常驻 Chrome 的 9222）就跳过，否则 Chrome 页面报错会混进 wxml_errors
+            occupant = await asyncio.to_thread(_inspect_cdp_port, cdp_port)
+            if occupant["kind"] == "foreign":
+                cdp_skipped = (
+                    f"CDP 端口 {cdp_port} 上是 {occupant.get('browser') or '其它程序'}（非 IDE），"
+                    "未采集 WXML 运行时错误；用 wechat_ide(open, cdp_port=9333) 重开后 compile"
+                )
+                raise RuntimeError("cdp_skipped")
             cdp_result = await _run_node_script(
-                "cdp_listener.js", "3", str(params.cdp_port), timeout=15,
+                "cdp_listener.js", "3", str(cdp_port), timeout=15,
             )
             cdp_logs = cdp_result.get("data", []) if isinstance(cdp_result, dict) else []
             if isinstance(cdp_logs, list) and cdp_logs:
@@ -254,6 +271,8 @@ async def _action_compile(params: WechatBuildInput) -> str:
         except Exception:
             pass  # CDP 采集失败不影响编译结果
     data["wxml_errors"] = wxml_errors
+    if cdp_skipped:
+        data["cdp_skipped"] = cdp_skipped
 
     if not result["success"]:
         data["automator_reconnected"] = False
@@ -289,22 +308,27 @@ async def _action_compile(params: WechatBuildInput) -> str:
             # 先清除 daemon 中可能缓存的旧连接
             await invalidate_connection(auto_port)
             # WS 级健康检查（automation.js 的 pageStack，ui_debug.js 无此 action）。
-            # 此前固定 sleep(3) 再查一次；实测 compile 后 automator 多数情况下立即可用，
-            # 改为立刻查、不通再每 0.5s 重试，上限约 4s，把等待时间还给快路径。
+            # 立刻查、不通再每 0.5s 重试，按截止时间（COMPILE_RECONNECT_TIMEOUT）而非次数：
+            # 单次探测的 Python 超时须盖过 daemon 新连接健康检查上限（≈20s），
+            # 否则 Python 先超时、daemon 还在重试，连接被遗弃（与 start 同一问题）。
             ws_ready = False
-            for attempt in range(8):
+            reconnect_attempts = 0
+            t0 = _monotonic()
+            while True:
+                reconnect_attempts += 1
                 health_result = await _run_node_script(
                     "automation.js",
                     "--port", str(auto_port),
                     "--action", "pageStack",
-                    timeout=10,
+                    timeout=WS_PROBE_TIMEOUT,
                 )
                 ws_ready = bool(health_result.get("success", False))
-                if ws_ready:
+                if ws_ready or _monotonic() - t0 >= COMPILE_RECONNECT_TIMEOUT:
                     break
                 await asyncio.sleep(0.5)
             data["automator_reconnected"] = True
             data["automator_verified"] = ws_ready
+            data["reconnect_attempts"] = reconnect_attempts
         except Exception as e:
             data["automator_reconnected"] = False
             data["reconnect_error"] = str(e)
@@ -331,6 +355,8 @@ async def _action_compile(params: WechatBuildInput) -> str:
     wxml_note = f" 检测到 {len(wxml_errors)} 个 WXML 错误。" if wxml_errors else ""
     npm_note = " ⚠ npm 依赖状态异常，详见 npm_warning。" if npm_warning else ""
     msg = f"编译成功。{wxml_note}{reconnect_status}{npm_note}"
+    if cdp_skipped:
+        msg += f" ⚠ {cdp_skipped}"
     return _ok(data, message=msg)
 
 

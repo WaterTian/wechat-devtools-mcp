@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.18)
+# WeChat DevTools MCP Server (v0.9.19)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -130,6 +130,8 @@ Full parameters: [MCP_DOC.md](./MCP_DOC.md). Cloud functions and databases: use 
 | `WECHAT_DEVTOOLS_CLI` | DevTools CLI path (**required**) | — |
 | `WECHAT_PROJECT_PATH` | Default project root (**required**) | — |
 | `WECHAT_CLI_TIMEOUT` | CLI timeout in seconds | `30` |
+| `WECHAT_CDP_PORT` | Default CDP debugging port. Set to `9333` when 9222 is held by Chrome; after a successful `open` the other tools reuse that port for the session | `9222` |
+| `WECHAT_AUTOMATOR_READY_TIMEOUT` | Seconds `start` waits for the automator to answer; raise it for large projects on cold start | `45` |
 | `NODE_PATH` | Node.js executable | `node` |
 
 ---
@@ -150,6 +152,7 @@ Full parameters: [MCP_DOC.md](./MCP_DOC.md). Cloud functions and databases: use 
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.9.19 | 2026-10-26 | `start` waits for automator readiness with a deadline, fixing false "handshake incomplete" failures; CDP port occupant check and session stickiness (`WECHAT_CDP_PORT`); automatic automator recovery; `status` reports project window and skill version |
 | 0.9.18 | 2026-09-04 | Windows 2.x verified on a real machine: `User Data` state dir, readiness, `quit` waits for exit, noise filters; new smoke script |
 | 0.9.17 | 2026-09-03 | DevTools 2.x Stable support; `fn_source` for evaluate; ~4x faster `open`; Windows dual-runtime detection |
 | 0.9.16 | 2026-08-27 | Long-page screenshot overhaul; source code opened |

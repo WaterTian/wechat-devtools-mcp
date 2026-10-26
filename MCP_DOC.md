@@ -1,4 +1,4 @@
-# MCP 工具箱完整文档 (v0.9.18)
+# MCP 工具箱完整文档 (v0.9.19)
 
 v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **7 个聚合工具**（v0.9.5 起 `wechat_cloud` 已禁用）。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
 
@@ -55,7 +55,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `port` | int | null | IDE HTTP 服务端口号 |
 | `lang` | string | null | 界面语言：`en` 或 `zh` |
 | `cdp_enabled` | bool | `true` | 是否开启 CDP 调试端口，`open` 时使用 |
-| `cdp_port` | int | `9222` | CDP 调试端口。被 Chrome 等占用时可换端口，需与 `wechat_inspector` / `wechat_navigate` 的 `cdp_port` 保持一致 |
+| `cdp_port` | int | `WECHAT_CDP_PORT` 或 `9222` | CDP 调试端口。`open` 前检查端口占用者，被别的浏览器占着直接报错；成功后同会话 `wechat_inspector` / `wechat_navigate` / `wechat_build(compile)` 不传即沿用 |
 | `qr_format` | string | `terminal` | 二维码格式，`login` 时使用 |
 | `qr_output` | string | null | 二维码输出路径，`login` 时使用 |
 | `result_output` | string | null | 登录结果输出文件路径，`login` 时使用（透传 CLI `--result-output`） |
@@ -112,7 +112,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `compile_type` | string | null | 编译类型：`miniprogram` 或 `plugin` |
 | `clean_type` | string | `compile` | 缓存类型：`storage`、`file`、`compile`、`auth`、`network`、`session`、`all` |
 | `port` | int | null | IDE HTTP 服务端口号 |
-| `cdp_port` | int | `9222` | CDP 调试端口，`compile` 采集 WXML 运行时错误时使用。**须与 `wechat_ide(open)` 的 `cdp_port` 一致**，否则 `wxml_errors` 会恒为空且无提示 |
+| `cdp_port` | int | 沿用 `open` 的端口 | CDP 调试端口，`compile` 采集 WXML 运行时错误时使用。不传则沿用本会话 `wechat_ide(open)` 的端口 |
 | `lang` | string | null | 界面语言 |
 
 ---
@@ -121,13 +121,13 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 自动化交互与运行时查询。合并所有原自动化工具（13 个 action）。
 
-> **前提**：需先调用 `wechat_automator(action='start')` 开启 9420 自动化端口，**只需一次**。
+> **前提**：需先调用 `wechat_automator(action='start')` 开启 9420 自动化端口，**只需一次**。连接断开时动作会自动 `start` 一次并重试（返回 `auto_recovered`），有副作用的动作只在连接阶段失败时重试。
 
 **必填参数**：`action`
 
 | action | 功能 | 条件必填参数 |
 |--------|------|------------|
-| `start` | 开启自动化端口，轮询验证连接就绪；端口不监听时自动重跑 `cli auto`（最多 3 轮） | — |
+| `start` | 开启自动化端口，TCP 与 WS 两级验证；端口不监听时自动重跑 `cli auto`（最多 3 轮），WS 级按截止时间轮询（默认 45s，`ready_timeout` 可调） | — |
 | `tap` | 模拟点击指定元素 | **`selector`** |
 | `input` | 向 input/textarea 输入文本 | **`selector`**, **`value`** |
 | `element_info` | 获取元素详情（文本/尺寸/位置/WXML） | **`selector`** |
@@ -147,6 +147,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 |------|------|--------|------|
 | `auto_port` | int | `9420` | 自动化监听端口 |
 | `project_path` | string | 环境变量 | 小程序项目路径，`start` 时使用 |
+| `ready_timeout` | int | `45` | `start` 等待 automator 首次应答的总秒数，范围 5~180；大项目冷启动可加大 |
 | `selector` | string | null | CSS 选择器，例如 `.submit-btn`、`#login` |
 | `value` | string | null | 输入值 |
 | `style_prop` | string | null | 要查询的 CSS 属性名，`element_info` 时可选 |
@@ -182,7 +183,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `duration` | int | `10` | 采集持续时间（秒），范围 1~120 |
 | `detail_level` | string | `concise` | `cdp` 时使用：`concise`（仅 errors+warnings）或 `full`（全量） |
 | `max_logs` | int | `50` | `cdp` 时使用：最大返回条数，超出时 `truncated=true` |
-| `cdp_port` | int | `9222` | CDP 调试端口 |
+| `cdp_port` | int | 沿用 `open` 的端口 | CDP 调试端口，不传则沿用本会话 `open` 的端口 |
 | `auto_port` | int | `9420` | 自动化端口，`console` 时使用 |
 | `log_type` | string | `all` | `console` 时使用：`all`、`console`、`exception` |
 | `tap_selector` | string | null | 采集期间自动点击的 CSS 选择器 |
@@ -234,7 +235,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `wait_ms` | int | `2000` | 跳转后等待时间（毫秒），范围 100~30000 |
 | `timeout` | int | `30` | 总超时时间（秒），范围 10~120。实际生效值 = max(timeout, wait_ms/1000 + 10)，调大 `wait_ms` 不会撞到该超时 |
 | `auto_port` | int | `9420` | 自动化监听端口 |
-| `cdp_port` | int | `9222` | CDP 调试端口 |
+| `cdp_port` | int | 沿用 `open` 的端口 | CDP 调试端口，不传则沿用本会话 `open` 的端口 |
 | `detail_level` | string | `concise` | `concise`（仅 errors+warnings）或 `full` |
 | `clear_logs` | bool | `true` | 是否过滤跳转前的 CDP 历史日志（基于时间戳）。设为 `false` 可获取完整累积日志。 |
 | `check_data` | bool | `true` | 跳转后检查 page_data，如超过 70% 字段为空且 URL 含 query 参数，追加参数名错误警告。 |

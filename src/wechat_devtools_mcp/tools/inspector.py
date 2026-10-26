@@ -1,3 +1,4 @@
+import asyncio
 """
 wechat_inspector 工具：运行时日志采集。
 
@@ -8,6 +9,8 @@ from typing import TYPE_CHECKING
 
 from ..core.errors import ErrorCode
 from ..core.node_bridge import _run_node_script
+from ..core.cdp_port import resolve_cdp_port
+from .ide import _inspect_cdp_port
 from ..models.schemas import WechatInspectorInput
 from ..utils.cdp_helpers import _format_cdp_logs_v2
 from ..utils.response import _ok, _fail
@@ -104,12 +107,22 @@ async def _action_console(params: WechatInspectorInput) -> str:
 
 async def _action_cdp(params: WechatInspectorInput) -> str:
     """通过 CDP 协议采集底层日志（WXML 警告、渲染层报错等）。"""
+    cdp_port = resolve_cdp_port(params)  # 不传则沿用本会话 open 的端口
+    # 端口上是别的浏览器（典型：常驻 Chrome 的 9222）就直接报错，别把别人的页面日志当小程序日志
+    occupant = await asyncio.to_thread(_inspect_cdp_port, cdp_port)
+    if occupant["kind"] == "foreign":
+        return _fail(
+            ErrorCode.UNKNOWN_ERROR,
+            f"CDP 端口 {cdp_port} 上是 {occupant.get('browser') or '其它程序'}（非微信开发者工具），未采集。",
+            hint="用 wechat_ide(action='open', cdp_enabled=True, cdp_port=9333) 重开项目，或传正确的 cdp_port。",
+            extra={"cdp_port": cdp_port, "cdp_port_occupant": occupant},
+        )
     # cdp_listener.js 的兼容位置参数：argv[2]=duration, argv[3]=cdp_port。
     # 早期只传了 duration，导致 schema 暴露的 cdp_port 形同虚设（永远连 9222）。
     result = await _run_node_script(
         "cdp_listener.js",
         str(params.duration),
-        str(params.cdp_port),
+        str(cdp_port),
         timeout=params.duration + 10,
     )
 
@@ -124,7 +137,7 @@ async def _action_cdp(params: WechatInspectorInput) -> str:
                 ErrorCode.UNKNOWN_ERROR,
                 f"CDP 采集失败：{result['error']}",
                 hint=(
-                    f"请确认已用 cdp_enabled=true 打开项目，且端口 {params.cdp_port} 未被占用"
+                    f"请确认已用 cdp_enabled=true 打开项目，且端口 {cdp_port} 未被占用"
                     "（可用 curl 127.0.0.1:<port>/json/version 确认端口上是谁）。"
                 ),
             )

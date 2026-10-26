@@ -75552,21 +75552,26 @@ const handlers = {
 // ── 连接管理 ─────────────────────────────────────────────────────
 const connections = new Map(); // port → { miniProgram, connectedAt }
 
-// 健康检查：轮询 currentPage()，每次 3s 超时。
-// 缓存连接只重试 2 次（快速判死）；新连接重试 5 次（给页面加载留时间）。
+// 健康检查：轮询 currentPage()，每次 1.5s 超时、间隔 0.5s。
+// 真机（2026-10-26，2.02.2608060）：cli auto 后 WS 2.4s 即可连，但 currentPage 要 ~7s 后
+// 才首次应答（冷启动 ~11s）。旧参数 3s 超时 + 1.5s 间隔，判定粒度 4.5s，叠加 Python 侧
+// 10s 预算后经常把「还没准备好」报成「握手失败」。
+// 缓存连接只重试 2 次（快速判死，~4s）；新连接重试 10 次（~20s，覆盖冷启动）。
+const HEALTH_CHECK_TIMEOUT_MS = 1500;
+const HEALTH_CHECK_INTERVAL_MS = 500;
 async function healthCheck(miniProgram, maxRetries) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
             await Promise.race([
                 miniProgram.currentPage(),
                 new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('timeout')), 3000)
+                    setTimeout(() => reject(new Error('timeout')), HEALTH_CHECK_TIMEOUT_MS)
                 ),
             ]);
             return;
         } catch (_) {
             if (attempt < maxRetries - 1) {
-                await new Promise(r => setTimeout(r, 1500));
+                await new Promise(r => setTimeout(r, HEALTH_CHECK_INTERVAL_MS));
             }
         }
     }
@@ -75589,7 +75594,7 @@ async function getConnection(port) {
         wsEndpoint: `ws://localhost:${port}`,
     });
     try {
-        await healthCheck(miniProgram, 5);
+        await healthCheck(miniProgram, 10);
     } catch (_) {
         try { miniProgram.disconnect(); } catch (_) { }
         throw new Error('Connection not ready: health check failed after connect');

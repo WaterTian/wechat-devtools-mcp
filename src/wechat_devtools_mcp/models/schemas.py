@@ -6,6 +6,8 @@
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
+from ..core.cdp_port import DEFAULT_CDP_PORT
+
 
 class WechatIdeInput(BaseModel):
     """IDE 生命周期管理聚合输入。"""
@@ -18,8 +20,8 @@ class WechatIdeInput(BaseModel):
     lang: Optional[str] = Field(default=None, description="界面语言：'en' 或 'zh'。")
     cdp_enabled: bool = Field(default=True, description="是否开启 CDP 调试端口。")
     cdp_port: int = Field(
-        default=9222, ge=1, le=65535,
-        description="CDP 调试端口，默认 9222。被 Chrome 等占用时可换端口（需与 inspector/navigate 保持一致）。",
+        default=DEFAULT_CDP_PORT, ge=1, le=65535,
+        description="CDP 调试端口，默认取环境变量 WECHAT_CDP_PORT（否则 9222）。open 前会检查端口上是谁，被别的浏览器占着直接报错；open 成功后同会话其它工具不传即沿用。",
     )
     qr_format: Optional[str] = Field(default="terminal", description="二维码格式：'terminal'、'image'、'base64'。")
     qr_output: Optional[str] = Field(default=None, description="二维码输出文件路径。")
@@ -41,7 +43,7 @@ class WechatBuildInput(BaseModel):
     compile_type: Optional[str] = Field(default=None, description="编译类型：'miniprogram' 或 'plugin'。")
     clean_type: str = Field(default="compile", description="缓存类型：'storage'、'file'、'compile'、'auth'、'network'、'session'、'all'。")
     cdp_port: int = Field(
-        default=9222, ge=1, le=65535,
+        default=DEFAULT_CDP_PORT, ge=1, le=65535,
         description="CDP 调试端口，compile 采集 WXML 运行时错误时使用。需与 wechat_ide(open) 的 cdp_port 一致。",
     )
     port: Optional[int] = Field(default=None, description="IDE HTTP 服务端口号。", ge=1, le=65535)
@@ -58,6 +60,13 @@ class WechatAutomatorInput(BaseModel):
 
     auto_port: int = Field(default=9420, description="自动化端口。", ge=1, le=65535)
     project_path: Optional[str] = Field(default=None, description="小程序项目路径，start 时使用。")
+    ready_timeout: Optional[int] = Field(
+        default=None, ge=5, le=180,
+        description=(
+            "start 时等待 automator 首次应答的总秒数，默认 45"
+            "（环境变量 WECHAT_AUTOMATOR_READY_TIMEOUT 可改）；大项目冷启动可加大。"
+        ),
+    )
 
     # 条件参数
     selector: Optional[str] = Field(default=None, description="CSS 选择器，tap/input/element_info 时必填。")
@@ -101,7 +110,7 @@ class WechatInspectorInput(BaseModel):
         description="concise：仅返回 summary + errors/warnings；full：返回全量日志。",
     )
     max_logs: int = Field(default=50, ge=1, le=500, description="最大返回日志条数，超出时截断并标注 truncated=true。")
-    cdp_port: int = Field(default=9222, description="CDP 调试端口。", ge=1, le=65535)
+    cdp_port: int = Field(default=DEFAULT_CDP_PORT, description="CDP 调试端口。", ge=1, le=65535)
 
     # console 参数
     auto_port: int = Field(default=9420, description="自动化端口。", ge=1, le=65535)
@@ -130,7 +139,7 @@ class WechatNavigateInput(BaseModel):
     wait_ms: int = Field(default=2000, ge=100, le=30000, description="跳转后等待时间（毫秒）。")
     timeout: int = Field(default=30, ge=10, le=120, description="总超时时间（秒），复杂页面可适当增大。")
     auto_port: int = Field(default=9420, description="自动化端口。", ge=1, le=65535)
-    cdp_port: int = Field(default=9222, description="CDP 调试端口。", ge=1, le=65535)
+    cdp_port: int = Field(default=DEFAULT_CDP_PORT, description="CDP 调试端口。", ge=1, le=65535)
     detail_level: Literal["concise", "full"] = Field(default="concise", description="CDP 日志详略模式。")
     max_logs: int = Field(default=50, ge=1, le=500, description="最大 CDP 日志条数。")
     project_path: Optional[str] = Field(default=None, description="小程序项目路径（仅用于提示）。")
