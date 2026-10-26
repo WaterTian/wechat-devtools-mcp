@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.19)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.20)
 
 > `SKILL.md` 的扩展参考：7 个聚合工具的全部参数、action 与返回字段，均对照源码核对。SOP 流程见 `SKILL.md`。
 
@@ -64,7 +64,7 @@ IDE 生命周期管理。
 {
   "success": true,
   "data": {
-    "mcp_version": "0.9.19",
+    "mcp_version": "0.9.20",
     "cli_path": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
     "cli_exists": true,
     "project_path": "/Users/me/Projects/mini-app",
@@ -79,7 +79,7 @@ IDE 生命周期管理。
     "cdp_port_session": 9333,
     "cdp_port_occupant": {"listening": true, "kind": "ide", "browser": "Chrome/136.0.7103.177", "sample": ["webview http://127.0.0.1:16587/__pageframe__/pages/home/index"], "miniprogram_targets": 2},
     "project_window_open": true,
-    "skill_version": "0.9.19",
+    "skill_version": "0.9.20",
     "project_name": "mini-app",
     "appid": "wx1234567890",
     "lib_version": "3.8.0"

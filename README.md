@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.9.19)
+# 微信开发者工具 MCP Server (v0.9.20)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -169,6 +169,7 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 
 | 版本 | 日期 | 摘要 |
 |------|------|------|
+| 0.9.20 | 2026-10-26 | `call_wx` 同步 wx API 自动经 evaluate 直调，不再 10 秒超时；README / MCP_DOC / SKILL 逐字段核对修正；Node.js ≥ 18 门槛明示 |
 | 0.9.19 | 2026-10-26 | automator `start` 按截止时间等就绪，根治「握手未完成」误报；CDP 端口占用检测与会话粘性（`WECHAT_CDP_PORT`）；automator 失联自动恢复；`status` 新增项目窗口 / skill 版本诊断 |
 | 0.9.18 | 2026-09-04 | Windows 2.x 真机闭环：状态目录 `User Data` 层、就绪判据、`quit` 等退出、噪音过滤；新增真机冒烟脚本 |
 | 0.9.17 | 2026-09-03 | 适配开发者工具 2.x Stable；evaluate 新增 `fn_source`；`open` 提速约 4 倍；Windows 1.x/2.x 双轨判定 |

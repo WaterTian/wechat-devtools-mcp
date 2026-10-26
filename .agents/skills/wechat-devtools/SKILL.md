@@ -1,10 +1,10 @@
 ---
 name: wechat-devtools
-version: 0.9.19
+version: 0.9.20
 description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
-# Wechat DevTools MCP Skill (v0.9.19)
+# Wechat DevTools MCP Skill (v0.9.20)
 
 ## 前置条件
 

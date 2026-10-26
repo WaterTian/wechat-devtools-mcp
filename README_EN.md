@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.19)
+# WeChat DevTools MCP Server (v0.9.20)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -169,6 +169,7 @@ When an action hits an automator connection failure it runs `start` once and ret
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.9.20 | 2026-10-26 | `call_wx` routes synchronous wx APIs through `evaluate` instead of timing out after 10s; README / MCP_DOC / SKILL audited field by field; Node.js ≥ 18 stated explicitly |
 | 0.9.19 | 2026-10-26 | `start` waits for automator readiness with a deadline, fixing false "handshake incomplete" failures; CDP port occupant check and session stickiness (`WECHAT_CDP_PORT`); automatic automator recovery; `status` reports project window and skill version |
 | 0.9.18 | 2026-09-04 | Windows 2.x verified on a real machine: `User Data` state dir, readiness, `quit` waits for exit, noise filters; new smoke script |
 | 0.9.17 | 2026-09-03 | DevTools 2.x Stable support; `fn_source` for evaluate; ~4x faster `open`; Windows dual-runtime detection |
