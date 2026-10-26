@@ -64,7 +64,7 @@ IDE 生命周期管理。
 {
   "success": true,
   "data": {
-    "mcp_version": "0.9.18",
+    "mcp_version": "0.9.19",
     "cli_path": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
     "cli_exists": true,
     "project_path": "/Users/me/Projects/mini-app",
@@ -74,6 +74,12 @@ IDE 生命周期管理。
     "service_port_enabled": true,
     "ide_port": 11071,
     "official_mcp": {"available": true, "port": 11071, "running": true, "sessions": 0},
+    "cdp_port": 9333,
+    "cdp_port_default": 9222,
+    "cdp_port_session": 9333,
+    "cdp_port_occupant": {"listening": true, "kind": "ide", "browser": "Chrome/136.0.7103.177", "sample": ["webview http://127.0.0.1:16587/__pageframe__/pages/home/index"], "miniprogram_targets": 2},
+    "project_window_open": true,
+    "skill_version": "0.9.19",
     "project_name": "mini-app",
     "appid": "wx1234567890",
     "lib_version": "3.8.0"
@@ -114,7 +120,7 @@ IDE 生命周期管理。
 
 | action | 行为 | 返回 `data` |
 |--------|------|-------------|
-| `compile` | 触发编译，按行分类 stderr 为 errors / warnings / status（进度指示与 Node 弃用提示已跳过）；再采集 3 秒 CDP 提取 `wxml_errors`；成功后若默认端口 9420 在监听，则清掉 daemon 旧连接并做 WS 级健康检查。CLI 返回 0 但 stderr 命中端口占用等致命模式时降级为失败并返回 `fatal_errors` | `compiled`、`errors`、`warnings`、`status`、`compile_info`、`project`、`wxml_errors`、`npm_warning`（miniprogram_npm 缺失或早于 node_modules）、`automator_reconnected`、`automator_verified`、`reconnect_error`、`port_changed`、`old_port`、`new_port` |
+| `compile` | 触发编译，按行分类 stderr 为 errors / warnings / status（进度指示与 Node 弃用提示已跳过）；再采集 3 秒 CDP 提取 `wxml_errors`；成功后若默认端口 9420 在监听，则清掉 daemon 旧连接并做 WS 级健康检查。CLI 返回 0 但 stderr 命中端口占用等致命模式时降级为失败并返回 `fatal_errors` | `compiled`、`errors`、`warnings`、`status`、`compile_info`、`project`、`wxml_errors`、`npm_warning`（miniprogram_npm 缺失或早于 node_modules）、`cdp_skipped`（CDP 端口被别的浏览器占着时跳过采集）、`automator_reconnected`、`automator_verified`、`reconnect_attempts`、`reconnect_error`、`port_changed`、`old_port`、`new_port` |
 | `preview` | 生成预览二维码，需已登录 | `stdout`、`qr_output`、`qr_output_mtime`、`qr_stale_warning`（二维码文件 mtime 未变，bundle 可能没刷新）、`info_output` |
 | `upload` | 上传到微信后台，生产操作 | `version`、`stdout` |
 | `build_npm` | 构建 npm 依赖。新增或更新依赖后必须执行 | `{}` |
@@ -299,7 +305,7 @@ CDP 端口上若是别的浏览器（典型：常驻 Chrome 占着 9222），`co
 
 拼接质量诊断字段只在异常时出现，且 `message` 会带 ⚠：`is_scroll_view_page: true`（只截到视口）、`truncated: true`（底部没拍到）、`content_gaps: N`（N 处内容丢失，增大 `overlap`）、`detection_confident: false`（固定头尾识别不可靠）。`fixed_header` / `fixed_footer` 为识别到的固定区高度（物理像素）。
 
-跳转失败等 JS 侧错误会带 `hint`（如「末尾可能需要 /index」）。fixed / absolute 弹窗蒙层可能拍不到。
+跳转失败等 JS 侧错误会带 `hint`（如「末尾可能需要 /index」）。fixed / absolute 弹窗蒙层可能拍不到。automator 失联自动恢复后附 `auto_recovered`。
 
 ---
 
@@ -346,6 +352,7 @@ CDP 端口上若是别的浏览器（典型：常驻 Chrome 占着 9222），`co
 - `navigation_method`：tabBar 页为 `switchTab`，其余 `reLaunch`。reLaunch 进入的页面云函数调用可能丢上下文，非 tabBar 页优先 `evaluate` + `wx.navigateTo`。
 - 跳转后路径不匹配时加 `navigation_mismatch: true`，`message` 给出手动跳转建议。
 - 疑似 query 参数名错误时加 `warning`。
+- CDP 端口被别的浏览器占着时照常跳转，`cdp_available: false` 并加 `cdp_warning`；automator 失联自动恢复后附 `auto_recovered`。
 
 ---
 

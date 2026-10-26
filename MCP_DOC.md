@@ -1,6 +1,6 @@
 # MCP 工具箱完整文档 (v0.9.19)
 
-v0.3.0 采用「**瘦 MCP + 胖 Skill**」架构，将 44 个工具聚合为 **7 个聚合工具**（v0.9.5 起 `wechat_cloud` 已禁用）。每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。
+「**瘦 MCP + 胖 Skill**」架构：44 个原子能力聚合为 **7 个工具**，每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。操作流程与排障手册在配套 Skill（`.agents/skills/wechat-devtools/`）里。
 
 > 云函数与云数据库管理请使用 [CloudBase MCP](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)（`manageFunctions` / `readNoSqlDatabaseContent` 等），无 IDE 依赖且功能更完整。
 
@@ -39,12 +39,12 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 | action | 功能 | 条件必填参数 |
 |--------|------|------------|
-| `open` | 打开 IDE 或指定项目（每次自动编译刷新） | — |
+| `open` | 启动 IDE 并打开项目。`cdp_enabled=true`（默认）先检查 `cdp_port` 占用者，再 kill 已运行的 IDE 带 CDP 重启，等小程序 target 就绪后做启动健康检查 | — |
 | `login` | 登录，生成二维码供扫码 | — |
 | `is_login` | 检查是否已登录 | — |
 | `close` | 关闭指定项目窗口 | — |
 | `quit` | 退出整个 IDE，等进程真正消失后返回 `exited`（macOS 用 pgrep、Windows 用 tasklist 轮询，上限 10s） | — |
-| `status` | 环境诊断（mcp_version/CLI/项目路径/Node.js/项目信息） | — |
+| `status` | 环境诊断：CLI / 项目路径 / Node.js / 服务端口 / CDP 端口占用者 / 项目窗口 / skill 副本版本 / 官方内建 MCP，只读 | — |
 
 **可选参数**
 
@@ -70,6 +70,11 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
   只做一次只读 `GET http://127.0.0.1:<ide_port>/mcp/heartbeat`，不发 `initialize`（那会在 IDE 侧登记授权客户端）。
   `available: true` 时 message 会提示「基础操作优先用官方工具，本 MCP 专注长图截图 / CDP 日志 / SOP」；
   1.06、IDE 未启动或端口漂移时为 `false`，不报错
+- `cdp_port` / `cdp_port_default` / `cdp_port_session` — 当前生效的 CDP 端口（本会话 `open` 过的端口 > `WECHAT_CDP_PORT` > 9222）及其来源
+- `cdp_port_occupant` — 生效端口上现在是谁：`{listening, kind, browser, sample, miniprogram_targets}`，`kind` 为 `ide` / `foreign` / `empty` / `none`。
+  `foreign`（典型：常驻 Chrome 占着 9222）时 message 提示换端口或设 `WECHAT_CDP_PORT`
+- `project_window_open` — 端口上是 IDE 时按小程序 target 数判断项目窗口是否活着；不是 IDE 时为 `null`
+- `skill_version` — 项目目录 `.agents/skills/wechat-devtools/SKILL.md` 的版本，读不到为 `null`；与 `mcp_version` 不一致时 message 提示更新 skill 副本
 
 **`action='open'` 返回字段**
 
@@ -77,7 +82,8 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
   `code\package.nw`（1.x）/ `resources\app.asar.unpacked`（2.x）判定，判定点照抄官方 wechatide-skill 的
   `install-root.mjs`；`win32` 仅在两者都探测不到时出现，表示沿用旧的「`cli.bat` → `微信开发者工具.exe`」推导
 - `cdp_ready` — 仅 IDE 2.x 出现。CDP 端口是否确认在监听。为避免「项目打开了但 CDP 没起来」的假成功，
-  2.x 会先等 CDP 端口与 IDE 服务端口双双就绪才继续；任一未就绪直接返回失败
+  2.x 会先等 CDP 端口与 IDE 服务端口双双就绪才继续；任一未就绪直接返回失败（Windows 2.x 的 `.ide` 端口文件可能过期，只要求 CDP 就绪）
+- 失败时可能附顶层字段：`cdp_port_occupant`（端口被别的浏览器占着，IDE 未动）、`startup_errors` + `cdp_summary`（启动健康检查发现错误）
 - `project_opened` — 仅 IDE 2.x 出现。2.x 不再识别命令行 `--project`，需先带 CDP 起进程再由 CLI 打开项目，此字段表示第二步是否成功
 - `miniprogram_targets_ready` — cdp_enabled 时出现。启动健康检查前 8 秒内是否在该 CDP 端口看到小程序 target
   （`__pageframe__` / `appservice`）。为 `false` 时 message 带 ⚠：项目可能没在这个实例里打开（单实例锁竞态）或仍在加载，不判失败
@@ -105,8 +111,8 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `project_path` | string | 环境变量 | 小程序项目路径 |
 | `version` | string | null | 版本号，`upload` 时**必填**，例如 `1.0.0` |
 | `desc` | string | null | 版本描述，`upload` 时使用 |
-| `qr_format` | string | `base64` | 二维码格式 |
-| `qr_output` | string | null | 二维码输出文件路径 |
+| `qr_format` | string | `base64` | `preview` 二维码格式：`terminal` / `base64` |
+| `qr_output` | string | null | 二维码输出文件路径，相对路径相对 `project_path` |
 | `info_output` | string | null | 编译/上传信息输出 JSON 路径 |
 | `compile_condition` | string | null | 自定义编译条件（JSON 字符串）。注意：对 tabBar 页面可能无效（app 路由守卫覆盖），用 `evaluate` + `wx.reLaunch` 跳转更可靠 |
 | `compile_type` | string | null | 编译类型：`miniprogram` 或 `plugin` |
@@ -114,6 +120,10 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `port` | int | null | IDE HTTP 服务端口号 |
 | `cdp_port` | int | 沿用 `open` 的端口 | CDP 调试端口，`compile` 采集 WXML 运行时错误时使用。不传则沿用本会话 `wechat_ide(open)` 的端口 |
 | `lang` | string | null | 界面语言 |
+
+**`action='compile'` 返回字段**
+
+`compiled`、`errors`、`warnings`、`status`、`compile_info`、`wxml_errors`（CDP 采到的 WXML 运行时错误）、`npm_warning`（`miniprogram_npm` 缺失或早于 `node_modules`）、`cdp_skipped`（CDP 端口被别的浏览器占着，本次未采 WXML 运行时错误）、`automator_reconnected` / `automator_verified` / `reconnect_attempts`（默认 9420 在监听时的自动重连结果）。CLI 返回 0 但 stderr 命中端口占用等致命模式时降级为失败并返回 `fatal_errors`。`preview` 另返回 `qr_stale_warning`（二维码文件未更新，bundle 可能没刷新）。
 
 ---
 
@@ -158,6 +168,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `expression` | string | null | 单个 JS 表达式（如 `getApp().globalData`）。多语句会退回语句模式（全部执行但无 `return` 则为 `null` 并附 hint），这类需求请改用 `fn_source` |
 | `result_json` | string | null | Mock 返回值（JSON 字符串） |
 | `key` | string | null | Storage key，为空则列出所有 key |
+| `expected_path` | string | null | `page_data` 时可选：期望页面路径，最多轮询 10 次（300ms 间隔）等页面匹配；不匹配返回 `path_mismatch: true` 与 `warning` |
 | `auto_account` | string | null | 指定 openid，`start` 时可选 |
 
 ---
@@ -171,9 +182,9 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | action | 功能 | 采集来源 |
 |--------|------|---------|
 | `console` | 采集 console 日志和 JS 运行时异常 | automator 端口 |
-| `cdp` | 采集底层高清日志（WXML 警告/废弃 API/渲染层报错） | CDP 9222 端口 |
+| `cdp` | 采集底层高清日志（WXML 警告/废弃 API/渲染层报错），能回放采集开始前的缓冲区 | CDP 端口（沿用 `open` 的端口） |
 
-> **cdp 前提**：调用 `wechat_ide(action='open', cdp_enabled=True)` 确保端口 9222 可用。
+> **cdp 前提**：项目以 `wechat_ide(action='open', cdp_enabled=True)` 打开。端口上若是别的浏览器（`status` 的 `cdp_port_occupant.kind` 为 `foreign`）会直接报错而不是采错日志。
 
 **参数**
 
@@ -197,13 +208,16 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
   "data": {
     "summary": {"total": 5, "errors": 2, "warnings": 1, "info": 2, "truncated": false},
     "logs": [
-      {"level": "error", "message": "Cannot read property ...", "source": "index.js", "timestamp": "...", "line": 45, "column": 12}
+      {"level": "error", "message": "Cannot read property ...", "source": "pages/index/index", "timestamp": "..."}
     ]
-
   },
   "message": "采集 10 秒，发现 2 个错误、1 个警告。"
 }
 ```
+
+`source`：渲染层为页面路径，逻辑层统一为 `appservice`，其余为原始 URL。`message` 含 `[object Object]` 时附 `hint`。
+
+**返回值格式（console action）**：`summary{total, errors, warnings, exceptions}`、`console_logs`、`exceptions`、`port`、`duration`；`duration < 6` 且 `log_type` 含异常时附 `duration_warning`（监听器在连接建立后才注册，短采集会漏掉之前的异常）。
 
 ---
 
@@ -211,15 +225,20 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 
 捕获当前小程序模拟器的界面截图，默认支持滚动拼接长图，保存为 PNG 文件。
 
-> **前提**：需先调用 `wechat_automator(action='start')` 开启自动化端口。
+> **前提**：需先调用 `wechat_automator(action='start')` 开启自动化端口（失联会自动 `start` 一次重试）。
 >
-> **限制**：截图可能无法捕获 fixed/absolute 定位的 overlay（弹窗、蒙层），以 `page_data` 为准。
+> **限制**：截图可能无法捕获 fixed/absolute 定位的 overlay（弹窗、蒙层），以 `page_data` 为准；scroll-view 滚动的页面只能截到视口。
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `output_path` | string | **必填** | 截图保存路径（绝对路径），例如 `D:/screenshots/page.png` |
+| `output_path` | string | null | 截图保存路径。留空存到 `<project_path>/screenshots/screenshot_<时间戳>.png`，父目录自动创建 |
 | `auto_port` | int | `9420` | 自动化端口 |
-| `overlap` | int | `50` | 分段重叠像素数，防止内容截断 |
+| `overlap` | int | `50` | 分段重叠像素数，防止内容截断；出现 `content_gaps` 时调大（如 150） |
+| `full_page` | bool | `true` | 长图拼接；`false` 只截当前视口 |
+| `scroll_top` | int | null | 截图前滚动到的位置（逻辑像素），配合 `full_page=false` 分段截 |
+| `page_path` | string | null | 当前页不匹配时先跳转到该页（tabBar 页走 `switchTab`，其余 `navigateTo`） |
+
+**返回字段**：`path`、`width`、`height`、`segments`、`file_size`、`fixed_header` / `fixed_footer`（识别到的固定区高度，物理像素）。拼接不完整时追加诊断字段且 message 带 ⚠：`is_scroll_view_page: true`（只截到视口）、`truncated: true`（超分段上限，底部没拍到）、`content_gaps: N`（N 处内容丢失）、`detection_confident: false`（固定头尾识别不可靠）。automator 失联自动恢复后附 `auto_recovered`。
 
 ---
 
@@ -240,7 +259,9 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `clear_logs` | bool | `true` | 是否过滤跳转前的 CDP 历史日志（基于时间戳）。设为 `false` 可获取完整累积日志。 |
 | `check_data` | bool | `true` | 跳转后检查 page_data，如超过 70% 字段为空且 URL 含 query 参数，追加参数名错误警告。 |
 | `max_logs` | int | `50` | 最大返回 CDP 日志条数 |
-| `project_path` | string | null | 小程序项目路径（仅用于提示） |
+| `project_path` | string | 环境变量 | 用于读 app.json 判断 tabBar 页（tabBar 页走 `switchTab`，其余 `reLaunch`） |
+
+**返回字段**：`page`、`wait_ms`、`navigation_method`（`switchTab` / `reLaunch`）、`cdp_available`、`current_page{path, query}`、`cdp_logs{summary, logs}`、`logs_since`、`filtered_before_navigation`。跳转后路径不匹配加 `navigation_mismatch: true`；疑似 query 参数名错误加 `warning`；CDP 端口被别的浏览器占着时不采日志并加 `cdp_warning`；automator 失联自动恢复后附 `auto_recovered`。
 
 ---
 

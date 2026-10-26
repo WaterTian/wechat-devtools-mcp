@@ -44,7 +44,7 @@ class WechatBuildInput(BaseModel):
     clean_type: str = Field(default="compile", description="缓存类型：'storage'、'file'、'compile'、'auth'、'network'、'session'、'all'。")
     cdp_port: int = Field(
         default=DEFAULT_CDP_PORT, ge=1, le=65535,
-        description="CDP 调试端口，compile 采集 WXML 运行时错误时使用。需与 wechat_ide(open) 的 cdp_port 一致。",
+        description="CDP 调试端口，compile 采集 WXML 运行时错误时使用。不传则沿用本会话 wechat_ide(open) 的端口。",
     )
     port: Optional[int] = Field(default=None, description="IDE HTTP 服务端口号。", ge=1, le=65535)
     lang: Optional[str] = Field(default=None, description="界面语言。")
@@ -110,7 +110,7 @@ class WechatInspectorInput(BaseModel):
         description="concise：仅返回 summary + errors/warnings；full：返回全量日志。",
     )
     max_logs: int = Field(default=50, ge=1, le=500, description="最大返回日志条数，超出时截断并标注 truncated=true。")
-    cdp_port: int = Field(default=DEFAULT_CDP_PORT, description="CDP 调试端口。", ge=1, le=65535)
+    cdp_port: int = Field(default=DEFAULT_CDP_PORT, description="CDP 调试端口，不传则沿用本会话 wechat_ide(open) 的端口。", ge=1, le=65535)
 
     # console 参数
     auto_port: int = Field(default=9420, description="自动化端口。", ge=1, le=65535)
@@ -139,10 +139,10 @@ class WechatNavigateInput(BaseModel):
     wait_ms: int = Field(default=2000, ge=100, le=30000, description="跳转后等待时间（毫秒）。")
     timeout: int = Field(default=30, ge=10, le=120, description="总超时时间（秒），复杂页面可适当增大。")
     auto_port: int = Field(default=9420, description="自动化端口。", ge=1, le=65535)
-    cdp_port: int = Field(default=DEFAULT_CDP_PORT, description="CDP 调试端口。", ge=1, le=65535)
+    cdp_port: int = Field(default=DEFAULT_CDP_PORT, description="CDP 调试端口，不传则沿用本会话 wechat_ide(open) 的端口。", ge=1, le=65535)
     detail_level: Literal["concise", "full"] = Field(default="concise", description="CDP 日志详略模式。")
     max_logs: int = Field(default=50, ge=1, le=500, description="最大 CDP 日志条数。")
-    project_path: Optional[str] = Field(default=None, description="小程序项目路径（仅用于提示）。")
+    project_path: Optional[str] = Field(default=None, description="小程序项目路径，用于读 app.json 判断 tabBar 页；默认 WECHAT_PROJECT_PATH。")
 
 
 class WechatFileInput(BaseModel):

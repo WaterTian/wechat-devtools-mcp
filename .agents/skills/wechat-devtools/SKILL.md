@@ -12,7 +12,7 @@ description: 微信开发者工具 MCP —— 小程序构建、预览、调试�
 
 ```bash
 pip install uv
-uv tool install wechat-devtools-mcp --force
+uv tool install wechat-devtools-mcp            # 升级：uv tool install wechat-devtools-mcp --force --refresh
 ```
 
 ```json
@@ -32,6 +32,7 @@ uv tool install wechat-devtools-mcp --force
 
 - 注册名用 `wechat-devtools-mcp`（开发者工具 2.x 把自家 MCP bridge 注册成 `wechat-devtools`，同名会被覆盖）。macOS CLI 路径 `/Applications/wechatwebdevtools.app/Contents/MacOS/cli`。各编辑器配置见 [README](https://github.com/WaterTian/wechat-devtools-mcp#step-4--编辑器配置)。
 - **必须开启服务端口**：`设置 → 安全设置 → 服务端口`。未开启则所有 CLI 操作报 `CLI_TIMEOUT`。
+- 9222 常被 Chrome 占用的机器在 `env` 加 `"WECHAT_CDP_PORT": "9333"`；Node.js 须 ≥ 18。
 
 ### Step 1：运行时环境检查
 
@@ -42,14 +43,16 @@ uv tool install wechat-devtools-mcp --force
 | CLI 已安装 | `cli_exists: true` | 配置 `WECHAT_DEVTOOLS_CLI` |
 | 服务端口已开启 | `service_port_enabled: true` | `false` 必然 `CLI_TIMEOUT`，去设置里打开；`null` 是读不到，不等于关闭 |
 | 项目路径有效 | `project_exists: true` | 配置 `WECHAT_PROJECT_PATH`，须指向含 `project.config.json` 的根目录 |
-| Node.js 可用 | `node_available: true` | 安装 Node.js |
+| Node.js 可用 | `node_available: true` | 安装 Node.js ≥ 18 |
+| CDP 端口没被别人占 | `cdp_port_occupant.kind` 为 `none` / `ide` | `foreign`（常见是 Chrome）→ `open(cdp_port=9333)` 或设 `WECHAT_CDP_PORT` |
+| 项目窗口活着 | `project_window_open: true`（IDE 带 CDP 跑着时才有值，否则 `null`） | `false` → `start` 会顺手重开窗口 |
 | 版本一致 | `skill_version` == `mcp_version`（status 自动读项目内 skill 副本，不一致 message 会提示） | `uv tool upgrade wechat-devtools-mcp` 或同步 skill 副本 |
 | 已登录 | `is_login` → `logged_in: true` | `login(qr_format='terminal')` 扫码 |
 | 官方内建 MCP | `official_mcp.available` | 见下方分流规则 |
 
 ### 环境分流规则（IDE 2.x 内建 MCP）
 
-开发者工具 2.x（2026-08-18 起为官方 Stable）在 `http://127.0.0.1:<ide_port>/mcp` 内建 MCP Server（47 个原子工具）。`official_mcp.available: true` 且官方 MCP 已接入当前 agent 时：
+开发者工具 2.x（2026-08-18 起为官方 Stable）在 `http://127.0.0.1:<ide_port>/mcp` 内建 MCP Server（47 个原子工具，2 个已废弃）。`official_mcp.available: true` 且官方 MCP 已接入当前 agent 时：
 
 | 操作 | 交给谁 |
 |------|--------|
@@ -76,14 +79,14 @@ uv tool install wechat-devtools-mcp --force
 |--------|------|----------------|
 | `open` | 启动 IDE 并打开项目。`cdp_enabled=true`（默认）先检查 `cdp_port` 上是谁：被别的浏览器占着直接报错不杀 IDE；否则 kill 已运行的 IDE、带 CDP 端口重启，等小程序 target 就绪后做启动健康检查 | `cdp_port`（默认 `WECHAT_CDP_PORT` 或 9222；成功后同会话 inspector/navigate/compile 不传即沿用）；返回 `ide_runtime`、`cdp_ready`、`project_opened`；有 error 时 `success:false` + `startup_errors` |
 | `login` / `is_login` | 扫码登录 / 查登录态 | `qr_format`；`logged_in` |
-| `close` / `quit` | 关项目窗口 / 退出 IDE | 无 |
+| `close` / `quit` | 关项目窗口 / 退出 IDE（等进程真正消失，上限 10s） | `quit` 返回 `exited` |
 | `status` | 环境诊断 | `service_port_enabled`、`ide_port`、`official_mcp`、`mcp_version`、`skill_version`（项目内副本，不一致给 hint）、`cdp_port` / `cdp_port_occupant`（端口上是 IDE 还是别的浏览器）、`project_window_open` |
 
 ### `wechat_build`
 
 | action | 功能 | 关键参数 / 返回 |
 |--------|------|----------------|
-| `compile` | 编译并捕获 Error/Warning，成功后自动重连 automator（仅默认 9420） | `cdp_port`；返回 `errors`、`warnings`、`wxml_errors`、`npm_warning`、`automator_verified`、`fatal_errors` |
+| `compile` | 编译并捕获 Error/Warning，成功后自动重连 automator（仅默认 9420） | `cdp_port`；返回 `errors`、`warnings`、`wxml_errors`、`npm_warning`、`automator_verified`、`fatal_errors`、`cdp_skipped`（CDP 端口被别的浏览器占着，未采 WXML 运行时错误） |
 | `preview` | 生成预览二维码 | `qr_format`、`qr_output`（相对路径相对项目根）；返回 `qr_stale_warning` 表示 bundle 可能没刷新 |
 | `upload` | 上传到微信后台，生产操作 | `version` 必填，`desc` |
 | `build_npm` | 构建 npm。新增/更新依赖后必做，否则运行时报 `module ... is not defined` | 无 |
@@ -142,7 +145,7 @@ evaluate 用法：
 
 - `page_path` 必填，可带 query；tabBar 页自动走 `switchTab`，其余 `reLaunch`（返回 `navigation_method`）。
 - `wait_ms` 默认 2000，含网络请求的页面建议 3000。`clear_logs=true` 过滤跳转前的历史 CDP 日志。
-- 返回 `current_page`、`cdp_logs`、`navigation_mismatch`；带 query 且 `check_data=true` 时数据大面积为空会给 `warning`（疑似参数名错）。
+- 返回 `current_page`、`cdp_logs`、`navigation_mismatch`；带 query 且 `check_data=true` 时数据大面积为空会给 `warning`（疑似参数名错）；CDP 端口被别的浏览器占着时照常跳转但 `cdp_available: false` 并附 `cdp_warning`；失联自动恢复后附 `auto_recovered`。
 - 前提：`start` 已调用且项目以 `cdp_enabled=true` 打开。reLaunch 进入的页面云函数调用可能丢上下文，非 tabBar 页优先 evaluate + `wx.navigateTo`。
 
 ### `wechat_file`
@@ -288,8 +291,7 @@ page_data 必须校验 `data.path` 等于导航目标；不一致的常见原因
 | `open` 返回 `startup_errors` | 小程序启动阶段有致命错误 | 先修代码再 `open` |
 | `start` 返回 `verified=false`（端口在听、小程序未应答） | IDE 仍在编译/加载项目；或项目窗口刚被其它会话的 `cli close` 关掉又重开（SessionEnd 钩子、常驻 bot 等） | 直接再 `start`（可加大 `ready_timeout`）；连续 3 次失败才 `open(cdp_enabled=True)`。`open` 会杀 IDE、冷启动更慢，别把它当第一反应 |
 | `CLI auto 连续 3 次返回成功但端口未监听` | 项目窗口没加载完或已关闭（`cli auto` 会假成功；纯 CLI open 后约需 15s） | 稍等再 `start`；仍失败 `open(cdp_enabled=True)` 重启后再 `start` |
-| 任意 automator 动作报 `Failed connecting to ws://localhost:9420` | 项目窗口已关闭或自动化未开（IDE 2.x 偶发窗口自关） | 按返回的 `hint`：先 `start`，仍失败 `open(cdp_enabled=True)` 重开 |
-| `Failed connecting to ws://localhost:9420` / `Connection closed` | automator 未启动、断开，或项目窗口已关 | 快速恢复失败再完整恢复 |
+| 动作仍返回 `Failed connecting to ws://localhost:9420` / `Connection closed` | 项目窗口被关（其它会话 `cli close`、手动关窗）或 automator 闲置后不应答；动作已自动 `start` 一次仍没救回 | 看 `status` 的 `project_window_open`；手动 `start`（`cli auto` 会重开窗口）→ `page_data`；再失败才 `open(cdp_enabled=True)` |
 | CDP 采集失败 / 采到的全是别的东西 | 未以 `cdp_enabled` 打开，或 9222 被 Chrome 占用（`status` 的 `cdp_port_occupant.kind` 为 `foreign` 即是） | `open(cdp_port=9333)`，之后 inspector / navigate / compile 不传 `cdp_port` 自动沿用；长期设 `WECHAT_CDP_PORT` |
 | `Using AppID: undefined` / `appid missing` | project_path 指向子目录 / 未登录 | 改为含 `project.config.json` 的根目录；`is_login` |
 | navigate 后 `page_data.path` 与目标不一致 | page_path 拼错、被重定向（未登录 / 参数错 / 云函数失败）、switchTab 未完成 | `list_pages` 核对；查登录态与 onLoad 逻辑；增大 `wait_ms` |
