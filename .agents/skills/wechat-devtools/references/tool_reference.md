@@ -191,7 +191,7 @@ CDP 端口上若是别的浏览器（典型：常驻 Chrome 占着 9222），`co
 | `element_info` | 元素信息 | `element{tagName, text, wxml, size, offset, style?}` |
 | `set_data` | 热更新当前页 data，无需重编译 | `path`、`updated_keys` |
 | `call_method` | 调用当前页方法 | `method`、`return_value`、`path`。失败时 message 附当前页面路径 |
-| `call_wx` | 调用 `wx.<method>` | `method`、`return_value` |
+| `call_wx` | 调用 `wx.<method>`。同步返回的 API（`*Sync`、`create*`、`*Manager`，以及 `getSystemSetting` / `getAppBaseInfo` / `getWindowInfo` / `getDeviceInfo` / `getAppAuthorizeSetting` / `getMenuButtonBoundingClientRect` / `canIUse` 等）自动改经 evaluate 直调并返回 `sync: true`；否则 automator 的 `callWxMethod` 会等一个永远不来的回调、固定 10s 超时。白名单外的同步 API 超时时 hint 指向 `evaluate` 直调 | `method`、`return_value`、`sync?` |
 | `mock_wx` | Mock `wx.<method>` 返回值，当前会话有效 | `method` |
 | `evaluate` | 逻辑层执行 JS | `result`、`mode`、`hint?` |
 | `page_stack` | 页面栈 | `depth`、`pages` |

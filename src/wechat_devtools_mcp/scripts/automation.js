@@ -38,6 +38,18 @@ function parseArgs(argv) {
     return args;
 }
 
+// 同步返回的 wx API：没有 success 回调，callWxMethod 会等一个永远不来的回调而固定 10s 超时
+// （真机 2026-10-26 复测：getSystemSetting / getAppBaseInfo / getWindowInfo 均如此，evaluate 直调 0.0s 返回）。
+// 判定：*Sync 后缀、create* 前缀、*Manager 后缀，外加官方文档里无回调的信息类 API 白名单。
+const SYNC_WX_APIS = new Set([
+    'getSystemSetting', 'getAppAuthorizeSetting', 'getAppBaseInfo', 'getDeviceInfo', 'getWindowInfo',
+    'getMenuButtonBoundingClientRect', 'canIUse', 'getPerformance', 'getRecorderManager',
+    'getBackgroundAudioManager', 'reportAnalytics', 'reportEvent', 'nextTick',
+]);
+function isSyncWxApi(name) {
+    return /Sync$/.test(name) || /^create[A-Z]/.test(name) || /Manager$/.test(name) || SYNC_WX_APIS.has(name);
+}
+
 /**
  * 安全解析 JSON 字符串
  */
@@ -147,9 +159,20 @@ async function handle(miniProgram, args) {
         case 'callWx': {
             if (!args.method) throw new Error('缺失 --method 参数');
             const wxArgs = safeParseJson(args.args, []);
+            result.method = args.method;
+            if (isSyncWxApi(args.method)) {
+                // 同步 API：在逻辑层直接调用并把返回值序列化带回（Manager 类对象退化为普通对象）
+                result.returnValue = await miniProgram.evaluate(function (m, a) {
+                    const fn = wx[m];
+                    if (typeof fn !== 'function') throw new Error('wx.' + m + ' is not a function');
+                    const r = fn.apply(wx, a);
+                    try { return JSON.parse(JSON.stringify(r)); } catch (e) { return String(r); }
+                }, args.method, wxArgs);
+                result.sync = true;
+                break;
+            }
             // callWxMethod 接受展开参数
             const wxResult = await miniProgram.callWxMethod(args.method, ...wxArgs);
-            result.method = args.method;
             result.returnValue = wxResult;
             break;
         }
@@ -169,4 +192,4 @@ async function handle(miniProgram, args) {
     return result;
 }
 
-module.exports = { handle, parseArgs };
+module.exports = { handle, parseArgs, isSyncWxApi };

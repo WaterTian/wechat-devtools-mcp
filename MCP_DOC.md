@@ -143,7 +143,7 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `element_info` | 获取元素详情（文本/尺寸/位置/WXML） | **`selector`** |
 | `set_data` | 热更新页面 data，无需重新编译 | **`data_json`** |
 | `call_method` | 调用当前页面的指定方法，返回当前页面路径 | **`method`** |
-| `call_wx` | 直接调用 wx 对象上的方法 | **`method`** |
+| `call_wx` | 直接调用 wx 对象上的方法。同步返回的 API（`*Sync`、`create*`、`*Manager`、`getWindowInfo` 等信息类）自动改经 evaluate 直调并返回 `sync: true` | **`method`** |
 | `mock_wx` | Mock wx API 的返回值 | **`method`**, **`result_json`** |
 | `evaluate` | 在逻辑层执行 JS。推荐 `fn_source` 传完整函数源码（多语句 / `return` 由函数体自决，入参走 `args_json`）；`expression` 仅限单个表达式 | **`fn_source` 或 `expression`** |
 | `page_stack` | 获取当前页面栈信息 | — |

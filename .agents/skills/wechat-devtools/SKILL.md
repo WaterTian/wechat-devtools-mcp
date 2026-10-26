@@ -105,7 +105,7 @@ uv tool install wechat-devtools-mcp            # 升级：uv tool install wechat
 | `element_info` | 元素 `tagName/text/wxml/size/offset`，`style_prop` 时带 `style` | `selector` |
 | `set_data` | 热更新页面 data，无需重编译 | `data_json`；返回 `updated_keys` |
 | `call_method` | 调页面方法 | `method`、`args_json?`；返回 `return_value`、`path` |
-| `call_wx` / `mock_wx` | 调 wx API / Mock 返回值（当前会话有效） | `method`（mock 另需 `result_json`） |
+| `call_wx` / `mock_wx` | 调 wx API / Mock 返回值（当前会话有效）。同步返回的 API（`*Sync`、`getWindowInfo` 等）自动经 evaluate 直调，返回 `sync: true` | `method`（mock 另需 `result_json`） |
 | `evaluate` | 逻辑层执行 JS | `fn_source`（推荐）或 `expression`；返回 `result`、`mode` |
 | `page_stack` | 页面栈 | 返回 `depth`、`pages` |
 | `page_data` | 当前页 data | `expected_path?` 会轮询等页面匹配；返回 `path`、`data`、`path_mismatch` |

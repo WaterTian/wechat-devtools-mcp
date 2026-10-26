@@ -447,8 +447,21 @@ async def _action_call_wx(params: WechatAutomatorInput) -> str:
         args.extend(["--args", params.args_json])
     result = await _run_node_script("automation.js", *args)
     if result.get("success"):
-        return _ok({"method": params.method, "return_value": result.get("returnValue")}, message=f"wx.{params.method} 调用成功。")
-    return _fail(ErrorCode.UNKNOWN_ERROR, result.get("error", "wx API 调用失败"))
+        data = {"method": params.method, "return_value": result.get("returnValue")}
+        message = f"wx.{params.method} 调用成功。"
+        if result.get("sync"):
+            # 同步 API 由 daemon 改经 evaluate 直调（callWxMethod 对无回调 API 必超时）
+            data["sync"] = True
+            message += "（同步 API，经 evaluate 直调）"
+        return _ok(data, message=message)
+    err = result.get("error", "wx API 调用失败")
+    hint = ""
+    if "timeout waiting for automator response" in str(err):
+        hint = (
+            "该 API 若是同步返回（无 success 回调，如 getXxxInfo / *Sync），callWxMethod 会等一个永远不来的回调；"
+            f"改用 evaluate(fn_source=\"function(){{ return wx.{params.method}() }}\") 直调。"
+        )
+    return _fail(ErrorCode.UNKNOWN_ERROR, err, hint=hint)
 
 
 async def _action_mock_wx(params: WechatAutomatorInput) -> str:

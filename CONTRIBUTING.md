@@ -42,6 +42,7 @@ node tests/test_screenshot_detect.js   # 长图拼接的固定区域像素检测
 node tests/test_screenshot_scroll.js   # 滚动等待逻辑（长图截断的根因）
 node tests/test_evaluate_modes.js      # evaluate 的 fn_source / expression / statement 三种模式
 node tests/test_call_method_error.js   # callMethod 失败时错误带页面路径
+node tests/test_call_wx_sync.js        # callWx 对同步 wx API 改经 evaluate 直调的路由
 ```
 
 它们都直接 `require` 线上的 `screenshot.js` / `ui_debug.js` / `automation.js`，不复制实现，因此能真正守护源码。
