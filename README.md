@@ -173,7 +173,7 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 | 0.9.19 | 2026-10-26 | automator `start` 按截止时间等就绪，根治「握手未完成」误报；CDP 端口占用检测与会话粘性（`WECHAT_CDP_PORT`）；automator 失联自动恢复；`status` 新增项目窗口 / skill 版本诊断 |
 | 0.9.18 | 2026-09-04 | Windows 2.x 真机闭环：状态目录 `User Data` 层、就绪判据、`quit` 等退出、噪音过滤；新增真机冒烟脚本 |
 | 0.9.17 | 2026-09-03 | 适配开发者工具 2.x Stable；evaluate 新增 `fn_source`；`open` 提速约 4 倍；Windows 1.x/2.x 双轨判定 |
-| 0.9.16 | 2026-08-27 | 长页面截图全面修复；源码开源 |
+| 0.9.16 | 2026-08-27 | 长页面截图全面修复 |
 | 0.9.15 | 2026-08-20 | 适配开发者工具 2.x（Electron）；修复 CDP 采集自 0.9.0 起恒为 0 条 |
 | 0.9.14 | 2026-08-20 | `wechat_file` 路径口径统一；`cdp_port` 透传修复 |
 | 0.9.13 | 2026-08-18 | `--version` 早退；文档核对修复 |

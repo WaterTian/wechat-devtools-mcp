@@ -173,7 +173,7 @@ When an action hits an automator connection failure it runs `start` once and ret
 | 0.9.19 | 2026-10-26 | `start` waits for automator readiness with a deadline, fixing false "handshake incomplete" failures; CDP port occupant check and session stickiness (`WECHAT_CDP_PORT`); automatic automator recovery; `status` reports project window and skill version |
 | 0.9.18 | 2026-09-04 | Windows 2.x verified on a real machine: `User Data` state dir, readiness, `quit` waits for exit, noise filters; new smoke script |
 | 0.9.17 | 2026-09-03 | DevTools 2.x Stable support; `fn_source` for evaluate; ~4x faster `open`; Windows dual-runtime detection |
-| 0.9.16 | 2026-08-27 | Long-page screenshot overhaul; source code opened |
+| 0.9.16 | 2026-08-27 | Long-page screenshot overhaul |
 | 0.9.15 | 2026-08-20 | DevTools 2.x (Electron) support; CDP capture returning 0 entries since 0.9.0 fixed |
 | 0.9.14 | 2026-08-20 | Unified `wechat_file` path resolution; `cdp_port` forwarding fix |
 | 0.9.13 | 2026-08-18 | `--version` early exit; documentation fixes |
