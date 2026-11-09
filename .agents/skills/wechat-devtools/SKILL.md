@@ -1,10 +1,10 @@
 ---
 name: wechat-devtools
-version: 0.9.20
+version: 0.9.21
 description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
-# Wechat DevTools MCP Skill (v0.9.20)
+# Wechat DevTools MCP Skill (v0.9.21)
 
 ## 前置条件
 
@@ -52,7 +52,7 @@ uv tool install wechat-devtools-mcp            # 升级：uv tool install wechat
 
 ### 环境分流规则（IDE 2.x 内建 MCP）
 
-开发者工具 2.x（2026-08-18 起为官方 Stable）在 `http://127.0.0.1:<ide_port>/mcp` 内建 MCP Server（47 个原子工具，2 个已废弃）。`official_mcp.available: true` 且官方 MCP 已接入当前 agent 时：
+开发者工具 2.x（2026-08-18 起为官方 Stable）在 `http://127.0.0.1:<ide_port>/mcp` 内建 MCP Server（49 个原子工具，2 个已废弃；Stable 2.02.2609250 内置 skill 0.3.11）。`official_mcp.available: true` 且官方 MCP 已接入当前 agent 时：
 
 | 操作 | 交给谁 |
 |------|--------|
@@ -62,6 +62,8 @@ uv tool install wechat-devtools-mcp            # 升级：uv tool install wechat
 | SOP C / D / I / J 任务级流程 | 本 skill 编排，基础步骤可调官方工具 |
 
 `available: false`（1.06、IDE 未启动、端口漂移）或官方 MCP 未接入时，本 skill 承接全部能力，不要让用户为基础操作去装官方 MCP。
+
+官方 MCP 自 Stable 2.02.2609240 起**强制独立 Token**：`available: true` 只说明服务在跑。官方工具返回 401 / `mcp_token_required` 时，让用户到 IDE「设置 → 安全」重新复制 MCP 配置，不要在本机翻找 token 文件。本 skill 的工具不走该接口，不受影响。
 
 ### 效率原则
 
@@ -77,7 +79,7 @@ uv tool install wechat-devtools-mcp            # 升级：uv tool install wechat
 
 | action | 功能 | 关键参数 / 返回 |
 |--------|------|----------------|
-| `open` | 启动 IDE 并打开项目。`cdp_enabled=true`（默认）先检查 `cdp_port` 上是谁：被别的浏览器占着直接报错不杀 IDE；否则 kill 已运行的 IDE、带 CDP 端口重启，等小程序 target 就绪后做启动健康检查 | `cdp_port`（默认 `WECHAT_CDP_PORT` 或 9222；成功后同会话 inspector/navigate/compile 不传即沿用）；返回 `ide_runtime`、`cdp_ready`、`project_opened`；有 error 时 `success:false` + `startup_errors` |
+| `open` | 启动 IDE 并打开项目。`cdp_enabled=true`（默认）先检查 `cdp_port` 上是谁：被别的浏览器占着直接报 `CDP_PORT_OCCUPIED` 不杀 IDE；否则 kill 已运行的 IDE、带 CDP 端口重启，等小程序 target 就绪后做启动健康检查 | `cdp_port`（默认 `WECHAT_CDP_PORT` 或 9222；成功后同会话 inspector/navigate/compile 不传即沿用）；返回 `ide_runtime`、`cdp_ready`、`project_opened`；有 error 时 `success:false` + `startup_errors` |
 | `login` / `is_login` | 扫码登录 / 查登录态 | `qr_format`；`logged_in` |
 | `close` / `quit` | 关项目窗口 / 退出 IDE（等进程真正消失，上限 10s） | `quit` 返回 `exited` |
 | `status` | 环境诊断 | `service_port_enabled`、`ide_port`、`official_mcp`、`mcp_version`、`skill_version`（项目内副本，不一致给 hint）、`cdp_port` / `cdp_port_occupant`（端口上是 IDE 还是别的浏览器）、`project_window_open` |
@@ -276,7 +278,7 @@ page_data 必须校验 `data.path` 等于导航目标；不一致的常见原因
 ## 返回值与恢复
 
 成功 `{"success": true, "data": {...}, "message": "..."}`，失败 `{"success": false, "error_code": "...", "message": "...", "hint": "..."}`。
-`error_code` 只有 6 种：`PARAM_MISSING`、`CLI_NOT_FOUND`、`PROJECT_PATH_MISSING`、`NODE_NOT_FOUND`、`CLI_TIMEOUT`、`UNKNOWN_ERROR`。连接失败、跳转失败等都归 `UNKNOWN_ERROR`，看 `message` 与 `hint`。
+`error_code` 只有 7 种：`PARAM_MISSING`、`CLI_NOT_FOUND`、`PROJECT_PATH_MISSING`、`NODE_NOT_FOUND`、`CLI_TIMEOUT`、`CDP_PORT_OCCUPIED`（`open` / `inspector cdp` 的 CDP 端口上是别的浏览器，换端口或设 `WECHAT_CDP_PORT`）、`UNKNOWN_ERROR`。连接失败、跳转失败等都归 `UNKNOWN_ERROR`，看 `message` 与 `hint`。
 
 连接断开恢复分三级：
 0. 自动：动作本身会 `start` 一次再重试，成功时 `data.auto_recovered` 带 `ready_after_ms`。

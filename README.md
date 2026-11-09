@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.9.20)
+# 微信开发者工具 MCP Server (v0.9.21)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -16,7 +16,7 @@
 
 ## 🤝 与官方能力的关系
 
-微信开发者工具 **2.x 自 2026-08-18 起为官方 Stable**（1.06 已下架），IDE 内建 MCP Server（47 个原子工具，其中 2 个已废弃）。两者互补，不是替代：
+微信开发者工具 **2.x 自 2026-08-18 起为官方 Stable**（1.06 已下架），IDE 内建 MCP Server（49 个原子工具，其中 2 个已废弃；Stable 2.02.2609250 内置 skill 0.3.11）。两者互补，不是替代：
 
 | 场景 | 用谁 |
 |------|------|
@@ -27,6 +27,8 @@
 | 存量 1.06.x（NW.js） | 本项目继续兼容；官方内建 MCP 仅 2.x 有 |
 
 > ⚠ 官方 IDE 把自家 bridge 注册为 `wechat-devtools`。本文示例统一用 **`wechat-devtools-mcp`** 避免撞名；旧名配置仍可用，只在同一 agent 同时接入两者时才需区分。
+>
+> ⚠ **Stable 2.02.2609240 起官方内建 MCP 强制独立 Token**：升级后须到 IDE「设置 → 安全」重新复制 MCP 配置到你的 agent，否则官方工具一律 401。`official_mcp.available: true` 只表示服务在跑，不代表已鉴权。本项目不经过该接口，不受影响。
 
 ---
 
@@ -169,6 +171,7 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 
 | 版本 | 日期 | 摘要 |
 |------|------|------|
+| 0.9.21 | 2026-11-09 | CDP 端口被别的浏览器占用时 `open` / `inspector` 返回专属 `CDP_PORT_OCCUPIED`；官方内建 MCP 强制 Token 的升级提醒；本机 Stable 2.02.2609250 真机回归 19/19 |
 | 0.9.20 | 2026-10-26 | `call_wx` 同步 wx API 自动经 evaluate 直调，不再 10 秒超时；README / MCP_DOC / SKILL 逐字段核对修正；Node.js ≥ 18 门槛明示 |
 | 0.9.19 | 2026-10-26 | automator `start` 按截止时间等就绪，根治「握手未完成」误报；CDP 端口占用检测与会话粘性（`WECHAT_CDP_PORT`）；automator 失联自动恢复；`status` 新增项目窗口 / skill 版本诊断 |
 | 0.9.18 | 2026-09-04 | Windows 2.x 真机闭环：状态目录 `User Data` 层、就绪判据、`quit` 等退出、噪音过滤；新增真机冒烟脚本 |

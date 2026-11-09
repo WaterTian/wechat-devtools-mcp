@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.20)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.21)
 
 > `SKILL.md` 的扩展参考：7 个聚合工具的全部参数、action 与返回字段，均对照源码核对。SOP 流程见 `SKILL.md`。
 
@@ -64,7 +64,7 @@ IDE 生命周期管理。
 {
   "success": true,
   "data": {
-    "mcp_version": "0.9.20",
+    "mcp_version": "0.9.21",
     "cli_path": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
     "cli_exists": true,
     "project_path": "/Users/me/Projects/mini-app",
@@ -79,7 +79,7 @@ IDE 生命周期管理。
     "cdp_port_session": 9333,
     "cdp_port_occupant": {"listening": true, "kind": "ide", "browser": "Chrome/136.0.7103.177", "sample": ["webview http://127.0.0.1:16587/__pageframe__/pages/home/index"], "miniprogram_targets": 2},
     "project_window_open": true,
-    "skill_version": "0.9.20",
+    "skill_version": "0.9.21",
     "project_name": "mini-app",
     "appid": "wx1234567890",
     "lib_version": "3.8.0"
@@ -384,7 +384,7 @@ CDP 端口上若是别的浏览器（典型：常驻 Chrome 占着 9222），`co
 
 ## 8. 错误码速查表
 
-`error_code` 只有以下 6 种。连接失败、跳转失败、CLI 非零退出等一律 `UNKNOWN_ERROR`，具体原因看 `message` 与 `hint`。
+`error_code` 只有以下 7 种。连接失败、跳转失败、CLI 非零退出等一律 `UNKNOWN_ERROR`，具体原因看 `message` 与 `hint`。
 
 | error_code | 含义 | 处理 |
 |------------|------|------|
@@ -393,6 +393,7 @@ CDP 端口上若是别的浏览器（典型：常驻 Chrome 占着 9222），`co
 | `PROJECT_PATH_MISSING` | 项目路径未配置 | 配置 `WECHAT_PROJECT_PATH` 或传 `project_path` |
 | `NODE_NOT_FOUND` | Node.js 不可用 | 安装 Node.js 并加入 PATH |
 | `CLI_TIMEOUT` | CLI 超时（默认 30 秒） | 开启服务端口；`wechat_ide(action='open')` |
+| `CDP_PORT_OCCUPIED` | `open` / `inspector cdp` 的 CDP 端口上是别的浏览器（常见：常驻 Chrome 的 9222） | 换 `cdp_port`（如 9333）重试，或设 `WECHAT_CDP_PORT`；`compile` / `navigate` 遇到同样情况不报错、只跳过 CDP 采集并在 `message` 打 ⚠ |
 | `UNKNOWN_ERROR` | 其余全部 | 看 `message` / `hint`，参考 `SKILL.md` 故障速查 |
 
 *返回 [SKILL.md](../SKILL.md)*

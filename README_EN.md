@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.20)
+# WeChat DevTools MCP Server (v0.9.21)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -16,7 +16,7 @@
 
 ## 🤝 Relationship to WeChat's Built-in Capabilities
 
-WeChat DevTools **2.x has been the official Stable channel since 2026-08-18** (1.06 is no longer offered). The IDE ships a built-in MCP server (47 atomic tools, 2 of them deprecated). The two are complementary, not substitutes:
+WeChat DevTools **2.x has been the official Stable channel since 2026-08-18** (1.06 is no longer offered). The IDE ships a built-in MCP server (49 atomic tools, 2 of them deprecated; Stable 2.02.2609250 bundles skill 0.3.11). The two are complementary, not substitutes:
 
 | Scenario | Use |
 |----------|-----|
@@ -27,6 +27,8 @@ WeChat DevTools **2.x has been the official Stable channel since 2026-08-18** (1
 | Existing 1.06.x (NW.js) installs | Still supported here; the built-in MCP exists only on 2.x |
 
 > ⚠ The IDE registers its own bridge as `wechat-devtools`. Every example here uses **`wechat-devtools-mcp`** to avoid the clash; old-name configs keep working and only matter when both servers share one agent.
+>
+> ⚠ **Since Stable 2.02.2609240 the built-in MCP requires its own access token**: after upgrading, recopy the MCP config from the IDE's Settings → Security into your agent, or every official tool returns 401. `official_mcp.available: true` only means the service is running, not that you are authorized. This project does not go through that endpoint and is unaffected.
 
 ---
 
@@ -169,6 +171,7 @@ When an action hits an automator connection failure it runs `start` once and ret
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.9.21 | 2026-11-09 | `open` / `inspector` return a dedicated `CDP_PORT_OCCUPIED` when another browser holds the CDP port; upgrade note for the built-in MCP's mandatory token; real-machine regression 19/19 on Stable 2.02.2609250 |
 | 0.9.20 | 2026-10-26 | `call_wx` routes synchronous wx APIs through `evaluate` instead of timing out after 10s; README / MCP_DOC / SKILL audited field by field; Node.js ≥ 18 stated explicitly |
 | 0.9.19 | 2026-10-26 | `start` waits for automator readiness with a deadline, fixing false "handshake incomplete" failures; CDP port occupant check and session stickiness (`WECHAT_CDP_PORT`); automatic automator recovery; `status` reports project window and skill version |
 | 0.9.18 | 2026-09-04 | Windows 2.x verified on a real machine: `User Data` state dir, readiness, `quit` waits for exit, noise filters; new smoke script |
