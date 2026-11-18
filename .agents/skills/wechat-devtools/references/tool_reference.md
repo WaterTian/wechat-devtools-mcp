@@ -1,4 +1,4 @@
-# wechat-devtools-mcp 工具参数完整参考 (v0.9.21)
+# wechat-devtools-mcp 工具参数完整参考 (v0.9.22)
 
 > `SKILL.md` 的扩展参考：7 个聚合工具的全部参数、action 与返回字段，均对照源码核对。SOP 流程见 `SKILL.md`。
 
@@ -64,7 +64,7 @@ IDE 生命周期管理。
 {
   "success": true,
   "data": {
-    "mcp_version": "0.9.21",
+    "mcp_version": "0.9.22",
     "cli_path": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
     "cli_exists": true,
     "project_path": "/Users/me/Projects/mini-app",
@@ -79,7 +79,7 @@ IDE 生命周期管理。
     "cdp_port_session": 9333,
     "cdp_port_occupant": {"listening": true, "kind": "ide", "browser": "Chrome/136.0.7103.177", "sample": ["webview http://127.0.0.1:16587/__pageframe__/pages/home/index"], "miniprogram_targets": 2},
     "project_window_open": true,
-    "skill_version": "0.9.21",
+    "skill_version": "0.9.22",
     "project_name": "mini-app",
     "appid": "wx1234567890",
     "lib_version": "3.8.0"
@@ -284,6 +284,8 @@ CDP 端口上若是别的浏览器（典型：常驻 Chrome 占着 9222），`co
 | `full_page` | bool | `true` | `false` 只截当前视口 |
 | `scroll_top` | int | null | 截图前滚动到的逻辑像素位置，配合 `full_page=false` |
 | `page_path` | string | null | 当前页不匹配时先跳转 |
+| `wait_for_selector` | string | null | 截图前先等该选择器的元素出现；超时仍照常截图 |
+| `wait_timeout_ms` | int | `5000` | `wait_for_selector` 的最长等待（毫秒），100 ~ 30000 |
 
 ### 返回示例
 
@@ -304,6 +306,8 @@ CDP 端口上若是别的浏览器（典型：常驻 Chrome 占着 9222），`co
 ```
 
 拼接质量诊断字段只在异常时出现，且 `message` 会带 ⚠：`is_scroll_view_page: true`（只截到视口）、`truncated: true`（底部没拍到）、`content_gaps: N`（N 处内容丢失，增大 `overlap`）、`detection_confident: false`（固定头尾识别不可靠）。`fixed_header` / `fixed_footer` 为识别到的固定区高度（物理像素）。
+
+传了 `wait_for_selector` 时返回 `selector_found` 与 `selector_waited_ms`。`selector_found: false` 表示超时未等到：图照常给，但可能是加载中或空状态，`message` 带 ⚠，应核对选择器或用 `page_data` 确认数据。
 
 跳转失败等 JS 侧错误会带 `hint`（如「末尾可能需要 /index」）。fixed / absolute 弹窗蒙层可能拍不到。automator 失联自动恢复后附 `auto_recovered`。
 

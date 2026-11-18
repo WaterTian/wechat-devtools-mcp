@@ -1,10 +1,10 @@
 ---
 name: wechat-devtools
-version: 0.9.21
+version: 0.9.22
 description: 微信开发者工具 MCP —— 小程序构建、预览、调试与自动化测试
 ---
 
-# Wechat DevTools MCP Skill (v0.9.21)
+# Wechat DevTools MCP Skill (v0.9.22)
 
 ## 前置条件
 
@@ -130,6 +130,7 @@ evaluate 用法：
 ### `wechat_screenshot`
 
 - `full_page`（默认 true）长图拼接，`false` 只截视口，可配 `scroll_top`；`page_path` 不匹配时自动跳转；`output_path` 留空存到项目 `screenshots/`。
+- 数据异步加载的页面传 `wait_for_selector`（如列表项 `.goods-card`，`wait_timeout_ms` 默认 5000），等元素出现再截，避免拍到骨架屏。
 - 只在用户要求或需要视觉确认时截图；fixed/absolute 弹窗蒙层可能拍不到，以 `page_data` 为准。
 
 先看 `message` 有无 ⚠。以下情况图看着连续但不完整：
@@ -140,6 +141,7 @@ evaluate 用法：
 | `truncated: true` | 超分段上限，底部没拍到 | `full_page=false` + `scroll_top` 分段截 |
 | `content_gaps: N` | 固定头尾吃光重叠，N 处内容丢失 | 调大 `overlap`（如 150）重试 |
 | `detection_confident: false` | 固定头尾识别不可靠 | 结果仅供参考 |
+| `selector_found: false` | `wait_for_selector` 超时未等到，图里可能是加载中或空状态 | 核对选择器；用 `page_data` 确认数据是否已加载 |
 
 `fixed_header` / `fixed_footer` 是识别到的固定区高度（物理像素）。
 

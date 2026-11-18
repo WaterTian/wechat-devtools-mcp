@@ -1,4 +1,4 @@
-# 微信开发者工具 MCP Server (v0.9.21)
+# 微信开发者工具 MCP Server (v0.9.22)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -133,7 +133,7 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 | `wechat_build` | 构建与发布 | `compile` `preview` `upload` `build_npm` `cache_clean` |
 | `wechat_automator` | 自动化交互与运行时查询 | `start` `tap` `input` `element_info` `set_data` `call_method` `call_wx` `mock_wx` `evaluate` `page_stack` `page_data` `system_info` `storage` |
 | `wechat_inspector` | 运行时日志采集 | `console` `cdp` |
-| `wechat_screenshot` | 长图拼接截图 | `full_page` `page_path` `scroll_top` |
+| `wechat_screenshot` | 长图拼接截图 | `full_page` `page_path` `scroll_top` `wait_for_selector` |
 | `wechat_navigate` | 跳转并采集 CDP 日志 | `page_path` |
 | `wechat_file` | 项目文件读取 | `project_info` `list_pages` `read_page` `read_file` |
 
@@ -171,6 +171,7 @@ npx -y skills add WaterTian/wechat-devtools-mcp/.agents/skills/wechat-devtools
 
 | 版本 | 日期 | 摘要 |
 |------|------|------|
+| 0.9.22 | 2026-11-18 | `wechat_screenshot` 新增 `wait_for_selector`：截图前等元素出现，超时照常出图并回报 `selector_found: false`；`wechat_build` 工具描述逐 action 补全 |
 | 0.9.21 | 2026-11-09 | CDP 端口被别的浏览器占用时 `open` / `inspector` 返回专属 `CDP_PORT_OCCUPIED`；官方内建 MCP 强制 Token 的升级提醒；本机 Stable 2.02.2609250 真机回归 19/19 |
 | 0.9.20 | 2026-10-26 | `call_wx` 同步 wx API 自动经 evaluate 直调，不再 10 秒超时；README / MCP_DOC / SKILL 逐字段核对修正；Node.js ≥ 18 门槛明示 |
 | 0.9.19 | 2026-10-26 | automator `start` 按截止时间等就绪，根治「握手未完成」误报；CDP 端口占用检测与会话粘性（`WECHAT_CDP_PORT`）；automator 失联自动恢复；`status` 新增项目窗口 / skill 版本诊断 |

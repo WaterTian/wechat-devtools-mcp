@@ -1,4 +1,4 @@
-# MCP 工具箱完整文档 (v0.9.21)
+# MCP 工具箱完整文档 (v0.9.22)
 
 「**瘦 MCP + 胖 Skill**」架构：44 个原子能力聚合为 **7 个工具**，每个工具通过 `action` 参数切换功能子集，覆盖小程序全生命周期。操作流程与排障手册在配套 Skill（`.agents/skills/wechat-devtools/`）里。
 
@@ -237,8 +237,10 @@ IDE 生命周期管理。合并原 `wechat_open`、`wechat_login`、`wechat_is_l
 | `full_page` | bool | `true` | 长图拼接；`false` 只截当前视口 |
 | `scroll_top` | int | null | 截图前滚动到的位置（逻辑像素），配合 `full_page=false` 分段截 |
 | `page_path` | string | null | 当前页不匹配时先跳转到该页（tabBar 页走 `switchTab`，其余 `navigateTo`） |
+| `wait_for_selector` | string | null | 截图前先等该 CSS 选择器的元素出现（如列表项 `.goods-card`），适合数据异步加载的页面。超时仍照常截图 |
+| `wait_timeout_ms` | int | `5000` | `wait_for_selector` 的最长等待（毫秒），范围 100 ~ 30000 |
 
-**返回字段**：`path`、`width`、`height`、`segments`、`file_size`、`fixed_header` / `fixed_footer`（识别到的固定区高度，物理像素）。拼接不完整时追加诊断字段且 message 带 ⚠：`is_scroll_view_page: true`（只截到视口）、`truncated: true`（超分段上限，底部没拍到）、`content_gaps: N`（N 处内容丢失）、`detection_confident: false`（固定头尾识别不可靠）。automator 失联自动恢复后附 `auto_recovered`。
+**返回字段**：`path`、`width`、`height`、`segments`、`file_size`、`fixed_header` / `fixed_footer`（识别到的固定区高度，物理像素）。拼接不完整时追加诊断字段且 message 带 ⚠：`is_scroll_view_page: true`（只截到视口）、`truncated: true`（超分段上限，底部没拍到）、`content_gaps: N`（N 处内容丢失）、`detection_confident: false`（固定头尾识别不可靠）。传了 `wait_for_selector` 时返回 `selector_found` 与 `selector_waited_ms`；`selector_found: false` 表示超时未等到，图里可能是加载中或空状态，message 带 ⚠。automator 失联自动恢复后附 `auto_recovered`。
 
 ---
 

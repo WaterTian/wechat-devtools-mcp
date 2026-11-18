@@ -1,4 +1,4 @@
-# WeChat DevTools MCP Server (v0.9.21)
+# WeChat DevTools MCP Server (v0.9.22)
 
 [![PyPI version](https://img.shields.io/pypi/v/wechat-devtools-mcp.svg)](https://pypi.org/project/wechat-devtools-mcp/)
 [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue.svg)](https://modelcontextprotocol.io/docs/concepts/mcp-registry)
@@ -133,7 +133,7 @@ Call `wechat_ide(action='status')` once from your editor and make sure these mat
 | `wechat_build` | Build & publish | `compile` `preview` `upload` `build_npm` `cache_clean` |
 | `wechat_automator` | Automation & runtime queries | `start` `tap` `input` `element_info` `set_data` `call_method` `call_wx` `mock_wx` `evaluate` `page_stack` `page_data` `system_info` `storage` |
 | `wechat_inspector` | Runtime log capture | `console` `cdp` |
-| `wechat_screenshot` | Stitched long-page screenshots | `full_page` `page_path` `scroll_top` |
+| `wechat_screenshot` | Stitched long-page screenshots | `full_page` `page_path` `scroll_top` `wait_for_selector` |
 | `wechat_navigate` | Navigate and capture CDP logs | `page_path` |
 | `wechat_file` | Project file reading | `project_info` `list_pages` `read_page` `read_file` |
 
@@ -171,6 +171,7 @@ When an action hits an automator connection failure it runs `start` once and ret
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 0.9.22 | 2026-11-18 | `wechat_screenshot` gains `wait_for_selector`: wait for an element before capturing; on timeout the screenshot is still taken and `selector_found: false` is reported; `wechat_build` tool description now spells out each action |
 | 0.9.21 | 2026-11-09 | `open` / `inspector` return a dedicated `CDP_PORT_OCCUPIED` when another browser holds the CDP port; upgrade note for the built-in MCP's mandatory token; real-machine regression 19/19 on Stable 2.02.2609250 |
 | 0.9.20 | 2026-10-26 | `call_wx` routes synchronous wx APIs through `evaluate` instead of timing out after 10s; README / MCP_DOC / SKILL audited field by field; Node.js ≥ 18 stated explicitly |
 | 0.9.19 | 2026-10-26 | `start` waits for automator readiness with a deadline, fixing false "handshake incomplete" failures; CDP port occupant check and session stickiness (`WECHAT_CDP_PORT`); automatic automator recovery; `status` reports project window and skill version |
