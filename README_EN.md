@@ -5,6 +5,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![中文文档](https://img.shields.io/badge/lang-中文文档-red.svg)](./README.md)
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/WaterTian/wechat-devtools-mcp/main/assets/banner.svg" alt="wechat-devtools-mcp: compile, preview, debug and auto-test WeChat Mini Programs from your AI editor" width="900" />
+</p>
+
 > Wraps WeChat DevTools as an [MCP](https://modelcontextprotocol.io/) server so the AI in your editor can **compile, preview, debug and auto-test** Mini Programs end to end. Windows / macOS, listed in the official MCP Registry.
 
 <!-- mcp-name: io.github.WaterTian/wechat-devtools-mcp -->

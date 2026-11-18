@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 520" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace">
+  <title>wechat-devtools-mcp — MCP Server + Skill for WeChat DevTools</title>
+  <desc>Animated banner, pure SMIL (no JS / CSS). The seven tools light up in turn, 2s each, with a matching description.</desc>
+
+  <defs>
+    <radialGradient id="glowA" gradientUnits="userSpaceOnUse" cx="1280" cy="0" r="720">
+      <stop offset="0" stop-color="#07c160" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#07c160" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" gradientUnits="userSpaceOnUse" cx="0" cy="520" r="560">
+      <stop offset="0" stop-color="#07c160" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#07c160" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 模式 3：clip-path 揭示，安装命令逐步「敲」出来 -->
+    <clipPath id="typed">
+      <rect x="96" y="452" width="0" height="36">
+        <animate attributeName="width" values="0;0;560;560;0" keyTimes="0;.02;.14;.985;1" dur="14s" repeatCount="indefinite"/>
+      </rect>
+    </clipPath>
+  </defs>
+
+  <rect width="1280" height="520" rx="24" fill="#0a1110"/>
+  <rect width="1280" height="520" rx="24" fill="url(#glowA)"/>
+  <rect width="1280" height="520" rx="24" fill="url(#glowB)"/>
+
+  <!-- 模式 8：每个工具时段开头心跳一次 -->
+  <circle cx="82" cy="70" r="6" fill="#07c160"/>
+  <circle cx="82" cy="70" r="6" fill="none" stroke="#3fe08d" stroke-width="2" opacity="0">
+    <animate attributeName="r" values="6;16;16" keyTimes="0;.3;1" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values=".9;0;0" keyTimes="0;.3;1" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <text x="102" y="78" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="22" font-weight="600" letter-spacing=".9" fill="#3fe08d">MCP SERVER + SKILL · 微信开发者工具</text>
+
+  <!-- 模式 6（颜色变换）+ 模式 7（离散闪烁光标） -->
+  <text x="76" y="170" font-size="80" font-weight="700" letter-spacing="-2.8" fill="#e9f3ee">wechat-devtools<tspan fill="#07c160">-mcp<animate attributeName="fill" values="#07c160;#6af2ad;#07c160" dur="4s" repeatCount="indefinite"/></tspan><tspan dx="18" fill="#e9f3ee">▎<animate attributeName="fill-opacity" calcMode="discrete" values="1;0" keyTimes="0;.5" dur="1.06s" repeatCount="indefinite"/></tspan></text>
+
+  <text x="76" y="234" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="36" font-weight="600" fill="#e9f3ee">让编辑器里的 AI 直接编译、预览、调试、自动化测试小程序</text>
+  <text x="76" y="272" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="23" fill="#9db3a8">Compile, preview, debug and auto-test WeChat Mini Programs from your AI editor</text>
+
+  <!-- 模式 1 + 2：7 个工具按 2s 错峰依次点亮 -->
+  <g>
+    <rect x="76" y="312" width="154" height="42" rx="10" fill="#07c160" fill-opacity=".06" stroke="#3fe08d" stroke-opacity=".3">
+      <animate attributeName="fill-opacity" values=".06;.26;.26;.06;.06" keyTimes="0;.015;.128;.143;1" begin="0s" dur="14s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values=".3;1;1;.3;.3" keyTimes="0;.015;.128;.143;1" begin="0s" dur="14s" repeatCount="indefinite"/>
+    </rect>
+    <text x="153" y="340" font-size="20" text-anchor="middle" fill="#cfe9dc">wechat_ide<animate attributeName="fill" values="#cfe9dc;#ffffff;#ffffff;#cfe9dc;#cfe9dc" keyTimes="0;.015;.128;.143;1" begin="0s" dur="14s" repeatCount="indefinite"/></text>
+  </g>
+  <g>
+    <rect x="242" y="312" width="178" height="42" rx="10" fill="#07c160" fill-opacity=".06" stroke="#3fe08d" stroke-opacity=".3">
+      <animate attributeName="fill-opacity" values=".06;.26;.26;.06;.06" keyTimes="0;.015;.128;.143;1" begin="2s" dur="14s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values=".3;1;1;.3;.3" keyTimes="0;.015;.128;.143;1" begin="2s" dur="14s" repeatCount="indefinite"/>
+    </rect>
+    <text x="331" y="340" font-size="20" text-anchor="middle" fill="#cfe9dc">wechat_build<animate attributeName="fill" values="#cfe9dc;#ffffff;#ffffff;#cfe9dc;#cfe9dc" keyTimes="0;.015;.128;.143;1" begin="2s" dur="14s" repeatCount="indefinite"/></text>
+  </g>
+  <g>
+    <rect x="432" y="312" width="227" height="42" rx="10" fill="#07c160" fill-opacity=".06" stroke="#3fe08d" stroke-opacity=".3">
+      <animate attributeName="fill-opacity" values=".06;.26;.26;.06;.06" keyTimes="0;.015;.128;.143;1" begin="4s" dur="14s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values=".3;1;1;.3;.3" keyTimes="0;.015;.128;.143;1" begin="4s" dur="14s" repeatCount="indefinite"/>
+    </rect>
+    <text x="545.5" y="340" font-size="20" text-anchor="middle" fill="#cfe9dc">wechat_automator<animate attributeName="fill" values="#cfe9dc;#ffffff;#ffffff;#cfe9dc;#cfe9dc" keyTimes="0;.015;.128;.143;1" begin="4s" dur="14s" repeatCount="indefinite"/></text>
+  </g>
+  <g>
+    <rect x="671" y="312" width="227" height="42" rx="10" fill="#07c160" fill-opacity=".06" stroke="#3fe08d" stroke-opacity=".3">
+      <animate attributeName="fill-opacity" values=".06;.26;.26;.06;.06" keyTimes="0;.015;.128;.143;1" begin="6s" dur="14s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values=".3;1;1;.3;.3" keyTimes="0;.015;.128;.143;1" begin="6s" dur="14s" repeatCount="indefinite"/>
+    </rect>
+    <text x="784.5" y="340" font-size="20" text-anchor="middle" fill="#cfe9dc">wechat_inspector<animate attributeName="fill" values="#cfe9dc;#ffffff;#ffffff;#cfe9dc;#cfe9dc" keyTimes="0;.015;.128;.143;1" begin="6s" dur="14s" repeatCount="indefinite"/></text>
+  </g>
+  <g>
+    <rect x="76" y="366" width="239" height="42" rx="10" fill="#07c160" fill-opacity=".06" stroke="#3fe08d" stroke-opacity=".3">
+      <animate attributeName="fill-opacity" values=".06;.26;.26;.06;.06" keyTimes="0;.015;.128;.143;1" begin="8s" dur="14s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values=".3;1;1;.3;.3" keyTimes="0;.015;.128;.143;1" begin="8s" dur="14s" repeatCount="indefinite"/>
+    </rect>
+    <text x="195.5" y="394" font-size="20" text-anchor="middle" fill="#cfe9dc">wechat_screenshot<animate attributeName="fill" values="#cfe9dc;#ffffff;#ffffff;#cfe9dc;#cfe9dc" keyTimes="0;.015;.128;.143;1" begin="8s" dur="14s" repeatCount="indefinite"/></text>
+  </g>
+  <g>
+    <rect x="327" y="366" width="215" height="42" rx="10" fill="#07c160" fill-opacity=".06" stroke="#3fe08d" stroke-opacity=".3">
+      <animate attributeName="fill-opacity" values=".06;.26;.26;.06;.06" keyTimes="0;.015;.128;.143;1" begin="10s" dur="14s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values=".3;1;1;.3;.3" keyTimes="0;.015;.128;.143;1" begin="10s" dur="14s" repeatCount="indefinite"/>
+    </rect>
+    <text x="434.5" y="394" font-size="20" text-anchor="middle" fill="#cfe9dc">wechat_navigate<animate attributeName="fill" values="#cfe9dc;#ffffff;#ffffff;#cfe9dc;#cfe9dc" keyTimes="0;.015;.128;.143;1" begin="10s" dur="14s" repeatCount="indefinite"/></text>
+  </g>
+  <g>
+    <rect x="554" y="366" width="166" height="42" rx="10" fill="#07c160" fill-opacity=".06" stroke="#3fe08d" stroke-opacity=".3">
+      <animate attributeName="fill-opacity" values=".06;.26;.26;.06;.06" keyTimes="0;.015;.128;.143;1" begin="12s" dur="14s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values=".3;1;1;.3;.3" keyTimes="0;.015;.128;.143;1" begin="12s" dur="14s" repeatCount="indefinite"/>
+    </rect>
+    <text x="637" y="394" font-size="20" text-anchor="middle" fill="#cfe9dc">wechat_file<animate attributeName="fill" values="#cfe9dc;#ffffff;#ffffff;#cfe9dc;#cfe9dc" keyTimes="0;.015;.128;.143;1" begin="12s" dur="14s" repeatCount="indefinite"/></text>
+  </g>
+
+  <!-- 模式 4：当前工具的说明，通过 opacity 叠加切换 -->
+  <rect x="922" y="312" width="282" height="96" rx="12" fill="#ffffff" fill-opacity=".04" stroke="#ffffff" stroke-opacity=".12"/>
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.015;.128;.143;1" begin="0s" dur="14s" repeatCount="indefinite"/>
+    <text x="946" y="352" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="22" font-weight="600" fill="#e9f3ee">IDE 生命周期与环境诊断</text>
+    <text x="946" y="384" font-size="15" fill="#3fe08d">open · login · status</text>
+  </g>
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.015;.128;.143;1" begin="2s" dur="14s" repeatCount="indefinite"/>
+    <text x="946" y="352" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="22" font-weight="600" fill="#e9f3ee">构建与发布</text>
+    <text x="946" y="384" font-size="15" fill="#3fe08d">compile · preview · upload</text>
+  </g>
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.015;.128;.143;1" begin="4s" dur="14s" repeatCount="indefinite"/>
+    <text x="946" y="352" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="22" font-weight="600" fill="#e9f3ee">自动化交互与运行时查询</text>
+    <text x="946" y="384" font-size="15" fill="#3fe08d">tap · input · evaluate</text>
+  </g>
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.015;.128;.143;1" begin="6s" dur="14s" repeatCount="indefinite"/>
+    <text x="946" y="352" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="22" font-weight="600" fill="#e9f3ee">运行时日志采集</text>
+    <text x="946" y="384" font-size="15" fill="#3fe08d">console · cdp</text>
+  </g>
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.015;.128;.143;1" begin="8s" dur="14s" repeatCount="indefinite"/>
+    <text x="946" y="352" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="22" font-weight="600" fill="#e9f3ee">长图拼接截图</text>
+    <text x="946" y="384" font-size="15" fill="#3fe08d">full_page · scroll_top</text>
+  </g>
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.015;.128;.143;1" begin="10s" dur="14s" repeatCount="indefinite"/>
+    <text x="946" y="352" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="22" font-weight="600" fill="#e9f3ee">跳转并采集 CDP 日志</text>
+    <text x="946" y="384" font-size="15" fill="#3fe08d">page_path</text>
+  </g>
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.015;.128;.143;1" begin="12s" dur="14s" repeatCount="indefinite"/>
+    <text x="946" y="352" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="22" font-weight="600" fill="#e9f3ee">项目文件读取</text>
+    <text x="946" y="384" font-size="15" fill="#3fe08d">list_pages · read_file</text>
+  </g>
+
+  <line x1="76" y1="436" x2="1204" y2="436" stroke="#ffffff" stroke-opacity=".12"/>
+  <text x="76" y="477" font-size="21" fill="#3fe08d">$</text>
+  <text x="102" y="477" font-size="21" fill="#e9f3ee" clip-path="url(#typed)">uv tool install wechat-devtools-mcp</text>
+  <text x="1204" y="477" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="21" text-anchor="end" fill="#9db3a8">Windows / macOS · Official MCP Registry</text>
+</svg>

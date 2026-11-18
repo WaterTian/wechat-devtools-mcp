@@ -5,6 +5,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](./README_EN.md)
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/WaterTian/wechat-devtools-mcp/main/assets/banner.svg" alt="wechat-devtools-mcp：让编辑器里的 AI 直接编译、预览、调试、自动化测试小程序" width="900" />
+</p>
+
 > 把微信开发者工具封装为 [MCP](https://modelcontextprotocol.io/) 服务，让编辑器里的 AI 直接完成小程序的**编译、预览、调试、自动化测试**闭环。Windows / macOS，已上架官方 MCP Registry。
 
 <!-- mcp-name: io.github.WaterTian/wechat-devtools-mcp -->
